@@ -8,6 +8,7 @@ export const loading = writable(true);
 
 // Helper to update all auth stores at once
 export function updateAuthState(newSession: Session | null, newUser: User | null = null) {
+  console.log('Auth store updateAuthState called with:', newSession ? 'session exists' : 'null session');
   session.set(newSession);
   user.set(newUser || newSession?.user || null);
   loading.set(false);

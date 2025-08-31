@@ -2,7 +2,7 @@
   import { createSupabaseLoadClient, getCurrentUser } from "$lib/supabase.js";
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
-  import { session as authSession } from "$lib/stores/auth.js";
+  import { session as authSession, updateAuthState } from "$lib/stores/auth.js";
 
   let { data } = $props();
   let { session } = $state(data);
@@ -12,27 +12,67 @@
   let loading = $state(true);
 
   onMount(async () => {
-    console.log("Dashboard mounting, session:", session ? "exists" : "null");
+    console.log(
+      "Dashboard mounting, session from props:",
+      session ? "exists" : "null"
+    );
     console.log("Auth store session:", $authSession ? "exists" : "null");
 
-    if (!session && !$authSession) {
-      console.log("No session found, redirecting to login");
+    if (!supabase) {
+      console.error("Supabase client not available");
       goto("/auth/log-in?returnUrl=/dashboard");
       return;
     }
 
-    // Use session from store if available, otherwise from props
-    const currentSession = $authSession || session;
-    if (currentSession) {
-      user = await getCurrentUser(supabase);
+    try {
+      // Use session from props first, then auth store
+      let currentSession = session || $authSession;
+
+      if (currentSession) {
+        console.log("Found existing session, getting user");
+        user = await getCurrentUser(supabase);
+        loading = false;
+        return;
+      }
+
+      // If no session, check with Supabase directly
+      console.log("No session found, checking Supabase...");
+      const { data: userData } = await supabase.auth.getUser();
+
+      if (userData.user) {
+        console.log("Found user in Supabase, getting session");
+        const { data: sessionData } = await supabase.auth.getSession();
+        currentSession = sessionData.session;
+        session = currentSession;
+        user = userData.user;
+
+        // Update the global auth store
+        if (currentSession) {
+          updateAuthState(currentSession);
+        }
+        loading = false;
+      } else {
+        console.log("No user found, redirecting to login");
+        goto("/auth/log-in?returnUrl=/dashboard");
+        return;
+      }
+    } catch (error) {
+      console.error("Error in dashboard onMount:", error);
+      goto("/auth/log-in?returnUrl=/dashboard");
+      return;
     }
-    loading = false;
   });
 
+  // Simple effect to handle data changes
   $effect(() => {
-    session = data.session;
-    if (session) {
-      getCurrentUser(supabase).then((u) => (user = u));
+    // Only update if we get a new session from server and don't have one locally
+    if (data.session && !session) {
+      console.log("Data session changed, updating");
+      session = data.session;
+      updateAuthState(data.session);
+      if (!user && supabase) {
+        getCurrentUser(supabase).then((u) => (user = u));
+      }
     }
   });
 </script>
@@ -47,7 +87,7 @@
       <div class="spinner"></div>
       <p>Loading your dashboard...</p>
     </div>
-  {:else if !session}
+  {:else if !session && !user}
     <div class="error">
       <h2>Authentication Required</h2>
       <p>Please <a href="/auth/log-in">sign in</a> to access your dashboard.</p>

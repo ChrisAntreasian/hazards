@@ -35,6 +35,10 @@
           // Update both local and global auth state
           session = _session;
           updateAuthState(_session);
+          console.log(
+            "Auth store updated to:",
+            _session ? "logged in" : "logged out"
+          );
           // Also invalidate to refresh server data
           invalidate("supabase:auth");
         }
@@ -44,15 +48,16 @@
     }
   });
 
+  // Only update from server data if we don't have a session yet
   $effect(() => {
-    updateAuthState(data.session);
-    session = data.session;
-    console.log("Session updated:", session ? "logged in" : "logged out");
-  });
-
-  $effect(() => {
-    session = data.session;
-    console.log("Session updated:", session ? "logged in" : "logged out");
+    if (!session && data.session) {
+      updateAuthState(data.session);
+      session = data.session;
+      console.log(
+        "Session updated from server:",
+        session ? "logged in" : "logged out"
+      );
+    }
   });
 
   async function handleSignOut() {

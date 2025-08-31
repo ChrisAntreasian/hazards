@@ -65,36 +65,41 @@
           success = "Login successful! Redirecting...";
 
           // Trigger a manual session refresh to update the layout
-          const { data: sessionData } = await supabase.auth.getSession();
-          console.log(
-            "Session after login:",
-            sessionData.session ? "exists" : "null"
-          );
+          const { data: userData } = await supabase.auth.getUser();
+          console.log("User after login:", userData.user ? "exists" : "null");
 
           // Force SvelteKit to refresh auth-dependent data
           await invalidate("supabase:auth");
 
           // Wait a bit longer to ensure auth state is propagated
           setTimeout(async () => {
-            // Double-check session before redirect
-            const { data: finalSession } = await supabase.auth.getSession();
+            // Double-check user before redirect
+            const { data: finalUser } = await supabase.auth.getUser();
             console.log(
-              "Final session check:",
-              finalSession.session ? "exists" : "null"
+              "Final user check:",
+              finalUser.user ? "exists" : "null"
             );
+
+            if (!finalUser.user) {
+              console.log("Warning: User lost before redirect!");
+              error = "Session lost. Please try logging in again.";
+              success = "";
+              return;
+            }
 
             // Redirect to dashboard or return url
             const returnUrl =
               $page.url.searchParams.get("returnUrl") || "/dashboard";
-            console.log("Redirecting to:", returnUrl);
+            console.log("Before Redirecting to:", returnUrl);
 
             try {
+              console.log("redirecting to", returnUrl);
               await goto(returnUrl);
             } catch (e) {
               console.log("goto failed, using window.location:", e);
               window.location.href = returnUrl;
             }
-          }, 2000); // Increased delay to 2 seconds
+          }, 3000); // Increased delay to 3 seconds for better auth propagation
           return; // Don't set loading to false in finally block
         }
       }
