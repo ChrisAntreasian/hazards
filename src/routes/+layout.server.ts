@@ -12,15 +12,14 @@ export const load: LayoutServerLoad = async (event) => {
   }
 
   try {
-    // Get session data with better error handling
+    // Get session and user data
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     
     if (sessionError) {
-      console.error('Session fetch error:', sessionError);
       return { session: null, user: null };
     }
 
-    // If we have a session, get the user data as well
+    // Always get fresh user data if we have a session
     let user = null;
     if (session) {
       const { data: { user: userData }, error: userError } = await supabase.auth.getUser();
@@ -29,15 +28,8 @@ export const load: LayoutServerLoad = async (event) => {
       }
     }
 
-    return {
-      session,
-      user,
-    };
+    return { session, user };
   } catch (error) {
-    console.error('Unexpected error in layout load:', error);
-    return {
-      session: null,
-      user: null,
-    };
+    return { session: null, user: null };
   }
 };

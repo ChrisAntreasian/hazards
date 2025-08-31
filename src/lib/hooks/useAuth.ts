@@ -5,7 +5,7 @@ import { authStore, user, session, loading, initialized } from '$lib/stores/auth
 import type { UseAuthReturn, RouteGuardOptions } from '$lib/types/auth.js';
 
 /**
- * Auth hook for managing authentication state in components
+ * Auth hook for managing authentication state
  */
 export const useAuth = (): UseAuthReturn => {
   const supabase = createSupabaseLoadClient();
@@ -21,7 +21,6 @@ export const useAuth = (): UseAuthReturn => {
       goto('/');
     } else {
       authStore.setLoading(false);
-      console.error('Sign out error:', error);
     }
   };
 
@@ -30,16 +29,19 @@ export const useAuth = (): UseAuthReturn => {
     
     authStore.setLoading(true);
     try {
-      const { data: { user }, error } = await supabase.auth.getUser();
+      // Get fresh session and user data
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
       
-      if (error || !user) {
+      if (sessionError || userError || !session || !user) {
         authStore.clearAuthState();
       } else {
-        const { data: { session } } = await supabase.auth.getSession();
-        authStore.initialize(user, session);
+        authStore.dispatch({ 
+          type: 'REFRESH_SESSION', 
+          payload: { user, session } 
+        });
       }
     } catch (error) {
-      console.error('Auth refresh error:', error);
       authStore.clearAuthState();
     }
   };
@@ -65,17 +67,15 @@ export const useRouteGuard = (options: RouteGuardOptions = {}) => {
   } = options;
 
   const checkAccess = (currentUser: any, currentSession: any) => {
-    // Check if authentication is required
     if (requireAuth && !currentSession) {
       goto(`${redirectTo}?returnUrl=${encodeURIComponent(window.location.pathname)}`);
       return false;
     }
 
-    // Check role-based access
     if (allowedRoles.length > 0 && currentUser) {
       const userRole = currentUser.user_metadata?.role || 'new_user';
       if (!allowedRoles.includes(userRole)) {
-        goto('/dashboard'); // Redirect to safe page
+        goto('/dashboard');
         return false;
       }
     }

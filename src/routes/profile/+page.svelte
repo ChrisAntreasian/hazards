@@ -3,7 +3,8 @@
   import { goto } from "$app/navigation";
   import { createSupabaseLoadClient } from "$lib/supabase.js";
   import { useAuth, useRouteGuard } from "$lib/hooks/useAuth.js";
-  import { user, session, loading, initialized } from "$lib/stores/auth.js";
+  import { user, session, loading, initialized, authStore } from "$lib/stores/auth.js";
+  import { refreshUserData } from "$lib/utils/sessionUtils.js";
 
   let { data } = $props();
   let currentUser = $state<any>(null);
@@ -17,15 +18,29 @@
 
   const supabase = createSupabaseLoadClient();
 
-  // Initialize auth from server data if available
+  // Initialize auth and load user data
   $effect(() => {
-    if (data.session && data.user && !$initialized) {
+    if (data.session && data.user) {
       const auth = useAuth();
-      auth.refreshAuth();
+      if (!$initialized) {
+        auth.refreshAuth();
+      }
+      currentUser = data.user;
+      displayName = data.user.user_metadata?.display_name || "";
+      email = data.user.email || "";
+      pageLoading = false;
     }
   });
 
-  // Route protection
+  // Reactive user data sync - update form fields when global user state changes
+  $effect(() => {
+    if ($user && $session) {
+      currentUser = $user;
+      displayName = $user.user_metadata?.display_name || "";
+      email = $user.email || "";
+    }
+  });
+
   const { checkAccess } = useRouteGuard({ requireAuth: true });
 
   onMount(async () => {
@@ -76,11 +91,27 @@
         message = `Error: ${error.message}`;
       } else {
         message = "Profile updated successfully!";
-        // Refresh user data
-        const {
-          data: { user: userData },
-        } = await supabase.auth.getUser();
-        currentUser = userData;
+        
+        // Refresh user data across the entire app
+        const refreshed = await refreshUserData();
+        
+        if (refreshed) {
+          // Update local currentUser to reflect changes immediately
+          currentUser = $user;
+        } else {
+          // Fallback: manually refresh if utility fails
+          const {
+            data: { user: userData },
+          } = await supabase.auth.getUser();
+          
+          if (userData) {
+            currentUser = userData;
+            authStore.dispatch({
+              type: 'REFRESH_SESSION',
+              payload: { user: userData, session: $session }
+            });
+          }
+        }
       }
     } catch (e: any) {
       message = `Error: ${e.message}`;

@@ -45,7 +45,6 @@
       }
     } catch (e) {
       error = "An unexpected error occurred";
-      console.error("Forgot password error:", e);
     } finally {
       loading = false;
     }

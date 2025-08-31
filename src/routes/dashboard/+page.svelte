@@ -20,7 +20,7 @@
   // Wait for auth initialization and check access
   $effect(() => {
     const checkAuth = async () => {
-      // If we have server data, use it immediately
+      // Use server data immediately if available
       if (data.session && data.user) {
         currentUser = data.user;
         authCheckComplete = true;
@@ -28,26 +28,25 @@
         return;
       }
 
-      // Wait for auth to be initialized from client-side
+      // Wait for client-side auth initialization
       if (!$initialized) {
-        // Wait a bit for auth initialization
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
 
-      // If still not initialized after waiting, try to refresh auth
+      // Try to refresh auth if still not initialized
       if (!$initialized) {
         const auth = useAuth();
         await auth.refreshAuth();
       }
 
-      // Final check - if no auth after all attempts, redirect to login
+      // Redirect if no authentication after all attempts
       if ($initialized && !$session) {
         const returnUrl = encodeURIComponent(window.location.pathname);
         goto(`/auth/log-in?returnUrl=${returnUrl}`);
         return;
       }
 
-      // Set user data if we have a session
+      // Set user data if session exists
       if ($session && $user) {
         currentUser = $user;
       }
@@ -57,6 +56,13 @@
     };
 
     checkAuth();
+  });
+
+  // Reactive user data sync - update currentUser when global user state changes
+  $effect(() => {
+    if ($user && $session) {
+      currentUser = $user;
+    }
   });
 </script>
 

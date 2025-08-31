@@ -58,35 +58,26 @@
         if (user && !user.email_confirmed_at) {
           error =
             "Please confirm your email address before signing in. Check your email for a confirmation link.";
-          // Sign out the unconfirmed user
           await supabase.auth.signOut();
         } else {
-          // Show success message
           success = "Login successful! Redirecting...";
-
-          // Force SvelteKit to refresh auth-dependent data
           await invalidate("supabase:auth");
 
-          // Wait a moment for auth state to propagate
           setTimeout(async () => {
-            // Redirect to dashboard or return url
             const returnUrl =
               $page.url.searchParams.get("returnUrl") || "/dashboard";
-            console.log("Redirecting to:", returnUrl);
 
             try {
               await goto(returnUrl, { replaceState: true });
             } catch (e) {
-              console.log("goto failed, using window.location:", e);
               window.location.href = returnUrl;
             }
-          }, 1000); // Reduced delay to 1 second for better UX
-          return; // Don't set loading to false in finally block
+          }, 1000);
+          return;
         }
       }
     } catch (e) {
       error = "An unexpected error occurred";
-      console.error("Login error:", e);
     } finally {
       if (!success) {
         loading = false;
@@ -144,7 +135,6 @@
       }
     } catch (e) {
       error = "An unexpected error occurred";
-      console.error("Google login error:", e);
     } finally {
       loading = false;
     }

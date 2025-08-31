@@ -14,16 +14,10 @@ export const actions: Actions = {
       const { error } = await supabase.auth.signOut();
       
       if (error) {
-        console.error('Sign out error:', error);
         return fail(500, { error: 'Failed to sign out' });
       }
-
-      // Clear cookies
-      event.cookies.delete('sb-access-token', { path: '/' });
-      event.cookies.delete('sb-refresh-token', { path: '/' });
       
     } catch (error) {
-      console.error('Unexpected sign out error:', error);
       return fail(500, { error: 'Unexpected error during sign out' });
     }
 
@@ -46,7 +40,6 @@ export const actions: Actions = {
 
       return { session };
     } catch (error) {
-      console.error('Session refresh error:', error);
       return fail(500, { error: 'Unexpected error during session refresh' });
     }
   }

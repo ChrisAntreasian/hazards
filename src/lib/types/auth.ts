@@ -13,7 +13,8 @@ export type AuthAction =
   | { type: 'SIGN_IN'; payload: { user: User; session: Session } }
   | { type: 'SIGN_OUT' }
   | { type: 'LOADING'; payload: boolean }
-  | { type: 'INITIALIZE'; payload: { user: User | null; session: Session | null } };
+  | { type: 'INITIALIZE'; payload: { user: User | null; session: Session | null } }
+  | { type: 'REFRESH_SESSION'; payload: { user: User | null; session: Session | null } };
 
 // Auth hook return type
 export interface UseAuthReturn {

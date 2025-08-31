@@ -97,7 +97,6 @@
       }
     } catch (e) {
       error = "An unexpected error occurred";
-      console.error("Password change error:", e);
     } finally {
       loading = false;
     }

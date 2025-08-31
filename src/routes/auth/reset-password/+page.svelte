@@ -72,7 +72,6 @@
       }
     } catch (e) {
       error = "An unexpected error occurred";
-      console.error("Password reset error:", e);
     } finally {
       loading = false;
     }
