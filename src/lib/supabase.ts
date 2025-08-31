@@ -16,7 +16,7 @@ export function createSupabaseLoadClient() {
   return createBrowserClient<Database>(supabaseUrl, supabaseAnonKey);
 }
 
-export function createSupabaseServerClient(fetch: typeof globalThis.fetch) {
+export function createSupabaseServerClient(event: any) {
   // Only create client if we have real credentials
   if (supabaseUrl === 'your_supabase_project_url' || supabaseAnonKey === 'your_supabase_anon_key') {
     return null;
@@ -25,18 +25,17 @@ export function createSupabaseServerClient(fetch: typeof globalThis.fetch) {
   return createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
     cookies: {
       get: (key) => {
-        // This will be implemented when we set up the server hooks
-        return '';
+        return event.cookies.get(key);
       },
       set: (key, value, options) => {
-        // This will be implemented when we set up the server hooks
+        event.cookies.set(key, value, options);
       },
       remove: (key, options) => {
-        // This will be implemented when we set up the server hooks
+        event.cookies.delete(key, options);
       },
     },
     global: {
-      fetch,
+      fetch: event.fetch,
     },
   });
 }
@@ -50,8 +49,26 @@ export const getCurrentUser = async (supabase: ReturnType<typeof createSupabaseL
 
 export const signOut = async (supabase: ReturnType<typeof createSupabaseLoadClient>) => {
   if (!supabase) return { error: new Error('Supabase not configured') };
-  const { error } = await supabase.auth.signOut();
-  return { error };
+  
+  try {
+    // Sign out from Supabase
+    const { error } = await supabase.auth.signOut();
+    
+    // Also clear any local storage items that might persist
+    if (typeof window !== 'undefined') {
+      // Clear supabase auth tokens from localStorage
+      const keys = Object.keys(localStorage);
+      keys.forEach(key => {
+        if (key.startsWith('sb-') || key.startsWith('supabase')) {
+          localStorage.removeItem(key);
+        }
+      });
+    }
+    
+    return { error };
+  } catch (e: any) {
+    return { error: e };
+  }
 };
 
 // Check if Supabase is properly configured

@@ -5,11 +5,13 @@
   } from "$lib/supabase.js";
   import { goto } from "$app/navigation";
   import { page } from "$app/stores";
+  import { invalidate } from "$app/navigation";
 
   let email = "";
   let password = "";
   let loading = false;
   let error = "";
+  let success = "";
   let resendingConfirmation = false;
   let resendMessage = "";
 
@@ -30,6 +32,7 @@
 
     loading = true;
     error = "";
+    success = "";
 
     try {
       const { data, error: authError } = await supabase.auth.signInWithPassword(
@@ -40,59 +43,96 @@
       );
 
       if (authError) {
-        if (authError.message.includes('Email not confirmed')) {
-          error = 'Please check your email and click the confirmation link before signing in. Check your spam folder if you don\'t see it.';
+        if (authError.message.includes("Email not confirmed")) {
+          error =
+            "Please check your email and click the confirmation link before signing in. Check your spam folder if you don't see it.";
         } else {
           error = authError.message;
         }
       } else {
         // Check if email is confirmed
-        const { data: { user } } = await supabase.auth.getUser();
-        
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
         if (user && !user.email_confirmed_at) {
-          error = 'Please confirm your email address before signing in. Check your email for a confirmation link.';
+          error =
+            "Please confirm your email address before signing in. Check your email for a confirmation link.";
           // Sign out the unconfirmed user
           await supabase.auth.signOut();
         } else {
-          // Redirect to dashboard or return url
-          const returnUrl =
-            $page.url.searchParams.get("returnUrl") || "/dashboard";
-          goto(returnUrl);
+          // Show success message
+          success = "Login successful! Redirecting...";
+
+          // Trigger a manual session refresh to update the layout
+          const { data: sessionData } = await supabase.auth.getSession();
+          console.log(
+            "Session after login:",
+            sessionData.session ? "exists" : "null"
+          );
+
+          // Force SvelteKit to refresh auth-dependent data
+          await invalidate("supabase:auth");
+
+          // Wait a bit longer to ensure auth state is propagated
+          setTimeout(async () => {
+            // Double-check session before redirect
+            const { data: finalSession } = await supabase.auth.getSession();
+            console.log(
+              "Final session check:",
+              finalSession.session ? "exists" : "null"
+            );
+
+            // Redirect to dashboard or return url
+            const returnUrl =
+              $page.url.searchParams.get("returnUrl") || "/dashboard";
+            console.log("Redirecting to:", returnUrl);
+
+            try {
+              await goto(returnUrl);
+            } catch (e) {
+              console.log("goto failed, using window.location:", e);
+              window.location.href = returnUrl;
+            }
+          }, 2000); // Increased delay to 2 seconds
+          return; // Don't set loading to false in finally block
         }
       }
     } catch (e) {
       error = "An unexpected error occurred";
       console.error("Login error:", e);
     } finally {
-      loading = false;
+      if (!success) {
+        loading = false;
+      }
     }
   }
 
   async function resendConfirmation() {
     if (!supabase || !email) {
-      resendMessage = 'Please enter your email address first';
+      resendMessage = "Please enter your email address first";
       return;
     }
 
     resendingConfirmation = true;
-    resendMessage = '';
+    resendMessage = "";
 
     try {
       const { error } = await supabase.auth.resend({
-        type: 'signup',
+        type: "signup",
         email: email,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`
-        }
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
       });
 
       if (error) {
         resendMessage = `Error: ${error.message}`;
       } else {
-        resendMessage = 'Confirmation email sent! Check your inbox.';
+        resendMessage = "Confirmation email sent! Check your inbox.";
       }
     } catch (e: any) {
-      resendMessage = 'Failed to resend confirmation email';
+      resendMessage = "Failed to resend confirmation email";
     } finally {
       resendingConfirmation = false;
     }
@@ -103,6 +143,7 @@
 
     loading = true;
     error = "";
+    success = "";
 
     try {
       const { error: authError } = await supabase.auth.signInWithOAuth({
@@ -125,14 +166,14 @@
 </script>
 
 <svelte:head>
-  <title>Login Test 2 - Hazards App</title>
-  <meta name="cache-bust" content="2025-08-30-test2" />
+  <title>Login - Hazards App</title>
+  <meta name="cache-bust" content="2025-08-31-v1" />
 </svelte:head>
 
 <div class="auth-container">
   <div class="auth-card">
-    <h1>🧪 Login Test Page 2</h1>
-    <p class="subtitle">Testing form display on duplicated route</p>
+    <h1>Welcome Back</h1>
+    <p class="subtitle">Sign in to your Hazards account</p>
 
     {#if !configured}
       <div class="warning">
@@ -146,27 +187,42 @@
         <p>See <code>SUPABASE_SETUP.md</code> for detailed instructions.</p>
       </div>
     {:else}
-      <form onsubmit={(e) => { e.preventDefault(); handleLogin(); }}>
+      <form
+        onsubmit={(e) => {
+          e.preventDefault();
+          handleLogin();
+        }}
+      >
+        {#if success}
+          <div class="success">{success}</div>
+        {/if}
+
         {#if error}
           <div class="error">{error}</div>
-          
-          {#if error.includes('confirm') || error.includes('Email not confirmed')}
+
+          {#if error.includes("confirm") || error.includes("Email not confirmed")}
             <div class="resend-section">
               <p class="resend-text">Didn't receive the confirmation email?</p>
-              
+
               {#if resendMessage}
-                <div class="message {resendMessage.startsWith('Error') ? 'error' : 'success'}">
+                <div
+                  class="message {resendMessage.startsWith('Error')
+                    ? 'error'
+                    : 'success'}"
+                >
                   {resendMessage}
                 </div>
               {/if}
-              
-              <button 
-                type="button" 
-                class="btn btn-resend" 
+
+              <button
+                type="button"
+                class="btn btn-resend"
                 onclick={resendConfirmation}
                 disabled={resendingConfirmation || !email}
               >
-                {resendingConfirmation ? 'Sending...' : 'Resend Confirmation Email'}
+                {resendingConfirmation
+                  ? "Sending..."
+                  : "Resend Confirmation Email"}
               </button>
             </div>
           {/if}
@@ -180,7 +236,7 @@
             bind:value={email}
             placeholder="your@email.com"
             required
-            disabled={loading}
+            disabled={loading || !!success}
           />
         </div>
 
@@ -192,12 +248,16 @@
             bind:value={password}
             placeholder="Your password"
             required
-            disabled={loading}
+            disabled={loading || !!success}
           />
         </div>
 
-        <button type="submit" class="btn btn-primary" disabled={loading}>
-          {loading ? "Signing in..." : "Sign In"}
+        <button
+          type="submit"
+          class="btn btn-primary"
+          disabled={loading || !!success}
+        >
+          {success ? "✅ Success!" : loading ? "Signing in..." : "Sign In"}
         </button>
 
         <div class="divider">
@@ -208,7 +268,7 @@
           type="button"
           class="btn btn-google"
           onclick={handleGoogleLogin}
-          disabled={loading}
+          disabled={loading || !!success}
         >
           <svg width="18" height="18" viewBox="0 0 24 24">
             <path
@@ -240,7 +300,6 @@
 
     <div class="back-link">
       <a href="/">← Back to Home</a>
-      <a href="/auth/login">← Back to Original Login</a>
     </div>
   </div>
 </div>
@@ -416,6 +475,36 @@
     border-radius: 6px;
     margin-bottom: 1rem;
     font-size: 0.9rem;
+  }
+
+  .success {
+    background: #f0fdf4;
+    border: 1px solid #86efac;
+    color: #166534;
+    padding: 0.75rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    animation: successSlideIn 0.3s ease-out;
+  }
+
+  .success::before {
+    content: "✅";
+    font-size: 1rem;
+  }
+
+  @keyframes successSlideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .resend-section {

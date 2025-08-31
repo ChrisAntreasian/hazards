@@ -1,6 +1,21 @@
-// Temporarily disabled - will be implemented in Week 2 with Supabase
-export const load = async () => {
+import { createSupabaseServerClient } from '$lib/supabase.js';
+import type { LayoutServerLoad } from './$types';
+
+export const load: LayoutServerLoad = async (event) => {
+  const supabase = createSupabaseServerClient(event);
+  
+  if (!supabase) {
+    return {
+      session: null,
+    };
+  }
+
+  // Get session data
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
   return {
-    session: null,
+    session,
   };
 };
