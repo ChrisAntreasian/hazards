@@ -5,7 +5,12 @@
   import { onMount } from "svelte";
   import { page } from "$app/stores";
   import { createSupabaseLoadClient, signOut } from "$lib/supabase.js";
-  import { authStore, session as authSession, user, isAuthenticated } from "$lib/stores/auth.js";
+  import {
+    authStore,
+    session as authSession,
+    user,
+    isAuthenticated,
+  } from "$lib/stores/auth.js";
   import { preserveAuthState } from "$lib/utils/sessionUtils.js";
 
   let { children, data } = $props();
@@ -26,25 +31,25 @@
       } = supabase.auth.onAuthStateChange(async (event, _session) => {
         // Only update auth state for actual auth changes, not page refreshes
         if (event === "SIGNED_IN" && _session) {
-          authStore.dispatch({ 
-            type: 'SIGN_IN', 
-            payload: { user: _session.user, session: _session } 
+          authStore.dispatch({
+            type: "SIGN_IN",
+            payload: { user: _session.user, session: _session },
           });
           invalidate("supabase:auth");
         } else if (event === "SIGNED_OUT") {
-          authStore.dispatch({ type: 'SIGN_OUT' });
+          authStore.dispatch({ type: "SIGN_OUT" });
           invalidate("supabase:auth");
         } else if (event === "TOKEN_REFRESHED" && _session) {
           // Update the session when token is refreshed
-          authStore.dispatch({ 
-            type: 'REFRESH_SESSION', 
-            payload: { user: _session.user, session: _session } 
+          authStore.dispatch({
+            type: "REFRESH_SESSION",
+            payload: { user: _session.user, session: _session },
           });
         } else if (event === "INITIAL_SESSION" && _session) {
           // Handle initial session load
-          authStore.dispatch({ 
-            type: 'INITIALIZE', 
-            payload: { user: _session.user, session: _session } 
+          authStore.dispatch({
+            type: "INITIALIZE",
+            payload: { user: _session.user, session: _session },
           });
         }
       });

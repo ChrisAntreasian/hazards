@@ -3,7 +3,13 @@
   import { goto } from "$app/navigation";
   import { getCurrentUser } from "$lib/supabase.js";
   import { useAuth, useRouteGuard } from "$lib/hooks/useAuth.js";
-  import { user, session, loading, initialized, authStore } from "$lib/stores/auth.js";
+  import {
+    user,
+    session,
+    loading,
+    initialized,
+    authStore,
+  } from "$lib/stores/auth.js";
 
   let { data } = $props();
   let currentUser = $state<any>(null);
@@ -30,7 +36,7 @@
 
       // Wait for client-side auth initialization
       if (!$initialized) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
 
       // Try to refresh auth if still not initialized

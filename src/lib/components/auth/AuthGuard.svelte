@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { useAuth } from '$lib/hooks/useAuth.js';
-  import { loading, isAuthenticated } from '$lib/stores/auth.js';
-  
+  import { useAuth } from "$lib/hooks/useAuth.js";
+  import { loading, isAuthenticated } from "$lib/stores/auth.js";
+
   let { children, fallback = null, showLoading = true } = $props();
-  
+
   const auth = useAuth();
 </script>
 
@@ -14,15 +14,13 @@
   </div>
 {:else if $isAuthenticated}
   {@render children()}
+{:else if fallback}
+  {@render fallback()}
 {:else}
-  {#if fallback}
-    {@render fallback()}
-  {:else}
-    <div class="auth-required">
-      <h2>Authentication Required</h2>
-      <p>Please <a href="/auth/log-in">sign in</a> to access this content.</p>
-    </div>
-  {/if}
+  <div class="auth-required">
+    <h2>Authentication Required</h2>
+    <p>Please <a href="/auth/log-in">sign in</a> to access this content.</p>
+  </div>
 {/if}
 
 <style>
@@ -46,8 +44,12 @@
   }
 
   @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
   }
 
   .auth-required {

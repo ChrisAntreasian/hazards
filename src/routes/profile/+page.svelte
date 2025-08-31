@@ -3,7 +3,13 @@
   import { goto } from "$app/navigation";
   import { createSupabaseLoadClient } from "$lib/supabase.js";
   import { useAuth, useRouteGuard } from "$lib/hooks/useAuth.js";
-  import { user, session, loading, initialized, authStore } from "$lib/stores/auth.js";
+  import {
+    user,
+    session,
+    loading,
+    initialized,
+    authStore,
+  } from "$lib/stores/auth.js";
   import { refreshUserData } from "$lib/utils/sessionUtils.js";
 
   let { data } = $props();
@@ -46,7 +52,7 @@
   onMount(async () => {
     // Wait for auth to be initialized
     if (!$initialized) {
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
     // Check access after auth is ready
@@ -91,10 +97,10 @@
         message = `Error: ${error.message}`;
       } else {
         message = "Profile updated successfully!";
-        
+
         // Refresh user data across the entire app
         const refreshed = await refreshUserData();
-        
+
         if (refreshed) {
           // Update local currentUser to reflect changes immediately
           currentUser = $user;
@@ -103,12 +109,12 @@
           const {
             data: { user: userData },
           } = await supabase.auth.getUser();
-          
+
           if (userData) {
             currentUser = userData;
             authStore.dispatch({
-              type: 'REFRESH_SESSION',
-              payload: { user: userData, session: $session }
+              type: "REFRESH_SESSION",
+              payload: { user: userData, session: $session },
             });
           }
         }
