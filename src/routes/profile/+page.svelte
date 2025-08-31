@@ -1,14 +1,13 @@
 <script lang="ts">
-  import { createSupabaseLoadClient } from "$lib/supabase.js";
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
+  import { createSupabaseLoadClient } from "$lib/supabase.js";
+  import { useAuth, useRouteGuard } from "$lib/hooks/useAuth.js";
+  import { user, session, loading, initialized } from "$lib/stores/auth.js";
 
   let { data } = $props();
-  let { session } = $state(data);
-
-  const supabase = createSupabaseLoadClient();
-  let user = $state<any>(null);
-  let loading = $state(true);
+  let currentUser = $state<any>(null);
+  let pageLoading = $state(true);
   let updating = $state(false);
   let message = $state("");
 
@@ -16,29 +15,52 @@
   let displayName = $state("");
   let email = $state("");
 
+  const supabase = createSupabaseLoadClient();
+
+  // Initialize auth from server data if available
+  $effect(() => {
+    if (data.session && data.user && !$initialized) {
+      const auth = useAuth();
+      auth.refreshAuth();
+    }
+  });
+
+  // Route protection
+  const { checkAccess } = useRouteGuard({ requireAuth: true });
+
   onMount(async () => {
-    if (!session) {
-      goto("/auth/log-in?returnUrl=/profile");
+    // Wait for auth to be initialized
+    if (!$initialized) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    // Check access after auth is ready
+    if ($initialized && !checkAccess($user, $session)) {
       return;
     }
 
-    if (supabase) {
-      const {
-        data: { user: userData },
-      } = await supabase.auth.getUser();
-      user = userData;
-
-      if (user) {
-        displayName = user.user_metadata?.display_name || "";
-        email = user.email || "";
-      }
+    // Load user data if we have a session
+    if ($session && $user) {
+      currentUser = $user;
+      displayName = currentUser.user_metadata?.display_name || "";
+      email = currentUser.email || "";
     }
-    loading = false;
+
+    pageLoading = false;
+  });
+
+  // Reactive user data loading
+  $effect(() => {
+    if ($user && !currentUser) {
+      currentUser = $user;
+      displayName = currentUser.user_metadata?.display_name || "";
+      email = currentUser.email || "";
+    }
   });
 
   async function updateProfile(event: Event) {
     event.preventDefault();
-    if (!supabase || !user) return;
+    if (!supabase || !currentUser) return;
 
     updating = true;
     message = "";
@@ -58,7 +80,7 @@
         const {
           data: { user: userData },
         } = await supabase.auth.getUser();
-        user = userData;
+        currentUser = userData;
       }
     } catch (e: any) {
       message = `Error: ${e.message}`;
@@ -73,12 +95,12 @@
 </svelte:head>
 
 <div class="profile-container">
-  {#if loading}
+  {#if pageLoading || $loading}
     <div class="loading">
       <div class="spinner"></div>
       <p>Loading your profile...</p>
     </div>
-  {:else if !session}
+  {:else if !$session && !currentUser}
     <div class="error">
       <h2>Authentication Required</h2>
       <p>Please <a href="/auth/log-in">sign in</a> to access your profile.</p>
@@ -140,8 +162,8 @@
             <div class="stat-item">
               <span class="stat-label">Member Since</span>
               <span class="stat-value"
-                >{user
-                  ? new Date(user.created_at).toLocaleDateString()
+                >{currentUser
+                  ? new Date(currentUser.created_at).toLocaleDateString()
                   : "Unknown"}</span
               >
             </div>

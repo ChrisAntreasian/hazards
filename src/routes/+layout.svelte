@@ -5,18 +5,18 @@
   import { onMount } from "svelte";
   import { page } from "$app/stores";
   import { createSupabaseLoadClient, signOut } from "$lib/supabase.js";
-  import {
-    session as authSession,
-    updateAuthState,
-    clearAuthState,
-  } from "$lib/stores/auth.js";
+  import { authStore, session as authSession, user, isAuthenticated } from "$lib/stores/auth.js";
 
   let { children, data } = $props();
-
-  let { session } = $state(data);
   const supabase = createSupabaseLoadClient();
 
+  // Initialize auth state from server data
   onMount(() => {
+    // Initialize with server data if available
+    if (data.session || data.user) {
+      authStore.initialize(data.user, data.session);
+    }
+
     if (supabase) {
       const {
         data: { subscription },
@@ -27,19 +27,14 @@
           _session ? "session exists" : "no session"
         );
 
-        if (
-          event === "SIGNED_IN" ||
-          event === "SIGNED_OUT" ||
-          _session?.expires_at !== session?.expires_at
-        ) {
-          // Update both local and global auth state
-          session = _session;
-          updateAuthState(_session);
-          console.log(
-            "Auth store updated to:",
-            _session ? "logged in" : "logged out"
-          );
-          // Also invalidate to refresh server data
+        if (event === "SIGNED_IN" && _session) {
+          authStore.dispatch({ 
+            type: 'SIGN_IN', 
+            payload: { user: _session.user, session: _session } 
+          });
+          invalidate("supabase:auth");
+        } else if (event === "SIGNED_OUT") {
+          authStore.dispatch({ type: 'SIGN_OUT' });
           invalidate("supabase:auth");
         }
       });
@@ -48,34 +43,19 @@
     }
   });
 
-  // Only update from server data if we don't have a session yet
-  $effect(() => {
-    if (!session && data.session) {
-      updateAuthState(data.session);
-      session = data.session;
-      console.log(
-        "Session updated from server:",
-        session ? "logged in" : "logged out"
-      );
-    }
-  });
-
   async function handleSignOut() {
     if (supabase) {
       console.log("Signing out...");
+      authStore.setLoading(true);
       const { error } = await signOut(supabase);
       if (!error) {
         console.log("Sign out successful");
-        // Update session state immediately
-        session = null;
-        // Force a full page reload to clear all auth state
-        window.location.href = "/";
+        authStore.clearAuthState();
+        goto("/");
       } else {
+        authStore.setLoading(false);
         console.error("Sign out error:", error);
-        alert("Error signing out: " + error.message);
       }
-    } else {
-      console.error("Supabase client not available");
     }
   }
 </script>
@@ -87,7 +67,7 @@
         <a href="/">🚨 Hazards</a>
       </div>
       <div class="nav-links">
-        {#if session}
+        {#if $isAuthenticated}
           <a href="/dashboard">Dashboard</a>
           <a href="/profile">Profile</a>
           <button onclick={handleSignOut}>Sign Out</button>

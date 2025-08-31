@@ -1,79 +1,62 @@
 <script lang="ts">
-  import { createSupabaseLoadClient, getCurrentUser } from "$lib/supabase.js";
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
-  import { session as authSession, updateAuthState } from "$lib/stores/auth.js";
+  import { getCurrentUser } from "$lib/supabase.js";
+  import { useAuth, useRouteGuard } from "$lib/hooks/useAuth.js";
+  import { user, session, loading, initialized, authStore } from "$lib/stores/auth.js";
 
   let { data } = $props();
-  let { session } = $state(data);
+  let currentUser = $state<any>(null);
+  let pageLoading = $state(true);
+  let authCheckComplete = $state(false);
 
-  const supabase = createSupabaseLoadClient();
-  let user = $state<any>(null);
-  let loading = $state(true);
-
-  onMount(async () => {
-    console.log(
-      "Dashboard mounting, session from props:",
-      session ? "exists" : "null"
-    );
-    console.log("Auth store session:", $authSession ? "exists" : "null");
-
-    if (!supabase) {
-      console.error("Supabase client not available");
-      goto("/auth/log-in?returnUrl=/dashboard");
-      return;
-    }
-
-    try {
-      // Use session from props first, then auth store
-      let currentSession = session || $authSession;
-
-      if (currentSession) {
-        console.log("Found existing session, getting user");
-        user = await getCurrentUser(supabase);
-        loading = false;
-        return;
-      }
-
-      // If no session, check with Supabase directly
-      console.log("No session found, checking Supabase...");
-      const { data: userData } = await supabase.auth.getUser();
-
-      if (userData.user) {
-        console.log("Found user in Supabase, getting session");
-        const { data: sessionData } = await supabase.auth.getSession();
-        currentSession = sessionData.session;
-        session = currentSession;
-        user = userData.user;
-
-        // Update the global auth store
-        if (currentSession) {
-          updateAuthState(currentSession);
-        }
-        loading = false;
-      } else {
-        console.log("No user found, redirecting to login");
-        goto("/auth/log-in?returnUrl=/dashboard");
-        return;
-      }
-    } catch (error) {
-      console.error("Error in dashboard onMount:", error);
-      goto("/auth/log-in?returnUrl=/dashboard");
-      return;
+  // Initialize auth from server data if available
+  $effect(() => {
+    if (data.session || data.user) {
+      authStore.initialize(data.user, data.session);
     }
   });
 
-  // Simple effect to handle data changes
+  // Wait for auth initialization and check access
   $effect(() => {
-    // Only update if we get a new session from server and don't have one locally
-    if (data.session && !session) {
-      console.log("Data session changed, updating");
-      session = data.session;
-      updateAuthState(data.session);
-      if (!user && supabase) {
-        getCurrentUser(supabase).then((u) => (user = u));
+    const checkAuth = async () => {
+      // If we have server data, use it immediately
+      if (data.session && data.user) {
+        currentUser = data.user;
+        authCheckComplete = true;
+        pageLoading = false;
+        return;
       }
-    }
+
+      // Wait for auth to be initialized from client-side
+      if (!$initialized) {
+        // Wait a bit for auth initialization
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      // If still not initialized after waiting, try to refresh auth
+      if (!$initialized) {
+        const auth = useAuth();
+        await auth.refreshAuth();
+      }
+
+      // Final check - if no auth after all attempts, redirect to login
+      if ($initialized && !$session) {
+        const returnUrl = encodeURIComponent(window.location.pathname);
+        goto(`/auth/log-in?returnUrl=${returnUrl}`);
+        return;
+      }
+
+      // Set user data if we have a session
+      if ($session && $user) {
+        currentUser = $user;
+      }
+
+      authCheckComplete = true;
+      pageLoading = false;
+    };
+
+    checkAuth();
   });
 </script>
 
@@ -82,12 +65,12 @@
 </svelte:head>
 
 <div class="dashboard-container">
-  {#if loading}
+  {#if pageLoading || $loading || !authCheckComplete}
     <div class="loading">
       <div class="spinner"></div>
       <p>Loading your dashboard...</p>
     </div>
-  {:else if !session && !user}
+  {:else if !$session && !currentUser}
     <div class="error">
       <h2>Authentication Required</h2>
       <p>Please <a href="/auth/log-in">sign in</a> to access your dashboard.</p>
@@ -96,8 +79,8 @@
     <div class="dashboard">
       <header class="dashboard-header">
         <h1>
-          🚨 Welcome back{user?.user_metadata?.display_name
-            ? `, ${user.user_metadata.display_name}`
+          🚨 Welcome back{currentUser?.user_metadata?.display_name
+            ? `, ${currentUser.user_metadata.display_name}`
             : ""}!
         </h1>
         <p class="subtitle">Manage your hazard reports and account settings</p>
@@ -155,7 +138,7 @@
           </div>
           <div class="stat-item">
             <span class="stat-number"
-              >{new Date(user?.created_at).toLocaleDateString()}</span
+              >{new Date(currentUser?.created_at).toLocaleDateString()}</span
             >
             <span class="stat-label">Member Since</span>
           </div>

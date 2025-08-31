@@ -6,9 +6,14 @@ import type { Database } from './types/database.js';
 const supabaseUrl = PUBLIC_SUPABASE_URL || 'your_supabase_project_url';
 const supabaseAnonKey = PUBLIC_SUPABASE_ANON_KEY || 'your_supabase_anon_key';
 
+// Check if Supabase is properly configured
+export const isSupabaseConfigured = () => {
+  return supabaseUrl !== 'your_supabase_project_url' && supabaseAnonKey !== 'your_supabase_anon_key';
+};
+
+// Create browser client
 export function createSupabaseLoadClient() {
-  // Only create client if we have real credentials
-  if (supabaseUrl === 'your_supabase_project_url' || supabaseAnonKey === 'your_supabase_anon_key') {
+  if (!isSupabaseConfigured()) {
     console.warn('Supabase not configured. Please update your .env.local file.');
     return null;
   }
@@ -16,23 +21,17 @@ export function createSupabaseLoadClient() {
   return createBrowserClient<Database>(supabaseUrl, supabaseAnonKey);
 }
 
+// Create server client
 export function createSupabaseServerClient(event: any) {
-  // Only create client if we have real credentials
-  if (supabaseUrl === 'your_supabase_project_url' || supabaseAnonKey === 'your_supabase_anon_key') {
+  if (!isSupabaseConfigured()) {
     return null;
   }
   
   return createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
     cookies: {
-      get: (key) => {
-        return event.cookies.get(key);
-      },
-      set: (key, value, options) => {
-        event.cookies.set(key, value, options);
-      },
-      remove: (key, options) => {
-        event.cookies.delete(key, options);
-      },
+      get: (key) => event.cookies.get(key),
+      set: (key, value, options) => event.cookies.set(key, value, options),
+      remove: (key, options) => event.cookies.delete(key, options),
     },
     global: {
       fetch: event.fetch,
@@ -40,11 +39,21 @@ export function createSupabaseServerClient(event: any) {
   });
 }
 
-// Helper functions for common operations
+// Enhanced auth helpers with better error handling
 export const getCurrentUser = async (supabase: ReturnType<typeof createSupabaseLoadClient>) => {
   if (!supabase) return null;
-  const { data: { user } } = await supabase.auth.getUser();
-  return user;
+  
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error) {
+      console.error('Error getting current user:', error);
+      return null;
+    }
+    return user;
+  } catch (error) {
+    console.error('Unexpected error getting current user:', error);
+    return null;
+  }
 };
 
 export const signOut = async (supabase: ReturnType<typeof createSupabaseLoadClient>) => {
@@ -54,9 +63,8 @@ export const signOut = async (supabase: ReturnType<typeof createSupabaseLoadClie
     // Sign out from Supabase
     const { error } = await supabase.auth.signOut();
     
-    // Also clear any local storage items that might persist
+    // Clear local storage items that might persist
     if (typeof window !== 'undefined') {
-      // Clear supabase auth tokens from localStorage
       const keys = Object.keys(localStorage);
       keys.forEach(key => {
         if (key.startsWith('sb-') || key.startsWith('supabase')) {
@@ -67,11 +75,50 @@ export const signOut = async (supabase: ReturnType<typeof createSupabaseLoadClie
     
     return { error };
   } catch (e: any) {
+    console.error('Sign out error:', e);
     return { error: e };
   }
 };
 
-// Check if Supabase is properly configured
-export const isSupabaseConfigured = () => {
-  return supabaseUrl !== 'your_supabase_project_url' && supabaseAnonKey !== 'your_supabase_anon_key';
+// Enhanced session helpers
+export const getSessionWithRetry = async (
+  supabase: ReturnType<typeof createSupabaseLoadClient>,
+  maxRetries = 3,
+  delay = 1000
+) => {
+  if (!supabase) return { session: null, user: null };
+
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.warn(`Session fetch attempt ${i + 1} failed:`, error);
+        if (i === maxRetries - 1) return { session: null, user: null };
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      return { session, user };
+    } catch (error) {
+      console.warn(`Session fetch attempt ${i + 1} error:`, error);
+      if (i === maxRetries - 1) return { session: null, user: null };
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+
+  return { session: null, user: null };
+};
+
+// Validate session integrity
+export const validateSession = async (supabase: ReturnType<typeof createSupabaseLoadClient>) => {
+  if (!supabase) return false;
+
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    return !error && !!user;
+  } catch {
+    return false;
+  }
 };
