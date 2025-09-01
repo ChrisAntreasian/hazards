@@ -1,0 +1,299 @@
+import { createSupabaseLoadClient } from '$lib/supabase.js';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { ProcessedImage, ImageUploadResult } from '$lib/types/images';
+import { v4 as uuidv4 } from 'uuid';
+
+export class ImageStorage {
+  private bucket = 'hazard-images';
+  private supabase: SupabaseClient;
+  
+  constructor(supabaseClient?: SupabaseClient) {
+    // Accept a client or create a browser client
+    if (supabaseClient) {
+      this.supabase = supabaseClient;
+    } else {
+      const client = createSupabaseLoadClient();
+      if (!client) {
+        throw new Error('Supabase not configured. Cannot initialize ImageStorage.');
+      }
+      this.supabase = client;
+    }
+  }
+  
+  async uploadProcessedImage(
+    processedImage: ProcessedImage, 
+    userId: string,
+    hazardId?: string
+  ): Promise<ImageUploadResult> {
+    if (!this.supabase) throw new Error('Supabase not configured');
+    
+    // Debug: Check authentication status
+    console.log('🔍 Checking authentication...');
+    
+    // Get current session and user
+    const { data: { session }, error: sessionError } = await this.supabase.auth.getSession();
+    console.log('Session:', !!session, session?.access_token ? 'has token' : 'no token');
+    console.log('Session error:', sessionError);
+    
+    const { data: { user }, error: authError } = await this.supabase.auth.getUser();
+    console.log('User:', !!user, user?.id || 'no id');
+    console.log('Auth error:', authError);
+    
+    if (!user || !session) {
+      throw new Error(`User must be authenticated to upload images. Auth error: ${authError?.message || 'No session available'}`);
+    }
+    
+    console.log('✅ User authenticated:', user.id);
+    
+    const imageId = uuidv4();
+    const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    
+    // Create file paths using the authenticated user's ID
+    const originalPath = `${user.id}/${timestamp}/${imageId}-original.webp`;
+    const thumbnailPath = `${user.id}/${timestamp}/${imageId}-thumb.webp`;
+    
+    try {
+      // Upload original image
+      const { data: originalData, error: originalError } = await this.supabase.storage
+        .from(this.bucket)
+        .upload(originalPath, processedImage.original, {
+          cacheControl: '31536000', // 1 year
+          upsert: false
+        });
+      
+      if (originalError) throw originalError;
+      
+      // Upload thumbnail
+      const { data: thumbnailData, error: thumbnailError } = await this.supabase.storage
+        .from(this.bucket)
+        .upload(thumbnailPath, processedImage.thumbnail, {
+          cacheControl: '31536000', // 1 year
+          upsert: false
+        });
+      
+      if (thumbnailError) throw thumbnailError;
+      
+      // Get public URLs
+      const originalUrl = await this.getPublicUrl(originalPath);
+      const thumbnailUrl = await this.getPublicUrl(thumbnailPath);
+      
+      // Save metadata to database if hazardId provided
+      if (hazardId) {
+        await this.saveImageMetadata(imageId, hazardId, userId, {
+          originalUrl,
+          thumbnailUrl,
+          originalPath,
+          thumbnailPath,
+          metadata: processedImage.metadata
+        });
+      }
+      
+      return {
+        id: imageId,
+        originalUrl,
+        thumbnailUrl,
+        metadata: processedImage.metadata
+      };
+      
+    } catch (error) {
+      // Cleanup any uploaded files on error
+      await this.cleanupFailedUpload(originalPath, thumbnailPath);
+      throw error;
+    }
+  }
+  
+  private async getPublicUrl(path: string): Promise<string> {
+    if (!this.supabase) throw new Error('Supabase not configured');
+    
+    const { data } = this.supabase.storage
+      .from(this.bucket)
+      .getPublicUrl(path);
+    
+    return data.publicUrl;
+  }
+  
+  private async saveImageMetadata(
+    imageId: string,
+    hazardId: string,
+    userId: string, // We'll verify this matches the authenticated user
+    uploadData: {
+      originalUrl: string;
+      thumbnailUrl: string;
+      originalPath: string;
+      thumbnailPath: string;
+      metadata: ProcessedImage['metadata'];
+    }
+  ): Promise<void> {
+    if (!this.supabase) throw new Error('Supabase not configured');
+    
+    // Get the current authenticated user and verify
+    const { data: { user }, error: authError } = await this.supabase.auth.getUser();
+    if (authError || !user) {
+      throw new Error('User not authenticated');
+    }
+    
+    // Use the authenticated user's ID, not the passed userId
+    const { error } = await this.supabase
+      .from('hazard_images')
+      .insert({
+        id: imageId,
+        hazard_id: hazardId,
+        user_id: user.id, // Always use the authenticated user's actual ID
+        original_url: uploadData.originalUrl,
+        thumbnail_url: uploadData.thumbnailUrl,
+        original_path: uploadData.originalPath,
+        thumbnail_path: uploadData.thumbnailPath,
+        file_size: uploadData.metadata.fileSize,
+        dimensions: uploadData.metadata.dimensions,
+        captured_at: uploadData.metadata.timestamp,
+        vote_score: 0
+      });
+    
+    if (error) throw error;
+  }
+  
+  private async cleanupFailedUpload(originalPath: string, thumbnailPath: string): Promise<void> {
+    if (!this.supabase) return;
+    
+    // Attempt to remove any uploaded files
+    try {
+      await Promise.all([
+        this.supabase.storage.from(this.bucket).remove([originalPath]),
+        this.supabase.storage.from(this.bucket).remove([thumbnailPath])
+      ]);
+    } catch (error) {
+      console.warn('Could not cleanup failed upload:', error);
+    }
+  }
+  
+  async deleteImage(imageId: string, userId: string): Promise<void> {
+    if (!this.supabase) throw new Error('Supabase not configured');
+    
+    // Get image paths from database
+    const { data: imageData, error: fetchError } = await this.supabase
+      .from('hazard_images')
+      .select('original_path, thumbnail_path, user_id')
+      .eq('id', imageId)
+      .single();
+    
+    if (fetchError) throw fetchError;
+    
+    // Verify user owns the image
+    if (imageData.user_id !== userId) {
+      throw new Error('Unauthorized: User does not own this image');
+    }
+    
+    // Delete from storage
+    const { error: storageError } = await this.supabase.storage
+      .from(this.bucket)
+      .remove([imageData.original_path, imageData.thumbnail_path]);
+    
+    if (storageError) throw storageError;
+    
+    // Delete from database
+    const { error: dbError } = await this.supabase
+      .from('hazard_images')
+      .delete()
+      .eq('id', imageId);
+    
+    if (dbError) throw dbError;
+  }
+  
+  async getHazardImages(hazardId: string): Promise<import('$lib/types/images.js').HazardImage[]> {
+    if (!this.supabase) throw new Error('Supabase not configured');
+    
+    const { data, error } = await this.supabase
+      .from('hazard_images')
+      .select(`
+        id,
+        hazard_id,
+        user_id,
+        original_url,
+        thumbnail_url,
+        vote_score,
+        uploaded_at,
+        file_size,
+        dimensions,
+        captured_at
+      `)
+      .eq('hazard_id', hazardId)
+      .order('vote_score', { ascending: false })
+      .order('uploaded_at', { ascending: false });
+    
+    if (error) throw error;
+    
+    return data.map((img: any) => ({
+      id: img.id,
+      hazard_id: img.hazard_id,
+      user_id: img.user_id,
+      original_url: img.original_url,
+      thumbnail_url: img.thumbnail_url,
+      vote_score: img.vote_score,
+      uploaded_at: img.uploaded_at,
+      metadata: {
+        timestamp: img.captured_at,
+        fileSize: img.file_size,
+        dimensions: img.dimensions
+      }
+    }));
+  }
+  
+  async voteOnImage(imageId: string, userId: string, vote: 'up' | 'down'): Promise<void> {
+    if (!this.supabase) throw new Error('Supabase not configured');
+    
+    // Check if user has already voted
+    const { data: existingVote } = await this.supabase
+      .from('image_votes')
+      .select('vote_type')
+      .eq('image_id', imageId)
+      .eq('user_id', userId)
+      .single();
+    
+    if (existingVote) {
+      // Update existing vote
+      const { error } = await this.supabase
+        .from('image_votes')
+        .update({ vote_type: vote })
+        .eq('image_id', imageId)
+        .eq('user_id', userId);
+      
+      if (error) throw error;
+    } else {
+      // Insert new vote
+      const { error } = await this.supabase
+        .from('image_votes')
+        .insert({
+          image_id: imageId,
+          user_id: userId,
+          vote_type: vote
+        });
+      
+      if (error) throw error;
+    }
+    
+    // Recalculate vote score
+    await this.updateImageVoteScore(imageId);
+  }
+  
+  private async updateImageVoteScore(imageId: string): Promise<void> {
+    if (!this.supabase) throw new Error('Supabase not configured');
+    
+    const { data, error } = await this.supabase
+      .from('image_votes')
+      .select('vote_type')
+      .eq('image_id', imageId);
+    
+    if (error) throw error;
+    
+    const score = data.reduce((total: number, vote: any) => {
+      return total + (vote.vote_type === 'up' ? 1 : -1);
+    }, 0);
+    
+    const { error: updateError } = await this.supabase
+      .from('hazard_images')
+      .update({ vote_score: score })
+      .eq('id', imageId);
+    
+    if (updateError) throw updateError;
+  }
+}
