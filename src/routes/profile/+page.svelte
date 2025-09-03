@@ -23,7 +23,7 @@
   // Only update form fields when new server data comes in after a successful update
   // This prevents interference with user input
   let lastKnownDisplayName = $state(data.user?.displayName || "");
-  
+
   $effect(() => {
     // Only update if we receive new server data (e.g., after successful form submission)
     if (profileUser && profileUser.displayName !== lastKnownDisplayName) {

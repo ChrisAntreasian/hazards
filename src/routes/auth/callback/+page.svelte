@@ -1,13 +1,84 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
+  import { onMount } from "svelte";
 
   interface Props {
     data: any;
   }
 
   let { data }: Props = $props();
+  let processing = $state(false);
+  let clientError = $state("");
 
-  // Handle client-side redirect for successful confirmations using $effect
+  // Handle client-side URL fragment processing
+  onMount(() => {
+    if (data.needsClientProcessing) {
+      handleClientSideAuth();
+    }
+  });
+
+  async function handleClientSideAuth() {
+    processing = true;
+
+    try {
+      const hash = window.location.hash.substring(1);
+      const params = new URLSearchParams(hash);
+
+      const accessToken = params.get("access_token");
+      const refreshToken = params.get("refresh_token");
+      const type = params.get("type");
+      const error = params.get("error");
+
+      console.log("🔍 Client-side params:", {
+        accessToken: !!accessToken,
+        refreshToken: !!refreshToken,
+        type,
+        error,
+      });
+
+      if (error) {
+        clientError = `Authentication failed: ${error}`;
+        return;
+      }
+
+      if (accessToken && refreshToken) {
+        // Send tokens to server for processing
+        const response = await fetch("/auth/callback", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+            type: type || "recovery",
+          }),
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          if (result.redirectTo) {
+            goto(result.redirectTo);
+          } else if (type === "recovery") {
+            goto("/auth/reset-password");
+          } else {
+            goto("/dashboard");
+          }
+        } else {
+          clientError = "Failed to process authentication";
+        }
+      } else {
+        clientError = "Missing authentication tokens";
+      }
+    } catch (err) {
+      clientError = "Authentication processing failed";
+      console.error("Client auth error:", err);
+    } finally {
+      processing = false;
+    }
+  }
+
+  // Handle server-side redirect for successful confirmations
   $effect(() => {
     if (data.status === "success" && data.redirectTo) {
       setTimeout(() => {
@@ -23,7 +94,25 @@
 
 <div class="callback-container">
   <div class="callback-card">
-    {#if data.status === "error"}
+    {#if clientError}
+      <div class="error">
+        <div class="error-icon">❌</div>
+        <h1>Authentication Failed</h1>
+        <p>{clientError}</p>
+        <div class="actions">
+          <a href="/auth/forgot-password" class="btn btn-primary"
+            >Try Password Reset Again</a
+          >
+          <a href="/auth/log-in" class="btn btn-secondary">Go to Login</a>
+        </div>
+      </div>
+    {:else if processing || data.needsClientProcessing}
+      <div class="processing">
+        <div class="spinner"></div>
+        <h1>🔄 Processing authentication...</h1>
+        <p>Please wait while we confirm your email address...</p>
+      </div>
+    {:else if data.status === "error"}
       <div class="error">
         <div class="error-icon">❌</div>
         <h1>Confirmation Failed</h1>

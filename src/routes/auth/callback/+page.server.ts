@@ -1,6 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import { createSupabaseServerClient } from '$lib/supabase.js';
-import type { PageServerLoad } from './$types';
+import type { PageServerLoad, Actions } from './$types';
 
 export const load: PageServerLoad = async (event) => {
   const supabase = createSupabaseServerClient(event);
@@ -20,8 +20,18 @@ export const load: PageServerLoad = async (event) => {
   const error = url.searchParams.get('error');
   const errorDescription = url.searchParams.get('error_description');
 
+  console.log('🔍 Callback URL:', event.request.url);
+  console.log('🔍 Callback parameters:', {
+    accessToken: accessToken ? 'present' : 'missing',
+    refreshToken: refreshToken ? 'present' : 'missing', 
+    type,
+    error,
+    allParams: Object.fromEntries(url.searchParams)
+  });
+
   // Handle errors from the callback URL
   if (error) {
+    console.log('❌ Callback error:', error, errorDescription);
     return {
       status: 'error',
       message: 'Authentication failed',
@@ -29,7 +39,27 @@ export const load: PageServerLoad = async (event) => {
     };
   }
 
+  // If no tokens in query params, redirect to handle client-side processing
+  // This handles the case where Supabase uses URL fragments instead of query params
+  if (!accessToken || !refreshToken) {
+    console.log('⚠️ No tokens in query params, redirecting for client-side processing');
+    return {
+      status: 'redirect',
+      message: 'Processing authentication...',
+      needsClientProcessing: true
+    };
+  }
+
   try {
+    // Check if this is a password recovery flow
+    // Supabase may not always set type=recovery, so check multiple indicators
+    const isPasswordRecovery = type === 'recovery' || 
+                              url.pathname.includes('recovery') ||
+                              url.searchParams.has('recovery') ||
+                              event.request.referrer?.includes('forgot-password');
+    
+    console.log('🔍 Is password recovery:', isPasswordRecovery);
+
     if (type === 'signup' || type === 'email_change') {
       // Email confirmation
       if (accessToken && refreshToken) {
@@ -60,8 +90,39 @@ export const load: PageServerLoad = async (event) => {
           error: 'Missing required parameters'
         };
       }
-    } else if (type === 'recovery') {
+    } else if (isPasswordRecovery || (accessToken && refreshToken)) {
       // Password recovery - set session and redirect to reset password page
+      if (accessToken && refreshToken) {
+        console.log('🔍 Setting session for password recovery...');
+        
+        const { data, error: sessionError } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+
+        if (sessionError) {
+          console.log('❌ Session error:', sessionError);
+          return {
+            status: 'error',
+            message: 'Invalid password reset link',
+            error: sessionError.message
+          };
+        }
+
+        console.log('✅ Password recovery session established for:', data.user?.email);
+        
+        // Redirect immediately for password recovery
+        throw redirect(303, '/auth/reset-password');
+      } else {
+        console.log('❌ Missing tokens for password recovery');
+        return {
+          status: 'error',
+          message: 'Invalid password reset link',
+          error: 'Missing required parameters'
+        };
+      }
+    } else {
+      // Generic callback - check if we have tokens
       if (accessToken && refreshToken) {
         const { data, error: sessionError } = await supabase.auth.setSession({
           access_token: accessToken,
@@ -71,27 +132,23 @@ export const load: PageServerLoad = async (event) => {
         if (sessionError) {
           return {
             status: 'error',
-            message: 'Invalid password reset link',
+            message: 'Authentication failed',
             error: sessionError.message
           };
         }
-
-        // Redirect immediately for password recovery
-        throw redirect(303, '/auth/reset-password');
+        
+        return {
+          status: 'success',
+          message: 'Authentication successful.',
+          redirectTo: '/dashboard'
+        };
       } else {
         return {
           status: 'error',
-          message: 'Invalid password reset link',
+          message: 'Invalid authentication link',
           error: 'Missing required parameters'
         };
       }
-    } else {
-      // Generic callback - assume success and redirect
-      return {
-        status: 'success',
-        message: 'Authentication callback processed.',
-        redirectTo: '/dashboard'
-      };
     }
   } catch (error) {
     if (error instanceof Response) {
@@ -104,5 +161,70 @@ export const load: PageServerLoad = async (event) => {
       message: 'An unexpected error occurred',
       error: error instanceof Error ? error.message : 'Unknown error'
     };
+  }
+};
+
+export const actions: Actions = {
+  default: async (event) => {
+    const supabase = createSupabaseServerClient(event);
+    
+    if (!supabase) {
+      return {
+        status: 'error',
+        error: 'Supabase not configured'
+      };
+    }
+
+    const body = await event.request.json();
+    const { access_token, refresh_token, type } = body;
+
+    console.log('🔍 POST callback with tokens:', { 
+      hasAccessToken: !!access_token, 
+      hasRefreshToken: !!refresh_token, 
+      type 
+    });
+
+    if (!access_token || !refresh_token) {
+      return {
+        status: 'error',
+        error: 'Missing authentication tokens'
+      };
+    }
+
+    try {
+      const { data, error: sessionError } = await supabase.auth.setSession({
+        access_token,
+        refresh_token,
+      });
+
+      if (sessionError) {
+        console.log('❌ Session error:', sessionError);
+        return {
+          status: 'error',
+          error: sessionError.message
+        };
+      }
+
+      console.log('✅ Session established for:', data.user?.email);
+
+      if (type === 'recovery') {
+        return {
+          status: 'success',
+          redirectTo: '/auth/reset-password'
+        };
+      } else {
+        return {
+          status: 'success', 
+          redirectTo: '/dashboard'
+        };
+      }
+
+    } catch (error) {
+      console.error('❌ Session setup error:', error);
+      return {
+        status: 'error',
+        error: 'Failed to establish session'
+      };
+    }
   }
 };

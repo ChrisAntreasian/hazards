@@ -3,7 +3,7 @@ import { redirect, fail } from '@sveltejs/kit';
 import type { Actions } from './$types';
 
 export const actions: Actions = {
-  resetPassword: async (event) => {
+  default: async (event) => {
     const supabase = createSupabaseServerClient(event);
     
     if (!supabase) {
@@ -14,32 +14,49 @@ export const actions: Actions = {
     const email = formData.get('email') as string;
 
     if (!email) {
-      return fail(400, { error: 'Email is required' });
+      return fail(400, { 
+        error: 'Email address is required',
+        email: ''
+      });
     }
 
-    // Validate email format
+    // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      return fail(400, { error: 'Please enter a valid email address' });
+      return fail(400, { 
+        error: 'Please enter a valid email address',
+        email
+      });
     }
 
     try {
+      console.log('🔍 Sending password reset email to:', email);
+      
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${event.url.origin}/auth/reset-password`,
+        redirectTo: `${event.url.origin}/auth/callback`,
       });
 
       if (error) {
-        console.error('Password reset error:', error);
-        return fail(400, { error: error.message });
+        console.error('❌ Password reset error:', error);
+        return fail(400, { 
+          error: error.message,
+          email
+        });
       }
 
+      console.log('✅ Password reset email sent to:', email);
+      
       return {
         success: true,
-        message: 'Password reset email sent! Check your inbox for instructions.'
+        message: 'Password reset link sent! Check your email and follow the instructions to reset your password.'
       };
+      
     } catch (error) {
-      console.error('Unexpected password reset error:', error);
-      return fail(500, { error: 'An unexpected error occurred' });
+      console.error('❌ Password reset exception:', error);
+      return fail(500, { 
+        error: 'Failed to send password reset email. Please try again.',
+        email
+      });
     }
   }
 };

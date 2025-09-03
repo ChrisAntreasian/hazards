@@ -3,10 +3,7 @@
   import { invalidate } from "$app/navigation";
   import { goto } from "$app/navigation";
   import { page } from "$app/stores";
-  import {
-    createSupabaseLoadClient,
-    signOut,
-  } from "$lib/supabase.js";
+  import { createSupabaseLoadClient, signOut } from "$lib/supabase.js";
   import {
     authStore,
     session as authSession,
@@ -24,7 +21,10 @@
     );
     console.log("- Server session:", data.session ? "EXISTS" : "NULL");
     console.log("- Server user:", data.user ? "EXISTS" : "NULL");
-    console.log("- Current auth state:", $isAuthenticated ? "AUTHENTICATED" : "NOT_AUTHENTICATED");
+    console.log(
+      "- Current auth state:",
+      $isAuthenticated ? "AUTHENTICATED" : "NOT_AUTHENTICATED"
+    );
 
     // Always update auth state with latest server data
     // This ensures we pick up changes after login/logout

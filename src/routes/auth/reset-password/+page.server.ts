@@ -1,4 +1,4 @@
-import { fail } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 import { createSupabaseServerClient } from '$lib/supabase.js';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -40,7 +40,7 @@ export const load: PageServerLoad = async (event) => {
 };
 
 export const actions: Actions = {
-  resetPassword: async (event) => {
+  default: async (event) => {
     const supabase = createSupabaseServerClient(event);
     
     if (!supabase) {
@@ -85,12 +85,13 @@ export const actions: Actions = {
 
       console.log('✅ Password reset successfully for:', user.email);
       
-      return {
-        success: true,
-        message: 'Password updated successfully! Redirecting to dashboard...'
-      };
+      // Use redirect for successful password reset
+      redirect(303, '/auth/log-in?message=Password updated successfully! Please sign in with your new password.');
       
     } catch (error) {
+      if (error instanceof Response) {
+        throw error; // Re-throw redirects
+      }
       console.log('❌ Password reset exception:', error);
       return fail(500, { error: 'Unexpected error during password reset' });
     }
