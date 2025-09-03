@@ -2,26 +2,54 @@
   import { enhance } from "$app/forms";
   import { goto } from "$app/navigation";
   import { isSupabaseConfigured } from "$lib/supabase.js";
+  import type { SubmitFunction } from '@sveltejs/kit';
+  import type { PageData } from './$types';
 
   interface Props {
     form?: any;
+    data: PageData;
   }
 
-  let { form }: Props = $props();
+  let { form, data }: Props = $props();
 
   let loading = $state(false);
+  let resetSuccess = $state(false);
+  let manualError = $state("");
 
   const configured = isSupabaseConfigured();
 
-  // Handle successful password reset using $effect instead of reactive statement
-  $effect(() => {
-    if (form?.success) {
-      setTimeout(() => {
-        goto("/dashboard");
-      }, 2000);
-    }
-  });
-</script>
+  // Handle form submission with proper success/error handling like login form
+  const handleSubmit: SubmitFunction = ({ formData }) => {
+    loading = true;
+    manualError = ""; // Clear any previous error
+    return async ({ result, update }) => {
+      loading = false;
+      
+      if (result.type === "success") {
+        // SUCCESS: Show success message and redirect to login
+        console.log('✅ Password reset successful - redirecting to login');
+        
+        // Show success state briefly before redirect
+        resetSuccess = true;
+        
+        // Force complete page reload to login after brief delay
+        setTimeout(() => {
+          window.location.href = '/auth/log-in';
+        }, 2000); // 2 second delay to show success message
+        
+        return; // Don't call update() - we're navigating away
+        
+      } else if (result.type === "failure") {
+        // ERROR: Show error message
+        manualError = (result.data && typeof result.data === 'object' && 'error' in result.data && typeof result.data.error === 'string') 
+          ? result.data.error 
+          : "Password reset failed";
+        await update();
+      } else {
+        await update();
+      }
+    };
+  };</script>
 
 <svelte:head>
   <title>Reset Password - Hazards App</title>
@@ -43,21 +71,25 @@
     {:else}
       <form
         method="POST"
-        action="/auth?/resetPassword"
-        use:enhance={({ formElement, formData, action, cancel, submitter }) => {
-          loading = true;
-          return async ({ result, update }) => {
-            loading = false;
-            await update();
-          };
-        }}
+        action="?/resetPassword"
+        use:enhance={handleSubmit}
       >
-        {#if form?.success}
-          <div class="success">{form.message}</div>
+        {#if data.error}
+          <div class="error">{data.error}</div>
+        {:else if resetSuccess}
+          <div class="success">
+            ✅ Password updated successfully! Redirecting to login page...
+          </div>
         {/if}
 
-        {#if form?.error}
+        {#if manualError}
+          <div class="error">{manualError}</div>
+        {:else if form?.error}
           <div class="error">{form.error}</div>
+        {/if}
+
+        {#if form?.success && !resetSuccess}
+          <div class="success">{form.message}</div>
         {/if}
 
         <div class="form-group">
@@ -68,7 +100,7 @@
             type="password"
             placeholder="Enter new password"
             required
-            disabled={loading || form?.success}
+            disabled={loading || resetSuccess}
             minlength="6"
           />
         </div>
@@ -81,7 +113,7 @@
             type="password"
             placeholder="Confirm new password"
             required
-            disabled={loading || form?.success}
+            disabled={loading || resetSuccess}
             minlength="6"
           />
         </div>
@@ -89,12 +121,12 @@
         <button
           type="submit"
           class="btn btn-primary"
-          disabled={loading || form?.success}
+          disabled={loading || resetSuccess}
         >
-          {form?.success
-            ? "✅ Password Updated!"
+          {resetSuccess
+            ? "Redirecting..."
             : loading
-              ? "Updating..."
+              ? "Updating Password..."
               : "Update Password"}
         </button>
       </form>

@@ -2,12 +2,15 @@
   import { page } from "$app/stores";
   import { enhance } from "$app/forms";
   import { isSupabaseConfigured } from "$lib/supabase.js";
+  import type { SubmitFunction } from '@sveltejs/kit';
 
   let email = $state("");
   let password = $state("");
   let loading = $state(false);
   let resendingConfirmation = $state(false);
   let resendMessage = $state("");
+  let loginSuccess = $state(false);
+  let manualError = $state(""); // Manual error state to work around form enhancement issue
 
   const configured = isSupabaseConfigured();
 
@@ -75,18 +78,95 @@
         method="post"
         use:enhance={({ formData, cancel }) => {
           loading = true;
-          return async ({ result }) => {
+          manualError = ""; // Clear any previous error
+          return async ({ result, update }) => {
             loading = false;
+            
             if (result.type === "redirect") {
-              // Let the redirect happen naturally
+              // SUCCESS: Handle server redirect
+              const returnUrl = formData.get('returnUrl') as string || '/dashboard';
+              console.log('✅ Login successful - redirecting to:', returnUrl);
+              
+              // Show success state briefly before redirect
+              loginSuccess = true;
+              
+              // Force complete page reload after brief delay
+              setTimeout(() => {
+                window.location.href = returnUrl;
+              }, 800);
+              
+              return; // Don't call update() - we're navigating away
+              
+            } else if (result.type === "success") {
+              // SUCCESS: Handle custom success response with redirect URL
+              const redirectUrl = (result.data && typeof result.data === 'object' && 'redirectUrl' in result.data) 
+                ? result.data.redirectUrl as string 
+                : '/dashboard';
+              
+              console.log('✅ Login successful - redirecting to:', redirectUrl);
+              
+              // Show success state briefly before redirect
+              loginSuccess = true;
+              
+              // Force complete page reload after brief delay
+              setTimeout(() => {
+                window.location.href = redirectUrl;
+              }, 800);
+              
+              return; // Don't call update() - we're navigating away
+              
             } else if (result.type === "failure") {
-              // Clear password for security but preserve email
+              // ERROR: Clear password for security but preserve email
               password = "";
+              manualError = (result.data && typeof result.data === 'object' && 'error' in result.data && typeof result.data.error === 'string') 
+                ? result.data.error 
+                : "Login failed";
+              await update(); // Still call update but also use manual error
+            } else {
+              await update();
             }
           };
         }}
       >
-        {#if form?.error}
+        {#if loginSuccess}
+          <div class="success">
+            ✅ Login successful! Redirecting to dashboard...
+          </div>
+        {/if}
+
+        {#if manualError}
+          <div class="error">
+            {manualError}
+          </div>
+
+          {#if manualError.includes("confirm") || manualError.includes("Email not confirmed")}
+            <div class="resend-section">
+              <p class="resend-text">Didn't receive the confirmation email?</p>
+
+              {#if resendMessage}
+                <div
+                  class="message {resendMessage.startsWith('Error')
+                    ? 'error'
+                    : 'success'}"
+                >
+                  {resendMessage}
+                </div>
+              {/if}
+
+              <button
+                type="button"
+                class="btn btn-resend"
+                onclick={resendConfirmation}
+                disabled={resendingConfirmation || !email}
+              >
+                {resendingConfirmation
+                  ? "Sending..."
+                  : "Resend Confirmation Email"}
+              </button>
+            </div>
+          {/if}
+          
+        {:else if form?.error}
           <div class="error">
             {form.error}
           </div>
@@ -306,6 +386,17 @@
     border-radius: 6px;
     margin-bottom: 1rem;
     font-size: 0.9rem;
+  }
+
+  .success {
+    background: #f0fdf4;
+    border: 1px solid #86efac;
+    color: #166534;
+    padding: 0.75rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    font-weight: 500;
   }
 
   .resend-section {

@@ -25,6 +25,10 @@ export const useAuth = (): UseAuthReturn => {
   };
 
   const refreshAuth = async () => {
+    console.warn('refreshAuth disabled - client auth methods hang. Use server-side auth state instead.');
+    return;
+    
+    /* DISABLED - Client auth methods hang
     if (!supabase) return;
     
     authStore.setLoading(true);
@@ -44,6 +48,7 @@ export const useAuth = (): UseAuthReturn => {
     } catch (error) {
       authStore.clearAuthState();
     }
+    */
   };
 
   return {

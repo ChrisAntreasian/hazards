@@ -5,43 +5,29 @@ import type { AuthState } from '$lib/types/auth.js';
 
 /**
  * Validates current session and refreshes if needed
- * Note: Client auth methods hang, so this now relies on server-side session data
+ * Note: Client auth methods hang, so this is now disabled - session validation happens server-side only
  */
 export async function validateAndRefreshSession() {
-  // Client auth methods hang, so we can't validate session client-side
-  // Session validation should be done server-side via +layout.server.ts
-  console.warn('validateAndRefreshSession: Client auth methods hang, using server session data instead');
+  // Session validation is now handled entirely server-side via +layout.server.ts
+  // Client-side validation is disabled because Supabase client auth methods hang
   
-  // Check if we already have valid session data from server
+  // Just check if we have session data in our store (no client calls)
   const currentAuth = get(authStore);
-  return !!currentAuth.user;
+  return !!currentAuth.user && !!currentAuth.session;
 }
 
 /**
  * Refreshes user data after profile updates
+ * Note: Client auth methods hang, so this now relies on server-side data updates
  */
 export async function refreshUserData() {
-  const supabase = createSupabaseLoadClient();
-  if (!supabase) return false;
-
-  try {
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-    if (userError || sessionError || !user || !session) {
-      return false;
-    }
-
-    // Update auth store with fresh user data
-    authStore.dispatch({
-      type: 'REFRESH_SESSION',
-      payload: { user, session }
-    });
-
-    return true;
-  } catch (error) {
-    return false;
-  }
+  // Client auth methods hang, so we can't refresh user data client-side
+  // User data refresh should be handled by server-side actions and page reloads
+  console.log('refreshUserData: Client auth methods disabled, use server-side refresh instead');
+  
+  // Just check current store state
+  const currentAuth = get(authStore);
+  return !!currentAuth.user && !!currentAuth.session;
 }
 
 /**
@@ -74,21 +60,18 @@ export async function ensureSessionSync() {
 }
 
 /**
- * Ensures session is synchronized between auth store and Supabase client
+ * Session preservation (disabled in favor of server-side auth)
+ * Note: Client-side session validation is disabled because auth methods hang
  */
 export function preserveAuthState() {
   if (typeof window === 'undefined') return;
 
-  // Listen for page visibility changes
-  document.addEventListener('visibilitychange', async () => {
-    if (document.visibilityState === 'visible') {
-      // Page became visible - validate session
-      await validateAndRefreshSession();
-    }
-  });
-
-  // Listen for focus events
-  window.addEventListener('focus', async () => {
-    await validateAndRefreshSession();
-  });
+  // Session preservation is now handled entirely server-side
+  // Client-side event listeners are disabled to prevent hanging auth method calls
+  console.log('preserveAuthState: Client-side session preservation disabled, using server-side auth only');
+  
+  // No event listeners - auth state is managed purely server-side via:
+  // 1. +layout.server.ts loads fresh session data on every page load
+  // 2. Form actions handle auth state changes 
+  // 3. Redirects force page reloads with fresh server data
 }

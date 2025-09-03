@@ -12,24 +12,25 @@ export const load: LayoutServerLoad = async (event) => {
   }
 
   try {
-    // Get session and user data
+    // Get session first
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     
-    if (sessionError) {
+    if (sessionError || !session) {
       return { session: null, user: null };
     }
 
-    // Always get fresh user data if we have a session
-    let user = null;
-    if (session) {
-      const { data: { user: userData }, error: userError } = await supabase.auth.getUser();
-      if (!userError && userData) {
-        user = userData;
-      }
+    // Always use getUser() instead of session.user for security
+    // This authenticates the user data by contacting the Supabase Auth server
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !user) {
+      // If user verification fails, clear the session
+      return { session: null, user: null };
     }
 
     return { session, user };
   } catch (error) {
+    console.error('Layout auth load error:', error);
     return { session: null, user: null };
   }
 };

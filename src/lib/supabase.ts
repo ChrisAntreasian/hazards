@@ -100,8 +100,12 @@ export function createSupabaseServerClient(event: any) {
   });
 }
 
-// Enhanced auth helpers with better error handling
+// Enhanced auth helpers with better error handling - DISABLED to prevent hanging
 export const getCurrentUser = async (supabase: ReturnType<typeof createSupabaseLoadClient>) => {
+  console.warn('getCurrentUser disabled - client auth methods hang. Use server-side auth instead.');
+  return null;
+  
+  /* DISABLED - Client auth methods hang
   if (!supabase) return null;
   
   try {
@@ -121,212 +125,28 @@ export const getCurrentUser = async (supabase: ReturnType<typeof createSupabaseL
     console.error('getCurrentUser failed:', error);
     return null;
   }
+  */
 };
 
-// Deep diagnostic function to understand why auth methods hang
+// Deep diagnostic function - DISABLED to prevent hanging
 export const diagnoseSupabaseIssues = async (supabase: ReturnType<typeof createSupabaseLoadClient>) => {
-  if (!supabase) {
-    console.log('❌ No Supabase client');
-    return;
-  }
-
-  console.log('🔍 DEEP SUPABASE DIAGNOSTICS');
-  console.log('============================');
+  console.warn('diagnoseSupabaseIssues disabled - contains hanging client auth methods. Use server-side auth diagnostics instead.');
+  return;
   
-  // Check environment
-  console.log('Environment:');
-  console.log('- URL:', supabaseUrl);
-  console.log('- Key length:', supabaseAnonKey.length);
-  console.log('- Browser:', navigator.userAgent.split(' ').slice(-2).join(' '));
-  
-  // Check internal client state
-  console.log('\nClient State:');
-  try {
-    const clientInternal = supabase as any;
-    console.log('- Client exists:', !!clientInternal);
-    console.log('- Auth exists:', !!clientInternal.auth);
-    console.log('- Auth URL:', clientInternal.auth?.url);
-    console.log('- Storage key:', clientInternal.auth?.storageKey);
-    console.log('- Auto refresh:', clientInternal.auth?.autoRefreshToken);
-  } catch (e) {
-    console.log('- Error accessing client internals:', e);
-  }
-
-  // Test network directly to auth endpoint
-  console.log('\nDirect Network Tests:');
-  
-  // Test 1: Basic auth endpoint
-  try {
-    const authEndpoint = `${supabaseUrl}/auth/v1/settings`;
-    console.log('Testing:', authEndpoint);
-    
-    const start = Date.now();
-    const response = await Promise.race([
-      fetch(authEndpoint, {
-        headers: { 'apikey': supabaseAnonKey }
-      }),
-      new Promise<Response>((_, reject) => 
-        setTimeout(() => reject(new Error('timeout')), 5000)
-      )
-    ]);
-    const duration = Date.now() - start;
-    
-    console.log(`✅ Auth endpoint responded in ${duration}ms:`, response.status);
-    
-    if (response.ok) {
-      const settings = await response.json();
-      console.log('- Settings received:', Object.keys(settings));
-    }
-  } catch (e) {
-    console.log('❌ Auth endpoint failed:', e);
-  }
-
-  // Test 2: Session endpoint
-  try {
-    const sessionEndpoint = `${supabaseUrl}/auth/v1/token?grant_type=refresh_token`;
-    console.log('Testing session endpoint connectivity...');
-    
-    const start = Date.now();
-    const response = await Promise.race([
-      fetch(sessionEndpoint, {
-        method: 'POST',
-        headers: { 
-          'apikey': supabaseAnonKey,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ refresh_token: 'test' })
-      }),
-      new Promise<Response>((_, reject) => 
-        setTimeout(() => reject(new Error('timeout')), 3000)
-      )
-    ]);
-    const duration = Date.now() - start;
-    
-    console.log(`✅ Session endpoint responded in ${duration}ms:`, response.status);
-  } catch (e) {
-    console.log('❌ Session endpoint failed:', e);
-  }
-
-  // Test 3: Check localStorage
-  console.log('\nLocalStorage Check:');
-  try {
-    const storageKeys = Object.keys(localStorage).filter(k => k.includes('supabase') || k.includes('sb-'));
-    console.log('- Supabase keys found:', storageKeys.length);
-    storageKeys.forEach(key => {
-      const value = localStorage.getItem(key);
-      console.log(`  - ${key}: ${value ? `${value.length} chars` : 'null'}`);
-    });
-  } catch (e) {
-    console.log('- LocalStorage error:', e);
-  }
-
-  // Test 4: Try to trace what happens during getSession
-  console.log('\nTracing getSession call:');
-  
-  const originalFetch = window.fetch;
-  const fetchCalls: string[] = [];
-  
-  try {
-    console.log('- Calling getSession...');
-    
-    // Add some logging to see if we can catch where it hangs
-    window.fetch = (url: RequestInfo | URL, options?: RequestInit) => {
-      const urlString = typeof url === 'string' ? url : url.toString();
-      fetchCalls.push(`FETCH: ${urlString}`);
-      console.log(`📡 Fetch called: ${urlString}`);
-      return originalFetch(url, options);
-    };
-
-    const sessionPromise = supabase.auth.getSession();
-    
-    // Wait a bit to see what fetch calls are made
-    setTimeout(() => {
-      console.log('- Fetch calls so far:', fetchCalls);
-    }, 1000);
-
-    const result = await Promise.race([
-      sessionPromise,
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('traced timeout')), 2000)
-      )
-    ]);
-    
-    console.log('✅ getSession succeeded!', result);
-    
-  } catch (e) {
-    console.log('❌ getSession trace failed:', e);
-  } finally {
-    // Always restore original fetch
-    window.fetch = originalFetch;
-  }
-
-  // Test 5: Check if we can force a localStorage clear and retry
-  console.log('\nTesting localStorage clear fix:');
-  try {
-    // Clear any potential corrupted localStorage
-    Object.keys(localStorage).forEach(key => {
-      if (key.includes('supabase') || key.includes('sb-')) {
-        console.log(`- Removing: ${key}`);
-        localStorage.removeItem(key);
-      }
-    });
-    
-    console.log('- Cleared localStorage, testing getSession again...');
-    const result = await Promise.race([
-      supabase.auth.getSession(),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('still timeout after clear')), 3000)
-      )
-    ]);
-    
-    console.log('✅ getSession works after localStorage clear!', result);
-    
-  } catch (e) {
-    console.log('❌ Still fails after localStorage clear:', e);
-  }
+  /* DISABLED - Contains hanging client auth method calls
+  Original function contained supabase.auth.getSession() calls that hang
+  */
 };
 
-// Manual session management since auth methods hang
+// Manual session management - DISABLED to prevent hanging
 export const getSessionManually = async () => {
-  try {
-    // Get the session from localStorage directly
-    const storageKey = `sb-${supabaseUrl.split('//')[1].split('.')[0]}-auth-token`;
-    const sessionData = localStorage.getItem(storageKey);
-    
-    if (!sessionData) {
-      return { session: null, user: null, error: null };
-    }
-    
-    const parsedSession = JSON.parse(sessionData);
-    
-    // Check if session is expired
-    if (parsedSession.expires_at && parsedSession.expires_at * 1000 < Date.now()) {
-      return { session: null, user: null, error: 'Session expired' };
-    }
-    
-    // Get user data via direct API call since getUser() hangs
-    const userResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
-      headers: {
-        'apikey': supabaseAnonKey,
-        'Authorization': `Bearer ${parsedSession.access_token}`
-      }
-    });
-    
-    if (userResponse.ok) {
-      const userData = await userResponse.json();
-      return { 
-        session: parsedSession, 
-        user: userData, 
-        error: null 
-      };
-    } else {
-      return { session: null, user: null, error: 'User fetch failed' };
-    }
-    
-  } catch (error) {
-    console.error('Manual session fetch failed:', error);
-    return { session: null, user: null, error: error as Error };
-  }
+  console.warn('getSessionManually disabled - manual session access can cause issues. Use server-side auth instead.');
+  return { session: null, user: null, error: 'Function disabled' };
+  
+  /* DISABLED - Manual localStorage access and direct API calls
+  Original function accessed localStorage directly and made API calls
+  that could hang or cause security issues
+  */
 };
 
 // Manual sign out since auth.signOut() hangs
@@ -419,12 +239,16 @@ async function fallbackLogout() {
   return { error: null };
 }
 
-// Enhanced session helpers
+// Enhanced session helpers - DISABLED to prevent hanging
 export const getSessionWithRetry = async (
   supabase: ReturnType<typeof createSupabaseLoadClient>,
   maxRetries = 3,
   delay = 1000
 ) => {
+  console.warn('getSessionWithRetry disabled - client auth methods hang. Use server-side auth instead.');
+  return { session: null, user: null };
+
+  /* DISABLED - Client auth methods hang
   if (!supabase) return { session: null, user: null };
 
   for (let i = 0; i < maxRetries; i++) {
@@ -448,10 +272,15 @@ export const getSessionWithRetry = async (
   }
 
   return { session: null, user: null };
+  */
 };
 
-// Validate session integrity
+// Validate session integrity - DISABLED to prevent hanging
 export const validateSession = async (supabase: ReturnType<typeof createSupabaseLoadClient>) => {
+  console.warn('validateSession disabled - client auth methods hang. Use server-side auth instead.');
+  return false;
+
+  /* DISABLED - Client auth methods hang
   if (!supabase) return false;
 
   try {
@@ -460,4 +289,5 @@ export const validateSession = async (supabase: ReturnType<typeof createSupabase
   } catch {
     return false;
   }
+  */
 };

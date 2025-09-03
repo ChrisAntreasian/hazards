@@ -6,8 +6,6 @@
   import {
     createSupabaseLoadClient,
     signOut,
-    diagnoseSupabaseIssues,
-    getSessionManually,
   } from "$lib/supabase.js";
   import {
     authStore,
@@ -26,24 +24,17 @@
     );
     console.log("- Server session:", data.session ? "EXISTS" : "NULL");
     console.log("- Server user:", data.user ? "EXISTS" : "NULL");
+    console.log("- Current auth state:", $isAuthenticated ? "AUTHENTICATED" : "NOT_AUTHENTICATED");
 
-    // Initialize with server data if available
+    // Always update auth state with latest server data
+    // This ensures we pick up changes after login/logout
     if (data.session && data.user) {
       console.log("✅ Initializing with server session data");
-      authStore.initialize(data.user, data.session);
-
-      // Don't try to set session in client - let server handle it
+      authStore.updateAuthState(data.session, data.user);
     } else {
-      console.log("❌ No server session - user not logged in");
-      // No server session, mark as initialized
-      authStore.dispatch({
-        type: "INITIALIZE",
-        payload: { user: null, session: null },
-      });
+      console.log("❌ No server session - clearing auth state");
+      authStore.clearAuthState();
     }
-
-    // Set up session preservation
-    preserveAuthState();
 
     // Note: Removed onAuthStateChange listener as client auth methods hang
     // Auth state is now managed server-side and passed through data.session

@@ -16,15 +16,19 @@
   let profileUser = $derived(data.user);
   let regions = $derived(data.regions);
 
-  // Form fields initialized from server data - use $state with empty defaults
-  let displayName = $state("");
-  let email = $state("");
+  // Form fields initialized from server data - initialize with server data
+  let displayName = $state(data.user?.displayName || "");
+  let email = $state(data.user?.email || "");
 
-  // Update form fields when profileUser changes
+  // Only update form fields when new server data comes in after a successful update
+  // This prevents interference with user input
+  let lastKnownDisplayName = $state(data.user?.displayName || "");
+  
   $effect(() => {
-    if (profileUser) {
+    // Only update if we receive new server data (e.g., after successful form submission)
+    if (profileUser && profileUser.displayName !== lastKnownDisplayName) {
       displayName = profileUser.displayName || "";
-      email = profileUser.email || "";
+      lastKnownDisplayName = profileUser.displayName || "";
     }
   });
 

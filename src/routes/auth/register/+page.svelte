@@ -66,12 +66,24 @@
             return;
           }
           loading = true;
-          return async ({ result }) => {
+          return async ({ result, update }) => {
             loading = false;
+            
             if (result.type === "redirect") {
-              // Let the redirect happen naturally
+              // SUCCESS: Apply logout pattern - force browser navigation
+              console.log('✅ Registration successful - redirecting to dashboard');
+              
+              // Force complete page reload to get fresh server auth state
+              window.location.href = '/dashboard';
+              return; // Don't call update() - we're navigating away
+              
+            } else if (result.type === "success") {
+              // Email confirmation required - show success message
+              console.log('✅ Registration successful - email confirmation required');
+              await update(); // Show the success message
+              
             } else if (result.type === "failure") {
-              // Preserve form values on error with type safety
+              // ERROR: Preserve form values on error with type safety
               if (result.data?.email && typeof result.data.email === "string") {
                 email = result.data.email;
               }
@@ -84,12 +96,9 @@
               // Clear password fields for security
               password = "";
               confirmPassword = "";
-            } else if (result.type === "success") {
-              // Clear form on success
-              email = "";
-              password = "";
-              confirmPassword = "";
-              displayName = "";
+              await update();
+            } else {
+              await update();
             }
           };
         }}

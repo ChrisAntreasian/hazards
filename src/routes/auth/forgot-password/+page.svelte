@@ -1,54 +1,28 @@
 <script lang="ts">
-  import {
-    createSupabaseLoadClient,
-    isSupabaseConfigured,
-  } from "$lib/supabase.js";
+  import { enhance } from '$app/forms';
+  import { isSupabaseConfigured } from "$lib/supabase.js";
+  import type { SubmitFunction } from '@sveltejs/kit';
 
-  let email = $state("");
+  let { form } = $props();
+  
   let loading = $state(false);
-  let message = $state("");
-  let error = $state("");
+  let email = $state("");
 
-  const supabase = createSupabaseLoadClient();
   const configured = isSupabaseConfigured();
 
-  async function handleForgotPassword() {
-    if (!supabase) {
-      error =
-        "Supabase not configured. Please check your environment variables.";
-      return;
-    }
-
-    if (!email) {
-      error = "Please enter your email address";
-      return;
-    }
-
+  const handleSubmit: SubmitFunction = ({ formData }) => {
     loading = true;
-    error = "";
-    message = "";
-
-    try {
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-        email,
-        {
-          redirectTo: `${window.location.origin}/auth/reset-password`,
-        }
-      );
-
-      if (resetError) {
-        error = resetError.message;
-      } else {
-        message =
-          "Password reset email sent! Check your inbox for instructions.";
-        email = ""; // Clear the form
-      }
-    } catch (e) {
-      error = "An unexpected error occurred";
-    } finally {
+    return async ({ result, update }) => {
       loading = false;
-    }
-  }
+      
+      if (result.type === 'success') {
+        // Clear the form on success
+        email = "";
+      }
+      
+      await update();
+    };
+  };
 </script>
 
 <svelte:head>
@@ -71,24 +45,20 @@
         </p>
       </div>
     {:else}
-      <form
-        onsubmit={(e) => {
-          e.preventDefault();
-          handleForgotPassword();
-        }}
-      >
-        {#if message}
-          <div class="success">{message}</div>
+      <form method="POST" action="?/resetPassword" use:enhance={handleSubmit}>
+        {#if form?.success}
+          <div class="success">{form.message}</div>
         {/if}
 
-        {#if error}
-          <div class="error">{error}</div>
+        {#if form?.error}
+          <div class="error">{form.error}</div>
         {/if}
 
         <div class="form-group">
           <label for="email">Email Address</label>
           <input
             id="email"
+            name="email"
             type="email"
             bind:value={email}
             placeholder="your@email.com"

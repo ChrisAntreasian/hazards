@@ -41,7 +41,16 @@ export const actions: Actions = {
         return fail(400, { error: 'Login failed - no user data received' });
       }
 
-      if (!data.user.email_confirmed_at) {
+      // Verify user data by getting fresh user info from server for security
+      const { data: { user: verifiedUser }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !verifiedUser) {
+        console.log('❌ User verification failed after login:', userError);
+        await supabase.auth.signOut();
+        return fail(400, { error: 'Login verification failed' });
+      }
+
+      if (!verifiedUser.email_confirmed_at) {
         // Sign out unconfirmed user
         await supabase.auth.signOut();
         return fail(400, { 
@@ -49,16 +58,16 @@ export const actions: Actions = {
         });
       }
 
-      console.log('✅ Server-side login successful for:', data.user.email);
+      console.log('✅ Server-side login successful for:', verifiedUser.email);
       
-      // Redirect to the return URL
-      throw redirect(303, returnUrl);
+      // Return success with redirect URL instead of throwing redirect
+      // This allows the client form enhancement to handle the navigation
+      return {
+        success: true,
+        redirectUrl: returnUrl
+      };
       
     } catch (error) {
-      if (error instanceof Response) {
-        // This is a redirect, let it through
-        throw error;
-      }
       console.log('❌ Server login exception:', error);
       return fail(500, { error: 'Unexpected error during sign in' });
     }
@@ -248,60 +257,6 @@ export const actions: Actions = {
       return { session };
     } catch (error) {
       return fail(500, { error: 'Unexpected error during session refresh' });
-    }
-  },
-
-  resetPassword: async (event) => {
-    const supabase = createSupabaseServerClient(event);
-    
-    if (!supabase) {
-      return fail(500, { error: 'Supabase not configured' });
-    }
-
-    const formData = await event.request.formData();
-    const newPassword = formData.get('newPassword') as string;
-    const confirmPassword = formData.get('confirmPassword') as string;
-
-    if (!newPassword || !confirmPassword) {
-      return fail(400, { error: 'Please fill in all fields' });
-    }
-
-    if (newPassword !== confirmPassword) {
-      return fail(400, { error: 'Passwords do not match' });
-    }
-
-    if (newPassword.length < 6) {
-      return fail(400, { error: 'Password must be at least 6 characters long' });
-    }
-
-    try {
-      // Get the current user (should be authenticated via password reset flow)
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
-      if (userError || !user) {
-        return fail(401, { error: 'Not authenticated. Please use the password reset link from your email.' });
-      }
-
-      // Update password
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: newPassword
-      });
-
-      if (updateError) {
-        console.error('Password reset error:', updateError);
-        return fail(400, { error: updateError.message });
-      }
-
-      console.log('✅ Password reset successfully for:', user.email);
-      
-      return {
-        success: true,
-        message: 'Password updated successfully! Redirecting to dashboard...'
-      };
-      
-    } catch (error) {
-      console.log('❌ Password reset exception:', error);
-      return fail(500, { error: 'Unexpected error during password reset' });
     }
   },
 
