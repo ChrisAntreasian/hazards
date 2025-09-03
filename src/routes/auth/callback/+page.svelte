@@ -1,82 +1,18 @@
 <script lang="ts">
-  import { createSupabaseLoadClient } from "$lib/supabase.js";
-  import { onMount } from "svelte";
   import { goto } from "$app/navigation";
-  import { page } from "$app/stores";
-  import { invalidate } from "$app/navigation";
 
-  const supabase = createSupabaseLoadClient();
-  let status = $state("processing");
-  let message = $state("Processing email confirmation...");
-  let error = $state("");
+  interface Props {
+    data: any;
+  }
 
-  onMount(async () => {
-    if (!supabase) {
-      status = "error";
-      message = "Authentication service not available";
-      return;
-    }
+  let { data }: Props = $props();
 
-    try {
-      // Get the current URL parameters
-      const urlParams = new URLSearchParams(window.location.search);
-      const accessToken = urlParams.get("access_token");
-      const refreshToken = urlParams.get("refresh_token");
-      const type = urlParams.get("type");
-
-      if (type === "signup" || type === "email_change") {
-        // This is an email confirmation
-        if (accessToken && refreshToken) {
-          // Set the session
-          const { data, error: sessionError } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-
-          if (sessionError) {
-            status = "error";
-            message = "Failed to confirm email";
-            error = sessionError.message;
-          } else {
-            status = "success";
-            message = "Email confirmed successfully! Welcome to Hazards App.";
-
-            // Force auth state update
-            await invalidate("supabase:auth");
-
-            // Redirect to dashboard after a short delay
-            setTimeout(() => {
-              goto("/dashboard");
-            }, 2000);
-          }
-        } else {
-          status = "error";
-          message = "Invalid confirmation link";
-          error = "Missing required parameters";
-        }
-      } else if (type === "recovery") {
-        // Password recovery - redirect to password reset page
-        goto("/auth/reset-password");
-      } else {
-        // Check if user is already logged in
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        if (session) {
-          status = "success";
-          message = "You are already logged in.";
-          setTimeout(() => {
-            goto("/dashboard");
-          }, 1000);
-        } else {
-          status = "error";
-          message = "Invalid or expired confirmation link";
-        }
-      }
-    } catch (e: any) {
-      status = "error";
-      message = "An unexpected error occurred";
-      error = e.message;
+  // Handle client-side redirect for successful confirmations using $effect
+  $effect(() => {
+    if (data.status === "success" && data.redirectTo) {
+      setTimeout(() => {
+        goto(data.redirectTo);
+      }, 2000);
     }
   });
 </script>
@@ -87,29 +23,15 @@
 
 <div class="callback-container">
   <div class="callback-card">
-    {#if status === "processing"}
-      <div class="processing">
-        <div class="spinner"></div>
-        <h1>🔄 {message}</h1>
-        <p>Please wait while we confirm your email address...</p>
-      </div>
-    {:else if status === "success"}
-      <div class="success">
-        <div class="checkmark">✅</div>
-        <h1>Email Confirmed!</h1>
-        <p>{message}</p>
-        <p class="redirect-notice">Redirecting to your dashboard...</p>
-        <a href="/dashboard" class="btn btn-primary">Go to Dashboard Now</a>
-      </div>
-    {:else if status === "error"}
+    {#if data.status === "error"}
       <div class="error">
         <div class="error-icon">❌</div>
         <h1>Confirmation Failed</h1>
-        <p>{message}</p>
-        {#if error}
+        <p>{data.message}</p>
+        {#if data.error}
           <div class="error-details">
             <strong>Error:</strong>
-            {error}
+            {data.error}
           </div>
         {/if}
         <div class="actions">
@@ -117,6 +39,25 @@
           <a href="/auth/register" class="btn btn-secondary">Register Again</a>
           <a href="/" class="btn btn-secondary">Go Home</a>
         </div>
+      </div>
+    {:else if data.status === "success"}
+      <div class="success">
+        <div class="checkmark">✅</div>
+        <h1>Email Confirmed!</h1>
+        <p>{data.message}</p>
+        {#if data.redirectTo}
+          <p class="redirect-notice">Redirecting to your dashboard...</p>
+          <a href={data.redirectTo} class="btn btn-primary"
+            >Go to Dashboard Now</a
+          >
+        {/if}
+      </div>
+    {:else}
+      <!-- Fallback processing state -->
+      <div class="processing">
+        <div class="spinner"></div>
+        <h1>🔄 Processing authentication...</h1>
+        <p>Please wait while we confirm your email address...</p>
       </div>
     {/if}
   </div>

@@ -56,10 +56,6 @@ import {
 	mockSession
 } from './mocks';
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
-import userEvent from '@testing-library/user-event';
-
 // Create mock functions
 const mockSignInWithPassword = vi.fn();
 const mockSignInWithOAuth = vi.fn();
@@ -107,15 +103,6 @@ vi.mock('$lib/hooks/useAuth', () => ({
 		dispatch: vi.fn()
 	})
 }));
-
-// Import after mocks
-import LoginPage from '../routes/auth/log-in/+page.svelte';
-import { 
-	mockAuthSuccess, 
-	mockAuthErrorResponse, 
-	mockUser,
-	mockSession
-} from './mocks';
 
 describe('Login Flow', () => {
 	let user: ReturnType<typeof userEvent.setup>;

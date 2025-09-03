@@ -5,14 +5,27 @@
   import { ImageStorage } from "$lib/images/storage.js";
   import type { GeoPoint, ImageUploadResult } from "$lib/types/images.js";
 
-  export let hazardId: string | undefined = undefined;
-  export let userId: string;
-  export let hazardLocation: GeoPoint | undefined = undefined;
-  export let maxFiles = 5;
-  export let disabled = false;
-  export let supabaseClient: SupabaseClient | null = null;
-  export let currentSession: any = null;
-  export let currentUser: any = null;
+  interface Props {
+    hazardId?: string;
+    userId: string;
+    hazardLocation?: GeoPoint;
+    maxFiles?: number;
+    disabled?: boolean;
+    supabaseClient?: SupabaseClient | null;
+    currentSession?: any;
+    currentUser?: any;
+  }
+
+  let {
+    hazardId = undefined,
+    userId,
+    hazardLocation = undefined,
+    maxFiles = 5,
+    disabled = false,
+    supabaseClient = null,
+    currentSession = null,
+    currentUser = null,
+  }: Props = $props();
 
   const dispatch = createEventDispatcher<{
     upload: ImageUploadResult;
@@ -22,15 +35,15 @@
   }>();
 
   let fileInput: HTMLInputElement;
-  let uploadQueue: File[] = [];
-  let uploadProgress: Record<string, number> = {};
-  let isUploading = false;
-  let dragOver = false;
+  let uploadQueue: File[] = $state([]);
+  let uploadProgress: Record<string, number> = $state({});
+  let isUploading = $state(false);
+  let dragOver = $state(false);
   let uploadResults: Array<{ file: string; success: boolean; error?: string }> =
-    [];
-  let showToast = false;
-  let toastMessage = "";
-  let toastType: "success" | "error" | "info" = "info";
+    $state([]);
+  let showToast = $state(false);
+  let toastMessage = $state("");
+  let toastType: "success" | "error" | "info" = $state("info");
 
   const imageProcessor = new ImageProcessor();
   const imageStorage = supabaseClient
@@ -257,8 +270,10 @@
     }
   };
 
-  $: canUpload = uploadQueue.length > 0 && !isUploading && !disabled;
-  $: hasImages = uploadQueue.length > 0;
+  const canUpload = $derived(
+    uploadQueue.length > 0 && !isUploading && !disabled
+  );
+  const hasImages = $derived(uploadQueue.length > 0);
 </script>
 
 <div class="image-upload">
@@ -267,13 +282,13 @@
     class="drop-zone"
     class:drag-over={dragOver}
     class:disabled
-    on:drop={handleDrop}
-    on:dragover={handleDragOver}
-    on:dragleave={handleDragLeave}
+    ondrop={handleDrop}
+    ondragover={handleDragOver}
+    ondragleave={handleDragLeave}
     role="button"
     tabindex="0"
-    on:click={() => !disabled && fileInput.click()}
-    on:keydown={(e) => e.key === "Enter" && !disabled && fileInput.click()}
+    onclick={() => !disabled && fileInput.click()}
+    onkeydown={(e) => e.key === "Enter" && !disabled && fileInput.click()}
   >
     <div class="drop-zone-content">
       <svg
@@ -307,7 +322,7 @@
     accept="image/*"
     multiple
     disabled={disabled || isUploading}
-    on:change={handleFileSelect}
+    onchange={handleFileSelect}
     style="display: none;"
   />
 
@@ -321,7 +336,7 @@
             type="button"
             class="btn-secondary"
             disabled={isUploading}
-            on:click={clearQueue}
+            onclick={clearQueue}
           >
             Clear All
           </button>
@@ -329,7 +344,7 @@
             type="button"
             class="btn-primary"
             disabled={!canUpload}
-            on:click={uploadImages}
+            onclick={uploadImages}
           >
             {isUploading
               ? "Uploading..."
@@ -370,7 +385,7 @@
               type="button"
               class="btn-remove"
               disabled={isUploading}
-              on:click={() => removeFromQueue(index)}
+              onclick={() => removeFromQueue(index)}
               aria-label="Remove {file.name}"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -452,7 +467,7 @@
       <span class="toast-message">{toastMessage}</span>
       <button
         class="toast-close"
-        on:click={hideToast}
+        onclick={hideToast}
         aria-label="Close notification"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">

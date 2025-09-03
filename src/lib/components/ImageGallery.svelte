@@ -2,11 +2,21 @@
   import { createEventDispatcher } from "svelte";
   import type { HazardImage } from "$lib/types/images.js";
 
-  export let images: HazardImage[] = [];
-  export let currentUserId: string | null = null;
-  export let canVote = false;
-  export let canDelete = false;
-  export let loading = false;
+  interface Props {
+    images?: HazardImage[];
+    currentUserId?: string | null;
+    canVote?: boolean;
+    canDelete?: boolean;
+    loading?: boolean;
+  }
+
+  let {
+    images = [],
+    currentUserId = null,
+    canVote = false,
+    canDelete = false,
+    loading = false,
+  }: Props = $props();
 
   const dispatch = createEventDispatcher<{
     vote: { imageId: string; vote: "up" | "down" };
@@ -14,8 +24,8 @@
     view: { image: HazardImage };
   }>();
 
-  let selectedImage: HazardImage | null = null;
-  let imageModal = false;
+  let selectedImage: HazardImage | null = $state(null);
+  let imageModal = $state(false);
 
   const handleVote = (imageId: string, vote: "up" | "down") => {
     if (!canVote || !currentUserId) return;
@@ -62,16 +72,18 @@
     }
   };
 
-  $: hasImages = images.length > 0;
-  $: sortedImages = images.sort((a, b) => {
-    // Sort by vote score first, then by upload date
-    if (a.vote_score !== b.vote_score) {
-      return b.vote_score - a.vote_score;
-    }
-    return (
-      new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime()
-    );
-  });
+  const hasImages = $derived(images.length > 0);
+  const sortedImages = $derived(
+    images.sort((a, b) => {
+      // Sort by vote score first, then by upload date
+      if (a.vote_score !== b.vote_score) {
+        return b.vote_score - a.vote_score;
+      }
+      return (
+        new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime()
+      );
+    })
+  );
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
@@ -111,7 +123,7 @@
           <div class="image-container">
             <button
               class="image-button"
-              on:click={() => openImageModal(image)}
+              onclick={() => openImageModal(image)}
               aria-label="View full image"
             >
               <img
@@ -143,7 +155,7 @@
                 <button
                   class="vote-btn vote-up"
                   class:voted={image.user_vote === "up"}
-                  on:click={() => handleVote(image.id, "up")}
+                  onclick={() => handleVote(image.id, "up")}
                   aria-label="Upvote image"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -164,7 +176,7 @@
                 <button
                   class="vote-btn vote-down"
                   class:voted={image.user_vote === "down"}
-                  on:click={() => handleVote(image.id, "down")}
+                  onclick={() => handleVote(image.id, "down")}
                   aria-label="Downvote image"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -188,7 +200,7 @@
             {#if canDelete && currentUserId === image.user_id}
               <button
                 class="delete-btn"
-                on:click={() => handleDelete(image.id)}
+                onclick={() => handleDelete(image.id)}
                 aria-label="Delete image"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -210,16 +222,16 @@
 {#if imageModal && selectedImage}
   <div
     class="modal-backdrop"
-    on:click={closeImageModal}
-    on:keydown={(e) => e.key === "Enter" && closeImageModal()}
+    onclick={closeImageModal}
+    onkeydown={(e) => e.key === "Enter" && closeImageModal()}
     role="button"
     tabindex="-1"
     aria-label="Close image modal"
   >
     <div
       class="modal-content"
-      on:click|stopPropagation
-      on:keydown|stopPropagation
+      onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => e.stopPropagation()}
       role="dialog"
       aria-label="Image viewer"
       tabindex="-1"
@@ -238,7 +250,7 @@
         </div>
         <button
           class="close-btn"
-          on:click={closeImageModal}
+          onclick={closeImageModal}
           aria-label="Close image"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -264,7 +276,7 @@
             <button
               class="modal-vote-btn vote-up"
               class:voted={selectedImage.user_vote === "up"}
-              on:click={() =>
+              onclick={() =>
                 selectedImage && handleVote(selectedImage.id, "up")}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -282,7 +294,7 @@
             <button
               class="modal-vote-btn vote-down"
               class:voted={selectedImage.user_vote === "down"}
-              on:click={() =>
+              onclick={() =>
                 selectedImage && handleVote(selectedImage.id, "down")}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">

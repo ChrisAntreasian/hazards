@@ -2,9 +2,13 @@
   import "../app.css";
   import { invalidate } from "$app/navigation";
   import { goto } from "$app/navigation";
-  import { onMount } from "svelte";
   import { page } from "$app/stores";
-  import { createSupabaseLoadClient, signOut } from "$lib/supabase.js";
+  import {
+    createSupabaseLoadClient,
+    signOut,
+    diagnoseSupabaseIssues,
+    getSessionManually,
+  } from "$lib/supabase.js";
   import {
     authStore,
     session as authSession,
@@ -16,57 +20,52 @@
   let { children, data } = $props();
   const supabase = createSupabaseLoadClient();
 
-  onMount(() => {
+  $effect(() => {
+    console.log(
+      "🔍 Auth initialization - using server-side session management"
+    );
+    console.log("- Server session:", data.session ? "EXISTS" : "NULL");
+    console.log("- Server user:", data.user ? "EXISTS" : "NULL");
+
     // Initialize with server data if available
-    if (data.session || data.user) {
+    if (data.session && data.user) {
+      console.log("✅ Initializing with server session data");
       authStore.initialize(data.user, data.session);
+
+      // Don't try to set session in client - let server handle it
+    } else {
+      console.log("❌ No server session - user not logged in");
+      // No server session, mark as initialized
+      authStore.dispatch({
+        type: "INITIALIZE",
+        payload: { user: null, session: null },
+      });
     }
 
     // Set up session preservation
     preserveAuthState();
 
-    if (supabase) {
-      const {
-        data: { subscription },
-      } = supabase.auth.onAuthStateChange(async (event, _session) => {
-        // Only update auth state for actual auth changes, not page refreshes
-        if (event === "SIGNED_IN" && _session) {
-          authStore.dispatch({
-            type: "SIGN_IN",
-            payload: { user: _session.user, session: _session },
-          });
-          invalidate("supabase:auth");
-        } else if (event === "SIGNED_OUT") {
-          authStore.dispatch({ type: "SIGN_OUT" });
-          invalidate("supabase:auth");
-        } else if (event === "TOKEN_REFRESHED" && _session) {
-          // Update the session when token is refreshed
-          authStore.dispatch({
-            type: "REFRESH_SESSION",
-            payload: { user: _session.user, session: _session },
-          });
-        } else if (event === "INITIAL_SESSION" && _session) {
-          // Handle initial session load
-          authStore.dispatch({
-            type: "INITIALIZE",
-            payload: { user: _session.user, session: _session },
-          });
-        }
-      });
-
-      return () => subscription.unsubscribe();
-    }
+    // Note: Removed onAuthStateChange listener as client auth methods hang
+    // Auth state is now managed server-side and passed through data.session
   });
 
   async function handleSignOut() {
     if (supabase) {
       authStore.setLoading(true);
       const { error } = await signOut(supabase);
+
       if (!error) {
+        // Clear auth state immediately
         authStore.clearAuthState();
-        goto("/");
+
+        // Force page reload to clear all state and reload from server
+        window.location.href = "/auth/log-in";
       } else {
-        authStore.setLoading(false);
+        console.error("Logout failed:", error);
+
+        // Even if logout failed, clear local state
+        authStore.clearAuthState();
+        window.location.href = "/auth/log-in";
       }
     }
   }

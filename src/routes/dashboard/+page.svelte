@@ -1,73 +1,18 @@
 <script lang="ts">
-  import { onMount } from "svelte";
   import { goto } from "$app/navigation";
-  import { getCurrentUser } from "$lib/supabase.js";
-  import { useAuth, useRouteGuard } from "$lib/hooks/useAuth.js";
   import {
     user,
     session,
+    isAuthenticated,
     loading,
     initialized,
-    authStore,
   } from "$lib/stores/auth.js";
 
-  let { data } = $props();
-  let currentUser = $state<any>(null);
-  let pageLoading = $state(true);
-  let authCheckComplete = $state(false);
-
-  // Initialize auth from server data if available
+  // Only redirect after auth has been fully initialized
   $effect(() => {
-    if (data.session || data.user) {
-      authStore.initialize(data.user, data.session);
-    }
-  });
-
-  // Wait for auth initialization and check access
-  $effect(() => {
-    const checkAuth = async () => {
-      // Use server data immediately if available
-      if (data.session && data.user) {
-        currentUser = data.user;
-        authCheckComplete = true;
-        pageLoading = false;
-        return;
-      }
-
-      // Wait for client-side auth initialization
-      if (!$initialized) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      }
-
-      // Try to refresh auth if still not initialized
-      if (!$initialized) {
-        const auth = useAuth();
-        await auth.refreshAuth();
-      }
-
-      // Redirect if no authentication after all attempts
-      if ($initialized && !$session) {
-        const returnUrl = encodeURIComponent(window.location.pathname);
-        goto(`/auth/log-in?returnUrl=${returnUrl}`);
-        return;
-      }
-
-      // Set user data if session exists
-      if ($session && $user) {
-        currentUser = $user;
-      }
-
-      authCheckComplete = true;
-      pageLoading = false;
-    };
-
-    checkAuth();
-  });
-
-  // Reactive user data sync - update currentUser when global user state changes
-  $effect(() => {
-    if ($user && $session) {
-      currentUser = $user;
+    if ($initialized && !$isAuthenticated) {
+      const returnUrl = encodeURIComponent(window.location.pathname);
+      window.location.href = `/auth/log-in?returnUrl=${returnUrl}`;
     }
   });
 </script>
@@ -77,12 +22,12 @@
 </svelte:head>
 
 <div class="dashboard-container">
-  {#if pageLoading || $loading || !authCheckComplete}
+  {#if $loading || !$initialized}
     <div class="loading">
       <div class="spinner"></div>
       <p>Loading your dashboard...</p>
     </div>
-  {:else if !$session && !currentUser}
+  {:else if !$isAuthenticated}
     <div class="error">
       <h2>Authentication Required</h2>
       <p>Please <a href="/auth/log-in">sign in</a> to access your dashboard.</p>
@@ -91,8 +36,8 @@
     <div class="dashboard">
       <header class="dashboard-header">
         <h1>
-          🚨 Welcome back{currentUser?.user_metadata?.display_name
-            ? `, ${currentUser.user_metadata.display_name}`
+          🚨 Welcome back{$user?.user_metadata?.display_name
+            ? `, ${$user.user_metadata.display_name}`
             : ""}!
         </h1>
         <p class="subtitle">Manage your hazard reports and account settings</p>
@@ -150,7 +95,9 @@
           </div>
           <div class="stat-item">
             <span class="stat-number"
-              >{new Date(currentUser?.created_at).toLocaleDateString()}</span
+              >{$user?.created_at
+                ? new Date($user.created_at).toLocaleDateString()
+                : "N/A"}</span
             >
             <span class="stat-label">Member Since</span>
           </div>

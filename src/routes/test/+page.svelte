@@ -3,18 +3,17 @@
     createSupabaseLoadClient,
     isSupabaseConfigured,
   } from "$lib/supabase.js";
-  import { onMount } from "svelte";
 
-  let connectionStatus = "Testing...";
-  let dbTables: string[] = [];
-  let regions: any[] = [];
-  let categories: any[] = [];
-  let error = "";
+  let connectionStatus = $state("Testing...");
+  let dbTables: string[] = $state([]);
+  let regions: any[] = $state([]);
+  let categories: any[] = $state([]);
+  let error = $state("");
 
   const supabase = createSupabaseLoadClient();
 
-  onMount(async () => {
-    await testConnection();
+  $effect(() => {
+    testConnection();
   });
 
   async function testConnection() {
@@ -34,22 +33,11 @@
 
       if (healthError) {
         console.log("Health check failed:", healthError);
-        // If regions table requires auth, try to get user info
-        const {
-          data: { user },
-          error: authError,
-        } = await supabase.auth.getUser();
-        if (authError) {
-          throw new Error(
-            "Connection failed: " + (authError.message || "Unknown auth error")
-          );
-        }
-        if (!user) {
-          error =
-            "Database requires authentication. Please login first to test all features.";
-          connectionStatus = "⚠️ Connected (authentication required)";
-          return;
-        }
+        // Client auth methods hang, so we can't check user auth
+        error =
+          "Database connection failed. Client auth methods disabled to prevent hanging.";
+        connectionStatus = "❌ Connection failed";
+        return;
       }
 
       connectionStatus = "✅ Connected to Supabase";
@@ -102,37 +90,10 @@
   }
 
   async function testUserRegistration() {
-    if (!supabase) return;
-
-    try {
-      // Use a valid email format that Supabase accepts
-      const timestamp = Date.now();
-      const testEmail = `testuser${timestamp}@gmail.com`;
-      const testPassword = "TestPassword123!";
-
-      const { data, error } = await supabase.auth.signUp({
-        email: testEmail,
-        password: testPassword,
-        options: {
-          data: {
-            display_name: `Test User ${timestamp}`,
-          },
-        },
-      });
-
-      if (error) {
-        alert(`Registration test failed: ${error.message}`);
-      } else {
-        alert(`✅ Registration test successful! 
-        
-Email: ${testEmail}
-Password: ${testPassword}
-
-${data.user?.email_confirmed_at ? "Account is ready to use!" : "Please check your email to confirm your account."}`);
-      }
-    } catch (e: any) {
-      alert(`❌ Registration test failed: ${e.message}`);
-    }
+    // Client auth methods hang, so registration test is disabled
+    alert(
+      "❌ Registration test disabled - client auth methods hang. Use the actual registration page instead."
+    );
   }
 </script>
 
@@ -204,7 +165,7 @@ ${data.user?.email_confirmed_at ? "Account is ready to use!" : "Please check you
     <h2>🔐 Authentication Test</h2>
     <div class="auth-test-card">
       <p>Test user registration (creates a temporary test account):</p>
-      <button on:click={testUserRegistration} class="btn btn-test">
+      <button onclick={testUserRegistration} class="btn btn-test">
         Test User Registration
       </button>
       <p class="note">

@@ -1,66 +1,37 @@
 <script lang="ts">
-  import { onMount } from "svelte";
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
   import { createSupabaseLoadClient } from "$lib/supabase.js";
+  import { session, user, isAuthenticated } from "$lib/stores/auth.js";
   import ImageUpload from "$lib/components/ImageUpload.svelte";
   import ImageGallery from "$lib/components/ImageGallery.svelte";
   import { ImageStorage } from "$lib/images/storage.js";
   import type { HazardImage, ImageUploadResult } from "$lib/types/images.js";
 
-  export let data;
+  // This is a test page that doesn't use server data
+  export const data = undefined;
 
-  let images: HazardImage[] = [];
-  let loading = false;
-  let error = "";
-  let uploadError = "";
-  let uploadSuccess = "";
+  let images: HazardImage[] = $state([]);
+  let loading = $state(false);
+  let error = $state("");
+  let uploadError = $state("");
+  let uploadSuccess = $state("");
 
-  // Create authenticated Supabase client and ImageStorage
+  // Use the centralized auth system instead of managing locally
   const supabase = createSupabaseLoadClient();
   let imageStorage: ImageStorage | null = null;
-  let currentSession = data.session;
-  let currentUser = data.user;
 
-  // Listen for auth state changes to keep session current
-  onMount(() => {
-    // Set initial session if we have server data
-    if (data.session && data.user && supabase) {
-      console.log("🔧 Setting initial session from server data");
-      supabase.auth.setSession(data.session);
+  // Initialize ImageStorage once
+  $effect(() => {
+    if (supabase) {
+      imageStorage = new ImageStorage(supabase);
+      loadImages();
     }
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        console.log("🔧 Auth state changed:", event, !!session);
-        currentSession = session;
-        currentUser = session?.user || null;
-      }
-    );
-
-    // Create ImageStorage once (no longer dependent on session state)
-    imageStorage = new ImageStorage(supabase);
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
   });
-
-  // Initialize component
-  onMount(async () => {
-    await loadImages();
-  });
-
-  // Check if user is logged in
-  $: if (!currentUser) {
-    console.warn("User not logged in - redirecting to login");
-    // Uncomment the line below if you want to redirect to login
-    // goto('/auth/log-in');
-  }
 
   // Mock data for demonstration
   const mockHazardId = "test-hazard-123";
-  $: mockUserId = currentUser?.id || "test-user-123";
+  const mockUserId = $derived($user?.id || "test-user-123");
   const mockLocation = {
     lat: 42.3601,
     lng: -71.0589,
@@ -241,7 +212,7 @@
   </div>
 
   <!-- Authentication Alert -->
-  {#if !currentUser}
+  {#if !$isAuthenticated}
     <div class="alert alert-warning">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path
@@ -266,7 +237,7 @@
         <line x1="9" y1="9" x2="15" y2="15" />
       </svg>
       <span>{error}</span>
-      <button on:click={clearMessages} aria-label="Dismiss error">×</button>
+      <button onclick={clearMessages} aria-label="Dismiss error">×</button>
     </div>
   {/if}
 
@@ -280,7 +251,7 @@
         <line x1="12" y1="17" x2="12.01" y2="17" />
       </svg>
       <span>{uploadError}</span>
-      <button on:click={clearMessages} aria-label="Dismiss warning">×</button>
+      <button onclick={clearMessages} aria-label="Dismiss warning">×</button>
     </div>
   {/if}
 
@@ -291,7 +262,7 @@
         <circle cx="12" cy="12" r="10" />
       </svg>
       <span>{uploadSuccess}</span>
-      <button on:click={clearMessages} aria-label="Dismiss success">×</button>
+      <button onclick={clearMessages} aria-label="Dismiss success">×</button>
     </div>
   {/if}
 
@@ -315,20 +286,20 @@
         <span class="info-label">Authentication:</span>
         <span
           class="status"
-          class:authenticated={currentUser}
-          class:guest={!currentUser}
+          class:authenticated={$isAuthenticated}
+          class:guest={!$isAuthenticated}
         >
-          {currentUser ? "Authenticated" : "Guest Mode"}
+          {$isAuthenticated ? "Authenticated" : "Guest Mode"}
         </span>
       </div>
       <div class="info-item">
         <span class="info-label">Session Available:</span>
         <span
           class="status"
-          class:authenticated={currentSession}
-          class:guest={!currentSession}
+          class:authenticated={$session}
+          class:guest={!$session}
         >
-          {currentSession ? "Yes" : "No"}
+          {$session ? "Yes" : "No"}
         </span>
       </div>
     </div>
@@ -347,10 +318,10 @@
       userId={mockUserId}
       hazardLocation={mockLocation}
       maxFiles={5}
-      disabled={!currentUser}
+      disabled={!$isAuthenticated}
       supabaseClient={supabase}
-      {currentSession}
-      {currentUser}
+      currentSession={$session}
+      currentUser={$user}
       on:upload={handleImageUpload}
       on:error={handleUploadError}
       on:success={handleUploadSuccess}
@@ -369,8 +340,8 @@
     <ImageGallery
       {images}
       currentUserId={mockUserId}
-      canVote={!!currentUser}
-      canDelete={!!currentUser}
+      canVote={$isAuthenticated}
+      canDelete={$isAuthenticated}
       {loading}
       on:vote={handleImageVote}
       on:delete={handleImageDelete}

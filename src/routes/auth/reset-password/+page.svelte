@@ -1,81 +1,26 @@
 <script lang="ts">
-  import {
-    createSupabaseLoadClient,
-    isSupabaseConfigured,
-  } from "$lib/supabase.js";
+  import { enhance } from "$app/forms";
   import { goto } from "$app/navigation";
-  import { onMount } from "svelte";
+  import { isSupabaseConfigured } from "$lib/supabase.js";
 
-  let newPassword = "";
-  let confirmPassword = "";
-  let loading = false;
-  let error = "";
-  let success = "";
+  interface Props {
+    form?: any;
+  }
 
-  const supabase = createSupabaseLoadClient();
+  let { form }: Props = $props();
+
+  let loading = $state(false);
+
   const configured = isSupabaseConfigured();
 
-  onMount(async () => {
-    if (!supabase) return;
-
-    // Check if there's a session (user clicked reset link)
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session) {
-      // No session means they didn't come from a valid reset link
-      error =
-        "Invalid or expired reset link. Please request a new password reset.";
+  // Handle successful password reset using $effect instead of reactive statement
+  $effect(() => {
+    if (form?.success) {
+      setTimeout(() => {
+        goto("/dashboard");
+      }, 2000);
     }
   });
-
-  async function handlePasswordReset() {
-    if (!supabase) {
-      error =
-        "Supabase not configured. Please check your environment variables.";
-      return;
-    }
-
-    if (!newPassword || !confirmPassword) {
-      error = "Please fill in all fields";
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      error = "Passwords do not match";
-      return;
-    }
-
-    if (newPassword.length < 6) {
-      error = "Password must be at least 6 characters long";
-      return;
-    }
-
-    loading = true;
-    error = "";
-    success = "";
-
-    try {
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: newPassword,
-      });
-
-      if (updateError) {
-        error = updateError.message;
-      } else {
-        success = "Password updated successfully! Redirecting to dashboard...";
-
-        // Redirect to dashboard after a short delay
-        setTimeout(() => {
-          goto("/dashboard");
-        }, 2000);
-      }
-    } catch (e) {
-      error = "An unexpected error occurred";
-    } finally {
-      loading = false;
-    }
-  }
 </script>
 
 <svelte:head>
@@ -97,28 +42,33 @@
       </div>
     {:else}
       <form
-        onsubmit={(e) => {
-          e.preventDefault();
-          handlePasswordReset();
+        method="POST"
+        action="/auth?/resetPassword"
+        use:enhance={({ formElement, formData, action, cancel, submitter }) => {
+          loading = true;
+          return async ({ result, update }) => {
+            loading = false;
+            await update();
+          };
         }}
       >
-        {#if success}
-          <div class="success">{success}</div>
+        {#if form?.success}
+          <div class="success">{form.message}</div>
         {/if}
 
-        {#if error}
-          <div class="error">{error}</div>
+        {#if form?.error}
+          <div class="error">{form.error}</div>
         {/if}
 
         <div class="form-group">
           <label for="newPassword">New Password</label>
           <input
             id="newPassword"
+            name="newPassword"
             type="password"
-            bind:value={newPassword}
             placeholder="Enter new password"
             required
-            disabled={loading || !!success}
+            disabled={loading || form?.success}
             minlength="6"
           />
         </div>
@@ -127,11 +77,11 @@
           <label for="confirmPassword">Confirm Password</label>
           <input
             id="confirmPassword"
+            name="confirmPassword"
             type="password"
-            bind:value={confirmPassword}
             placeholder="Confirm new password"
             required
-            disabled={loading || !!success}
+            disabled={loading || form?.success}
             minlength="6"
           />
         </div>
@@ -139,9 +89,9 @@
         <button
           type="submit"
           class="btn btn-primary"
-          disabled={loading || !!success || !!error}
+          disabled={loading || form?.success}
         >
-          {success
+          {form?.success
             ? "✅ Password Updated!"
             : loading
               ? "Updating..."

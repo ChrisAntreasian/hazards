@@ -1,130 +1,55 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { goto } from "$app/navigation";
-  import { createSupabaseLoadClient } from "$lib/supabase.js";
-  import { useAuth, useRouteGuard } from "$lib/hooks/useAuth.js";
-  import {
-    user,
-    session,
-    loading,
-    initialized,
-    authStore,
-  } from "$lib/stores/auth.js";
-  import { refreshUserData } from "$lib/utils/sessionUtils.js";
+  import { enhance } from "$app/forms";
+  import { user, isAuthenticated } from "$lib/stores/auth.js";
+  import type { ProfilePageData, ProfileActionData } from "./types";
 
-  let { data } = $props();
-  let currentUser = $state<any>(null);
-  let pageLoading = $state(true);
+  interface Props {
+    data: ProfilePageData;
+    form?: ProfileActionData | null;
+  }
+
+  let { data, form = null }: Props = $props();
+
   let updating = $state(false);
-  let message = $state("");
 
-  // Form fields
+  // Use server-provided data with Svelte 5 derived
+  let profileUser = $derived(data.user);
+  let regions = $derived(data.regions);
+
+  // Form fields initialized from server data - use $state with empty defaults
   let displayName = $state("");
   let email = $state("");
 
-  const supabase = createSupabaseLoadClient();
-
-  // Initialize auth and load user data
+  // Update form fields when profileUser changes
   $effect(() => {
-    if (data.session && data.user) {
-      const auth = useAuth();
-      if (!$initialized) {
-        auth.refreshAuth();
-      }
-      currentUser = data.user;
-      displayName = data.user.user_metadata?.display_name || "";
-      email = data.user.email || "";
-      pageLoading = false;
+    if (profileUser) {
+      displayName = profileUser.displayName || "";
+      email = profileUser.email || "";
     }
   });
 
-  // Reactive user data sync - update form fields when global user state changes
-  $effect(() => {
-    if ($user && $session) {
-      currentUser = $user;
-      displayName = $user.user_metadata?.display_name || "";
-      email = $user.email || "";
-    }
-  });
-
-  const { checkAccess } = useRouteGuard({ requireAuth: true });
-
-  onMount(async () => {
-    // Wait for auth to be initialized
-    if (!$initialized) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
-
-    // Check access after auth is ready
-    if ($initialized && !checkAccess($user, $session)) {
-      return;
-    }
-
-    // Load user data if we have a session
-    if ($session && $user) {
-      currentUser = $user;
-      displayName = currentUser.user_metadata?.display_name || "";
-      email = currentUser.email || "";
-    }
-
-    pageLoading = false;
-  });
-
-  // Reactive user data loading
-  $effect(() => {
-    if ($user && !currentUser) {
-      currentUser = $user;
-      displayName = currentUser.user_metadata?.display_name || "";
-      email = currentUser.email || "";
-    }
-  });
-
-  async function updateProfile(event: Event) {
-    event.preventDefault();
-    if (!supabase || !currentUser) return;
-
+  // Handle form submission with progressive enhancement
+  const handleSubmit = () => {
     updating = true;
-    message = "";
+    return async ({
+      result,
+      update,
+    }: {
+      result: any;
+      update: () => Promise<void>;
+    }) => {
+      updating = false;
 
-    try {
-      const { error } = await supabase.auth.updateUser({
-        data: {
-          display_name: displayName,
-        },
-      });
-
-      if (error) {
-        message = `Error: ${error.message}`;
-      } else {
-        message = "Profile updated successfully!";
-
-        // Refresh user data across the entire app
-        const refreshed = await refreshUserData();
-
-        if (refreshed) {
-          // Update local currentUser to reflect changes immediately
-          currentUser = $user;
-        } else {
-          // Fallback: manually refresh if utility fails
-          const {
-            data: { user: userData },
-          } = await supabase.auth.getUser();
-
-          if (userData) {
-            currentUser = userData;
-            authStore.dispatch({
-              type: "REFRESH_SESSION",
-              payload: { user: userData, session: $session },
-            });
-          }
+      if (result.type === "success") {
+        // Update display name from server response if available
+        if (result.data?.user?.displayName) {
+          displayName = result.data.user.displayName;
         }
       }
-    } catch (e: any) {
-      message = `Error: ${e.message}`;
-    } finally {
-      updating = false;
-    }
-  }
+
+      await update();
+    };
+  };
 </script>
 
 <svelte:head>
@@ -132,107 +57,98 @@
 </svelte:head>
 
 <div class="profile-container">
-  {#if pageLoading || $loading}
-    <div class="loading">
-      <div class="spinner"></div>
-      <p>Loading your profile...</p>
-    </div>
-  {:else if !$session && !currentUser}
-    <div class="error">
-      <h2>Authentication Required</h2>
-      <p>Please <a href="/auth/log-in">sign in</a> to access your profile.</p>
-    </div>
-  {:else}
-    <div class="profile">
-      <header class="profile-header">
-        <h1>👤 Your Profile</h1>
-        <p class="subtitle">Manage your account information and preferences</p>
-      </header>
+  <div class="profile">
+    <header class="profile-header">
+      <h1>👤 Your Profile</h1>
+      <p class="subtitle">Manage your account information and preferences</p>
+    </header>
 
-      <div class="profile-grid">
-        <div class="profile-card">
-          <h2>Account Information</h2>
+    <div class="profile-grid">
+      <div class="profile-card">
+        <h2>Account Information</h2>
 
-          {#if message}
-            <div
-              class="message {message.startsWith('Error')
-                ? 'error'
-                : 'success'}"
-            >
-              {message}
-            </div>
-          {/if}
-
-          <form onsubmit={updateProfile}>
-            <div class="form-group">
-              <label for="email">Email Address</label>
-              <input
-                id="email"
-                type="email"
-                bind:value={email}
-                disabled
-                readonly
-              />
-              <small>Email cannot be changed. Contact support if needed.</small>
-            </div>
-
-            <div class="form-group">
-              <label for="displayName">Display Name</label>
-              <input
-                id="displayName"
-                type="text"
-                bind:value={displayName}
-                placeholder="How others will see you"
-                disabled={updating}
-              />
-            </div>
-
-            <button type="submit" class="btn btn-primary" disabled={updating}>
-              {updating ? "Updating..." : "Update Profile"}
-            </button>
-          </form>
-        </div>
-
-        <div class="profile-card">
-          <h2>Account Stats</h2>
-          <div class="stats">
-            <div class="stat-item">
-              <span class="stat-label">Member Since</span>
-              <span class="stat-value"
-                >{currentUser
-                  ? new Date(currentUser.created_at).toLocaleDateString()
-                  : "Unknown"}</span
-              >
-            </div>
-            <div class="stat-item">
-              <span class="stat-label">Trust Score</span>
-              <span class="stat-value">100 <small>(New User)</small></span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-label">Reports Submitted</span>
-              <span class="stat-value">0</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-label">Helpful Votes Received</span>
-              <span class="stat-value">0</span>
-            </div>
+        {#if form?.success}
+          <div class="message success">
+            {form.message}
           </div>
-        </div>
+        {/if}
 
-        <div class="profile-card">
-          <h2>Account Actions</h2>
-          <div class="actions">
-            <a href="/dashboard" class="btn btn-secondary"
-              >← Back to Dashboard</a
-            >
-            <a href="/auth/change-password" class="btn btn-secondary"
-              >Change Password</a
-            >
+        {#if form?.error}
+          <div class="message error">
+            {form.error}
+          </div>
+        {/if}
+
+        <form method="POST" action="?/updateProfile" use:enhance={handleSubmit}>
+          <div class="form-group">
+            <label for="email">Email Address</label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              value={email}
+              disabled
+              readonly
+            />
+            <small>Email cannot be changed. Contact support if needed.</small>
+          </div>
+
+          <div class="form-group">
+            <label for="displayName">Display Name</label>
+            <input
+              id="displayName"
+              name="displayName"
+              type="text"
+              bind:value={displayName}
+              placeholder="How others will see you"
+              disabled={updating}
+              required
+            />
+          </div>
+
+          <button type="submit" class="btn btn-primary" disabled={updating}>
+            {updating ? "Updating..." : "Update Profile"}
+          </button>
+        </form>
+      </div>
+
+      <div class="profile-card">
+        <h2>Account Stats</h2>
+        <div class="stats">
+          <div class="stat-item">
+            <span class="stat-label">Member Since</span>
+            <span class="stat-value">
+              {profileUser
+                ? new Date(profileUser.createdAt).toLocaleDateString()
+                : "Unknown"}
+            </span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Trust Score</span>
+            <span class="stat-value">100 <small>(New User)</small></span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Reports Submitted</span>
+            <span class="stat-value">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Helpful Votes Received</span>
+            <span class="stat-value">0</span>
           </div>
         </div>
       </div>
+
+      <div class="profile-card">
+        <h2>Account Actions</h2>
+        <div class="actions">
+          <a href="/dashboard" class="btn btn-secondary">← Back to Dashboard</a>
+          <a href="/auth/change-password" class="btn btn-secondary"
+            >Change Password</a
+          >
+        </div>
+      </div>
     </div>
-  {/if}
+  </div>
 </div>
 
 <style>
@@ -240,49 +156,6 @@
     max-width: 1000px;
     margin: 0 auto;
     padding: 2rem;
-  }
-
-  .loading {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 400px;
-    color: #64748b;
-  }
-
-  .spinner {
-    width: 40px;
-    height: 40px;
-    border: 4px solid #e5e7eb;
-    border-top: 4px solid #2563eb;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin-bottom: 1rem;
-  }
-
-  @keyframes spin {
-    0% {
-      transform: rotate(0deg);
-    }
-    100% {
-      transform: rotate(360deg);
-    }
-  }
-
-  .error {
-    text-align: center;
-    padding: 2rem;
-    background: #fef2f2;
-    border: 1px solid #fca5a5;
-    border-radius: 8px;
-    color: #dc2626;
-  }
-
-  .error a {
-    color: #2563eb;
-    text-decoration: none;
-    font-weight: 500;
   }
 
   .profile-header {

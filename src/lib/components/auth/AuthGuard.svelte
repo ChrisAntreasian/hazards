@@ -1,17 +1,44 @@
 <script lang="ts">
-  import { useAuth } from "$lib/hooks/useAuth.js";
-  import { loading, isAuthenticated } from "$lib/stores/auth.js";
+  import {
+    user,
+    session,
+    isAuthenticated,
+    loading,
+    initialized,
+  } from "$lib/stores/auth.js";
 
-  let { children, fallback = null, showLoading = true } = $props();
+  type Props = {
+    children: any;
+    fallback?: any;
+    showLoading?: boolean;
+    redirectTo?: string;
+  };
 
-  const auth = useAuth();
+  let {
+    children,
+    fallback = null,
+    showLoading = true,
+    redirectTo = "/auth/log-in",
+  }: Props = $props();
+
+  // Only redirect after auth has been fully initialized
+  $effect(() => {
+    if ($initialized && !$isAuthenticated) {
+      const returnUrl = encodeURIComponent(
+        window.location.pathname + window.location.search
+      );
+      window.location.href = `${redirectTo}?returnUrl=${returnUrl}`;
+    }
+  });
 </script>
 
-{#if $loading && showLoading}
+{#if ($loading || !$initialized) && showLoading}
   <div class="auth-guard-loading">
     <div class="spinner"></div>
     <p>Checking authentication...</p>
   </div>
+{:else if !$initialized}
+  <!-- Still initializing, don't show anything -->
 {:else if $isAuthenticated}
   {@render children()}
 {:else if fallback}
@@ -19,7 +46,7 @@
 {:else}
   <div class="auth-required">
     <h2>Authentication Required</h2>
-    <p>Please <a href="/auth/log-in">sign in</a> to access this content.</p>
+    <p>Please <a href={redirectTo}>sign in</a> to access this content.</p>
   </div>
 {/if}
 

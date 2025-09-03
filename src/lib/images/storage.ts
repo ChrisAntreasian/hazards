@@ -40,18 +40,9 @@ export class ImageStorage {
       session = authSession;
       user = authUser;
     } else {
-      // Fall back to checking the client
-      console.log('🔄 Checking client session...');
-      const { data: { session: clientSession }, error: sessionError } = await this.supabase.auth.getSession();
-      console.log('Session:', !!clientSession, clientSession?.access_token ? 'has token' : 'no token');
-      console.log('Session error:', sessionError);
-      
-      const { data: { user: clientUser }, error: authError } = await this.supabase.auth.getUser();
-      console.log('User:', !!clientUser, clientUser?.id || 'no id');
-      console.log('Auth error:', authError);
-      
-      session = clientSession;
-      user = clientUser;
+      // Client auth methods hang, so we can't check client session
+      // This means images can only be uploaded when server session is available
+      throw new Error('User must be authenticated to upload images. Please ensure you are logged in.');
     }
     
     if (!user || !session) {

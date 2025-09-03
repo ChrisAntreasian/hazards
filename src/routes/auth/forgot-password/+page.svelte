@@ -4,10 +4,10 @@
     isSupabaseConfigured,
   } from "$lib/supabase.js";
 
-  let email = "";
-  let loading = false;
-  let message = "";
-  let error = "";
+  let email = $state("");
+  let loading = $state(false);
+  let message = $state("");
+  let error = $state("");
 
   const supabase = createSupabaseLoadClient();
   const configured = isSupabaseConfigured();

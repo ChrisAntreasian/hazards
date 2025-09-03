@@ -67,11 +67,11 @@ const createAuthStore = () => {
     subscribe,
     dispatch,
     updateAuthState: (newSession: Session | null, newUser: User | null = null) => {
-      if (newSession) {
+      if (newSession && newUser) {
         dispatch({ 
           type: 'SIGN_IN', 
           payload: { 
-            user: newUser || newSession.user, 
+            user: newUser, // Only use authenticated user data, never session.user
             session: newSession 
           } 
         });

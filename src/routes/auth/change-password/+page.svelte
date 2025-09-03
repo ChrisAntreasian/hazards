@@ -1,105 +1,41 @@
 <script lang="ts">
-  import {
-    createSupabaseLoadClient,
-    isSupabaseConfigured,
-  } from "$lib/supabase.js";
-  import { goto } from "$app/navigation";
-  import { onMount } from "svelte";
+  import { enhance } from "$app/forms";
+  import { user, isAuthenticated, initialized } from "$lib/stores/auth.js";
+  import { isSupabaseConfigured } from "$lib/supabase.js";
 
-  let currentPassword = "";
-  let newPassword = "";
-  let confirmPassword = "";
-  let loading = false;
-  let error = "";
-  let success = "";
-  let user: any = null;
+  let currentPassword = $state("");
+  let newPassword = $state("");
+  let confirmPassword = $state("");
+  let loading = $state(false);
 
-  const supabase = createSupabaseLoadClient();
   const configured = isSupabaseConfigured();
 
-  onMount(async () => {
-    if (!supabase) return;
-
-    // Check if user is authenticated
-    const {
-      data: { user: currentUser },
-    } = await supabase.auth.getUser();
-    if (!currentUser) {
-      goto("/auth/log-in?returnUrl=/auth/change-password");
-      return;
+  // Only redirect after auth has been fully initialized
+  $effect(() => {
+    if ($initialized && !$isAuthenticated) {
+      window.location.href = "/auth/log-in?returnUrl=/auth/change-password";
     }
-    user = currentUser;
   });
 
-  async function handlePasswordChange() {
-    if (!supabase) {
-      error =
-        "Supabase not configured. Please check your environment variables.";
-      return;
-    }
-
+  // Client-side validation function
+  function validateForm() {
     if (!currentPassword || !newPassword || !confirmPassword) {
-      error = "Please fill in all fields";
-      return;
+      return "Please fill in all fields";
     }
 
     if (newPassword !== confirmPassword) {
-      error = "New passwords do not match";
-      return;
+      return "New passwords do not match";
     }
 
     if (newPassword.length < 6) {
-      error = "New password must be at least 6 characters long";
-      return;
+      return "New password must be at least 6 characters long";
     }
 
     if (currentPassword === newPassword) {
-      error = "New password must be different from current password";
-      return;
+      return "New password must be different from current password";
     }
 
-    loading = true;
-    error = "";
-    success = "";
-
-    try {
-      // First verify current password by attempting to sign in
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user?.email || "",
-        password: currentPassword,
-      });
-
-      if (signInError) {
-        error = "Current password is incorrect";
-        loading = false;
-        return;
-      }
-
-      // Update to new password
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: newPassword,
-      });
-
-      if (updateError) {
-        error = updateError.message;
-      } else {
-        success = "Password changed successfully!";
-
-        // Clear form
-        currentPassword = "";
-        newPassword = "";
-        confirmPassword = "";
-
-        // Redirect after a delay
-        setTimeout(() => {
-          goto("/profile");
-        }, 2000);
-      }
-    } catch (e) {
-      error = "An unexpected error occurred";
-    } finally {
-      loading = false;
-    }
+    return null;
   }
 </script>
 
@@ -109,45 +45,60 @@
 
 <div class="auth-container">
   <div class="auth-card">
-    <h1>Change Password</h1>
+    <h1>🔐 Change Password</h1>
     <p class="subtitle">Update your account password</p>
 
     {#if !configured}
       <div class="warning">
         <h3>⚠️ Supabase Not Configured</h3>
-        <p>
-          Password change is not available. Please contact support for
-          assistance.
-        </p>
+        <p>To enable password changes, please configure Supabase.</p>
       </div>
-    {:else if !user}
+    {:else if !$initialized}
       <div class="loading">
         <p>Loading...</p>
       </div>
+    {:else if !$isAuthenticated}
+      <div class="warning">
+        <h3>⚠️ Not Authenticated</h3>
+        <p>You must be logged in to change your password.</p>
+        <a
+          href="/auth/log-in?returnUrl=/auth/change-password"
+          class="btn btn-primary">Sign In</a
+        >
+      </div>
     {:else}
       <form
-        onsubmit={(e) => {
-          e.preventDefault();
-          handlePasswordChange();
+        action="/auth?/changePassword"
+        method="post"
+        use:enhance={({ formData, cancel }) => {
+          const error = validateForm();
+          if (error) {
+            alert(error);
+            cancel();
+            return;
+          }
+          loading = true;
+          return async ({ result }) => {
+            loading = false;
+            if (result.type === "success") {
+              // Clear form on success
+              currentPassword = "";
+              newPassword = "";
+              confirmPassword = "";
+            }
+          };
         }}
       >
-        {#if success}
-          <div class="success">{success}</div>
-        {/if}
-
-        {#if error}
-          <div class="error">{error}</div>
-        {/if}
-
         <div class="form-group">
           <label for="currentPassword">Current Password</label>
           <input
             id="currentPassword"
+            name="currentPassword"
             type="password"
             bind:value={currentPassword}
-            placeholder="Enter current password"
+            placeholder="Enter your current password"
             required
-            disabled={loading || !!success}
+            disabled={loading}
           />
         </div>
 
@@ -155,12 +106,12 @@
           <label for="newPassword">New Password</label>
           <input
             id="newPassword"
+            name="newPassword"
             type="password"
             bind:value={newPassword}
-            placeholder="Enter new password"
+            placeholder="Enter your new password"
             required
-            disabled={loading || !!success}
-            minlength="6"
+            disabled={loading}
           />
         </div>
 
@@ -168,41 +119,55 @@
           <label for="confirmPassword">Confirm New Password</label>
           <input
             id="confirmPassword"
+            name="confirmPassword"
             type="password"
             bind:value={confirmPassword}
-            placeholder="Confirm new password"
+            placeholder="Confirm your new password"
             required
-            disabled={loading || !!success}
-            minlength="6"
+            disabled={loading}
           />
         </div>
 
-        <button
-          type="submit"
-          class="btn btn-primary"
-          disabled={loading || !!success}
-        >
-          {success
-            ? "✅ Password Changed!"
-            : loading
-              ? "Changing..."
-              : "Change Password"}
+        <button type="submit" class="btn btn-primary" disabled={loading}>
+          {loading ? "Updating Password..." : "Update Password"}
         </button>
       </form>
-
-      <div class="auth-links">
-        <p><a href="/profile">← Back to Profile</a></p>
-        <p><a href="/auth/forgot-password">Forgot your current password?</a></p>
-      </div>
     {/if}
 
-    <div class="back-link">
-      <a href="/">← Back to Home</a>
+    <div class="auth-footer">
+      <p><a href="/profile">← Back to Profile</a></p>
+      <p><a href="/dashboard">← Back to Dashboard</a></p>
     </div>
   </div>
 </div>
 
 <style>
+  .warning {
+    background: #fef3c7;
+    border: 1px solid #f59e0b;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .warning h3 {
+    color: #92400e;
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+  }
+
+  .warning p {
+    color: #92400e;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+  }
+
+  .loading {
+    text-align: center;
+    padding: 2rem;
+    color: #6b7280;
+  }
+
   .auth-container {
     display: flex;
     justify-content: center;
@@ -234,32 +199,6 @@
     font-size: 0.95rem;
   }
 
-  .warning {
-    background: #fef3c7;
-    border: 1px solid #f59e0b;
-    border-radius: 8px;
-    padding: 1.5rem;
-    margin-bottom: 2rem;
-  }
-
-  .warning h3 {
-    color: #92400e;
-    margin-bottom: 1rem;
-    font-size: 1.1rem;
-  }
-
-  .warning p {
-    color: #92400e;
-    margin-bottom: 0.5rem;
-    font-size: 0.9rem;
-  }
-
-  .loading {
-    text-align: center;
-    padding: 2rem;
-    color: #64748b;
-  }
-
   .form-group {
     margin-bottom: 1.5rem;
   }
@@ -280,6 +219,7 @@
     transition:
       border-color 0.2s,
       box-shadow 0.2s;
+    box-sizing: border-box;
   }
 
   input:focus {
@@ -302,6 +242,9 @@
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
   }
 
   .btn:disabled {
@@ -319,61 +262,34 @@
     background: #1d4ed8;
   }
 
-  .error {
-    background: #fef2f2;
-    border: 1px solid #fca5a5;
-    color: #dc2626;
-    padding: 0.75rem;
-    border-radius: 6px;
-    margin-bottom: 1rem;
-    font-size: 0.9rem;
-  }
-
-  .success {
-    background: #f0fdf4;
-    border: 1px solid #86efac;
-    color: #166534;
-    padding: 0.75rem;
-    border-radius: 6px;
-    margin-bottom: 1rem;
-    font-size: 0.9rem;
-  }
-
-  .auth-links {
-    text-align: center;
-    margin-top: 1.5rem;
-  }
-
-  .auth-links p {
-    margin: 0.5rem 0;
-    font-size: 0.9rem;
-    color: #64748b;
-  }
-
-  .auth-links a {
-    color: #2563eb;
-    text-decoration: none;
-    font-weight: 500;
-  }
-
-  .auth-links a:hover {
-    text-decoration: underline;
-  }
-
-  .back-link {
+  .auth-footer {
     text-align: center;
     margin-top: 2rem;
     padding-top: 1.5rem;
     border-top: 1px solid #e5e7eb;
   }
 
-  .back-link a {
-    color: #64748b;
-    text-decoration: none;
+  .auth-footer p {
+    margin: 0.5rem 0;
     font-size: 0.9rem;
   }
 
-  .back-link a:hover {
+  .auth-footer a {
+    color: #64748b;
+    text-decoration: none;
+  }
+
+  .auth-footer a:hover {
     color: #2563eb;
+  }
+
+  @media (max-width: 480px) {
+    .auth-container {
+      padding: 1rem;
+    }
+
+    .auth-card {
+      padding: 1.5rem;
+    }
   }
 </style>
