@@ -1,6 +1,7 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
   import { user, isAuthenticated } from "$lib/stores/auth.js";
+  import { FormField, FormButton, MessageDisplay } from "$lib/components/auth";
   import type { ProfilePageData, ProfileActionData } from "./types";
 
   interface Props {
@@ -16,12 +17,11 @@
   let profileUser = $derived(data.user);
   let regions = $derived(data.regions);
 
-  // Form fields initialized from server data - initialize with server data
+  // Form fields initialized from server data
   let displayName = $state(data.user?.displayName || "");
   let email = $state(data.user?.email || "");
 
   // Only update form fields when new server data comes in after a successful update
-  // This prevents interference with user input
   let lastKnownDisplayName = $state(data.user?.displayName || "");
 
   $effect(() => {
@@ -71,48 +71,47 @@
       <div class="profile-card">
         <h2>Account Information</h2>
 
-        {#if form?.success}
-          <div class="message success">
-            {form.message}
-          </div>
+        <!-- Success/Error Messages using our standardized component -->
+        {#if form?.success && form?.message}
+          <MessageDisplay type="success" message={form.message} />
         {/if}
 
         {#if form?.error}
-          <div class="message error">
-            {form.error}
-          </div>
+          <MessageDisplay type="error" message={form.error} />
         {/if}
 
         <form method="POST" action="?/updateProfile" use:enhance={handleSubmit}>
-          <div class="form-group">
-            <label for="email">Email Address</label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              value={email}
-              disabled
-              readonly
-            />
-            <small>Email cannot be changed. Contact support if needed.</small>
-          </div>
+          <!-- Email field (read-only) -->
+          <FormField
+            label="Email Address"
+            name="email"
+            type="email"
+            bind:value={email}
+            disabled={true}
+          />
+          <small class="field-note"
+            >Email cannot be changed. Contact support if needed.</small
+          >
 
-          <div class="form-group">
-            <label for="displayName">Display Name</label>
-            <input
-              id="displayName"
-              name="displayName"
-              type="text"
-              bind:value={displayName}
-              placeholder="How others will see you"
-              disabled={updating}
-              required
-            />
-          </div>
+          <!-- Display Name field -->
+          <FormField
+            label="Display Name"
+            name="displayName"
+            type="text"
+            placeholder="How others will see you"
+            required
+            disabled={updating}
+            bind:value={displayName}
+          />
 
-          <button type="submit" class="btn btn-primary" disabled={updating}>
-            {updating ? "Updating..." : "Update Profile"}
-          </button>
+          <!-- Submit button using our standardized component -->
+          <FormButton
+            disabled={updating}
+            loading={updating}
+            loadingText="Updating Profile..."
+          >
+            Update Profile
+          </FormButton>
         </form>
       </div>
 
@@ -198,45 +197,11 @@
     font-size: 1.25rem;
   }
 
-  .form-group {
-    margin-bottom: 1.5rem;
-  }
-
-  label {
-    display: block;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-    color: #374151;
-  }
-
-  input {
-    width: 100%;
-    padding: 0.75rem;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    font-size: 1rem;
-    transition:
-      border-color 0.2s,
-      box-shadow 0.2s;
-    box-sizing: border-box;
-  }
-
-  input:focus {
-    outline: none;
-    border-color: #2563eb;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-  }
-
-  input:disabled {
-    background-color: #f3f4f6;
-    color: #9ca3af;
-    cursor: not-allowed;
-  }
-
-  small {
+  .field-note {
     color: #6b7280;
     font-size: 0.875rem;
-    margin-top: 0.25rem;
+    margin-top: -1rem;
+    margin-bottom: 1rem;
     display: block;
   }
 
@@ -253,47 +218,8 @@
     margin-bottom: 0.5rem;
   }
 
-  .btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  .btn-primary {
-    background: #2563eb;
-    color: white;
-  }
-
-  .btn-primary:hover:not(:disabled) {
-    background: #1d4ed8;
-  }
-
-  .btn-secondary {
-    background: #f8fafc;
-    color: #374151;
-    border: 1px solid #e5e7eb;
-  }
-
   .btn-secondary:hover {
     background: #f1f5f9;
-  }
-
-  .message {
-    padding: 0.75rem;
-    border-radius: 6px;
-    margin-bottom: 1rem;
-    font-size: 0.9rem;
-  }
-
-  .message.success {
-    background: #f0fdf4;
-    border: 1px solid #86efac;
-    color: #166534;
-  }
-
-  .message.error {
-    background: #fef2f2;
-    border: 1px solid #fca5a5;
-    color: #dc2626;
   }
 
   .stats {

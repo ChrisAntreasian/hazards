@@ -2,14 +2,20 @@
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
   import { createSupabaseLoadClient } from "$lib/supabase.js";
-  import { session, user, isAuthenticated } from "$lib/stores/auth.js";
+  import { MessageDisplay } from "$lib/components/auth";
   import ImageUpload from "$lib/components/ImageUpload.svelte";
   import ImageGallery from "$lib/components/ImageGallery.svelte";
   import { ImageStorage } from "$lib/images/storage.js";
   import type { HazardImage, ImageUploadResult } from "$lib/types/images.js";
+  import type { PageData } from "./$types";
 
-  // This is a test page that doesn't use server data
-  export const data = undefined;
+  // Use server-provided data for consistency with other pages
+  let { data }: { data: PageData } = $props();
+
+  // Derive authentication state from server data
+  let user = $derived(data.user);
+  let session = $derived(data.session);
+  let isAuthenticated = $derived(!!user);
 
   let images: HazardImage[] = $state([]);
   let loading = $state(false);
@@ -31,7 +37,7 @@
 
   // Mock data for demonstration
   const mockHazardId = "test-hazard-123";
-  const mockUserId = $derived($user?.id || "test-user-123");
+  let mockUserId = $derived(user?.id || "test-user-123");
   const mockLocation = {
     lat: 42.3601,
     lng: -71.0589,
@@ -186,12 +192,6 @@
       error = "Failed to delete image";
     }
   };
-
-  const clearMessages = () => {
-    error = "";
-    uploadError = "";
-    uploadSuccess = "";
-  };
 </script>
 
 <svelte:head>
@@ -212,58 +212,42 @@
   </div>
 
   <!-- Authentication Alert -->
-  {#if !$isAuthenticated}
-    <div class="alert alert-warning">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path
-          d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
-        />
-        <line x1="12" y1="9" x2="12" y2="13" />
-        <line x1="12" y1="17" x2="12.01" y2="17" />
-      </svg>
-      <span
-        >You are not logged in. Image uploads will fail without authentication.</span
-      >
-      <a href="/auth/log-in" class="login-link">Log In</a>
+  {#if !isAuthenticated}
+    <MessageDisplay
+      type="warning"
+      message="You are not logged in. Image uploads will fail without authentication."
+    />
+    <div style="margin-bottom: 1rem; text-align: center;">
+      <a href="/auth/log-in" class="login-btn">Log In to Upload Images</a>
     </div>
   {/if}
 
-  <!-- Status Messages -->
+  <!-- Status Messages using standardized components -->
   {#if error}
-    <div class="alert alert-error">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <circle cx="12" cy="12" r="10" />
-        <line x1="15" y1="9" x2="9" y2="15" />
-        <line x1="9" y1="9" x2="15" y2="15" />
-      </svg>
-      <span>{error}</span>
-      <button onclick={clearMessages} aria-label="Dismiss error">×</button>
-    </div>
+    <MessageDisplay
+      type="error"
+      message={error}
+      dismissible
+      onDismiss={() => (error = "")}
+    />
   {/if}
 
   {#if uploadError}
-    <div class="alert alert-warning">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path
-          d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
-        />
-        <line x1="12" y1="9" x2="12" y2="13" />
-        <line x1="12" y1="17" x2="12.01" y2="17" />
-      </svg>
-      <span>{uploadError}</span>
-      <button onclick={clearMessages} aria-label="Dismiss warning">×</button>
-    </div>
+    <MessageDisplay
+      type="error"
+      message={uploadError}
+      dismissible
+      onDismiss={() => (uploadError = "")}
+    />
   {/if}
 
   {#if uploadSuccess}
-    <div class="alert alert-success">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path d="M9 12l2 2 4-4" />
-        <circle cx="12" cy="12" r="10" />
-      </svg>
-      <span>{uploadSuccess}</span>
-      <button onclick={clearMessages} aria-label="Dismiss success">×</button>
-    </div>
+    <MessageDisplay
+      type="success"
+      message={uploadSuccess}
+      dismissible
+      onDismiss={() => (uploadSuccess = "")}
+    />
   {/if}
 
   <!-- Demo Info -->
@@ -286,20 +270,20 @@
         <span class="info-label">Authentication:</span>
         <span
           class="status"
-          class:authenticated={$isAuthenticated}
-          class:guest={!$isAuthenticated}
+          class:authenticated={isAuthenticated}
+          class:guest={!isAuthenticated}
         >
-          {$isAuthenticated ? "Authenticated" : "Guest Mode"}
+          {isAuthenticated ? "Authenticated" : "Guest Mode"}
         </span>
       </div>
       <div class="info-item">
         <span class="info-label">Session Available:</span>
         <span
           class="status"
-          class:authenticated={$session}
-          class:guest={!$session}
+          class:authenticated={session}
+          class:guest={!session}
         >
-          {$session ? "Yes" : "No"}
+          {session ? "Yes" : "No"}
         </span>
       </div>
     </div>
@@ -318,10 +302,10 @@
       userId={mockUserId}
       hazardLocation={mockLocation}
       maxFiles={5}
-      disabled={!$isAuthenticated}
+      disabled={!isAuthenticated}
       supabaseClient={supabase}
-      currentSession={$session}
-      currentUser={$user}
+      currentSession={session}
+      currentUser={user}
       on:upload={handleImageUpload}
       on:error={handleUploadError}
       on:success={handleUploadSuccess}
@@ -340,8 +324,8 @@
     <ImageGallery
       {images}
       currentUserId={mockUserId}
-      canVote={$isAuthenticated}
-      canDelete={$isAuthenticated}
+      canVote={isAuthenticated}
+      canDelete={isAuthenticated}
       {loading}
       on:vote={handleImageVote}
       on:delete={handleImageDelete}
@@ -418,68 +402,18 @@
     margin: 0;
   }
 
-  .alert {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 1rem;
-    border-radius: 8px;
-    margin-bottom: 1rem;
-    font-weight: 500;
-  }
-
-  .alert svg {
-    width: 1.25rem;
-    height: 1.25rem;
-    flex-shrink: 0;
-  }
-
-  .alert button {
-    margin-left: auto;
-    background: none;
-    border: none;
-    font-size: 1.25rem;
-    cursor: pointer;
-    color: inherit;
-    opacity: 0.7;
-    transition: opacity 0.2s ease;
-  }
-
-  .alert button:hover {
-    opacity: 1;
-  }
-
-  .login-link {
-    margin-left: auto;
-    background: rgba(0, 0, 0, 0.1);
-    color: inherit;
+  .login-btn {
+    background: #3b82f6;
+    color: white;
     text-decoration: none;
-    padding: 0.25rem 0.75rem;
-    border-radius: 4px;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
     font-weight: 600;
     transition: background-color 0.2s ease;
   }
 
-  .login-link:hover {
-    background: rgba(0, 0, 0, 0.2);
-  }
-
-  .alert-error {
-    background: #fee2e2;
-    color: #dc2626;
-    border: 1px solid #fecaca;
-  }
-
-  .alert-warning {
-    background: #fef3c7;
-    color: #d97706;
-    border: 1px solid #fed7aa;
-  }
-
-  .alert-success {
-    background: #d1fae5;
-    color: #059669;
-    border: 1px solid #a7f3d0;
+  .login-btn:hover {
+    background: #2563eb;
   }
 
   .demo-info {

@@ -1,20 +1,14 @@
 <script lang="ts">
-  import { goto } from "$app/navigation";
-  import {
-    user,
-    session,
-    isAuthenticated,
-    loading,
-    initialized,
-  } from "$lib/stores/auth.js";
+  import type { PageData } from "./$types";
 
-  // Only redirect after auth has been fully initialized
-  $effect(() => {
-    if ($initialized && !$isAuthenticated) {
-      const returnUrl = encodeURIComponent(window.location.pathname);
-      window.location.href = `/auth/log-in?returnUrl=${returnUrl}`;
-    }
-  });
+  interface Props {
+    data: PageData;
+  }
+
+  let { data }: Props = $props();
+
+  // Use server-provided user data
+  const user = data.user;
 </script>
 
 <svelte:head>
@@ -22,89 +16,75 @@
 </svelte:head>
 
 <div class="dashboard-container">
-  {#if $loading || !$initialized}
-    <div class="loading">
-      <div class="spinner"></div>
-      <p>Loading your dashboard...</p>
-    </div>
-  {:else if !$isAuthenticated}
-    <div class="error">
-      <h2>Authentication Required</h2>
-      <p>Please <a href="/auth/log-in">sign in</a> to access your dashboard.</p>
-    </div>
-  {:else}
-    <div class="dashboard">
-      <header class="dashboard-header">
-        <h1>
-          🚨 Welcome back{$user?.user_metadata?.display_name
-            ? `, ${$user.user_metadata.display_name}`
-            : ""}!
-        </h1>
-        <p class="subtitle">Manage your hazard reports and account settings</p>
-      </header>
+  <div class="dashboard">
+    <header class="dashboard-header">
+      <h1>
+        🚨 Welcome back{user?.displayName ? `, ${user.displayName}` : ""}!
+      </h1>
+      <p class="subtitle">Manage your hazard reports and account settings</p>
+    </header>
 
-      <div class="dashboard-grid">
-        <div class="dashboard-card">
-          <div class="card-icon">📍</div>
-          <h3>Report New Hazard</h3>
-          <p>Found a new outdoor hazard? Report it to help keep others safe.</p>
-          <a href="/map" class="btn btn-primary">Report Hazard</a>
-        </div>
-
-        <div class="dashboard-card">
-          <div class="card-icon">📊</div>
-          <h3>My Reports</h3>
-          <p>View and manage hazards you've reported.</p>
-          <a href="/my-reports" class="btn btn-secondary">View Reports</a>
-        </div>
-
-        <div class="dashboard-card">
-          <div class="card-icon">⭐</div>
-          <h3>Trust Score</h3>
-          <p>Your community trust score: <strong>100</strong> (New User)</p>
-          <a href="/profile" class="btn btn-secondary">View Profile</a>
-        </div>
-
-        <div class="dashboard-card">
-          <div class="card-icon">🎓</div>
-          <h3>Safety Education</h3>
-          <p>Learn about outdoor hazards and safety best practices.</p>
-          <a href="/education" class="btn btn-secondary">Learn More</a>
-        </div>
+    <div class="dashboard-grid">
+      <div class="dashboard-card">
+        <div class="card-icon">📍</div>
+        <h3>Report New Hazard</h3>
+        <p>Found a new outdoor hazard? Report it to help keep others safe.</p>
+        <a href="/map" class="btn btn-primary">Report Hazard</a>
       </div>
 
-      <div class="recent-activity">
-        <h2>Recent Activity</h2>
-        <div class="activity-card">
-          <p class="no-activity">
-            No recent activity. Start by reporting your first hazard!
-          </p>
-        </div>
+      <div class="dashboard-card">
+        <div class="card-icon">📊</div>
+        <h3>My Reports</h3>
+        <p>View and manage hazards you've reported.</p>
+        <a href="/my-reports" class="btn btn-secondary">View Reports</a>
       </div>
 
-      <div class="quick-stats">
-        <h2>Quick Stats</h2>
-        <div class="stats-grid">
-          <div class="stat-item">
-            <span class="stat-number">0</span>
-            <span class="stat-label">Reports Submitted</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-number">0</span>
-            <span class="stat-label">Helpful Votes</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-number"
-              >{$user?.created_at
-                ? new Date($user.created_at).toLocaleDateString()
-                : "N/A"}</span
-            >
-            <span class="stat-label">Member Since</span>
-          </div>
+      <div class="dashboard-card">
+        <div class="card-icon">⭐</div>
+        <h3>Trust Score</h3>
+        <p>Your community trust score: <strong>100</strong> (New User)</p>
+        <a href="/profile" class="btn btn-secondary">View Profile</a>
+      </div>
+
+      <div class="dashboard-card">
+        <div class="card-icon">🎓</div>
+        <h3>Safety Education</h3>
+        <p>Learn about outdoor hazards and safety best practices.</p>
+        <a href="/education" class="btn btn-secondary">Learn More</a>
+      </div>
+    </div>
+
+    <div class="recent-activity">
+      <h2>Recent Activity</h2>
+      <div class="activity-card">
+        <p class="no-activity">
+          No recent activity. Start by reporting your first hazard!
+        </p>
+      </div>
+    </div>
+
+    <div class="quick-stats">
+      <h2>Quick Stats</h2>
+      <div class="stats-grid">
+        <div class="stat-item">
+          <span class="stat-number">0</span>
+          <span class="stat-label">Reports Submitted</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number">0</span>
+          <span class="stat-label">Helpful Votes</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number"
+            >{user?.createdAt
+              ? new Date(user.createdAt).toLocaleDateString()
+              : "N/A"}</span
+          >
+          <span class="stat-label">Member Since</span>
         </div>
       </div>
     </div>
-  {/if}
+  </div>
 </div>
 
 <style>
@@ -112,49 +92,6 @@
     max-width: 1200px;
     margin: 0 auto;
     padding: 2rem;
-  }
-
-  .loading {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 400px;
-    color: #64748b;
-  }
-
-  .spinner {
-    width: 40px;
-    height: 40px;
-    border: 4px solid #e5e7eb;
-    border-top: 4px solid #2563eb;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin-bottom: 1rem;
-  }
-
-  @keyframes spin {
-    0% {
-      transform: rotate(0deg);
-    }
-    100% {
-      transform: rotate(360deg);
-    }
-  }
-
-  .error {
-    text-align: center;
-    padding: 2rem;
-    background: #fef2f2;
-    border: 1px solid #fca5a5;
-    border-radius: 8px;
-    color: #dc2626;
-  }
-
-  .error a {
-    color: #2563eb;
-    text-decoration: none;
-    font-weight: 500;
   }
 
   .dashboard-header {

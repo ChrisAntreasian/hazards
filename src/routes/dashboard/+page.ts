@@ -1,8 +1,2 @@
-import type { PageLoad } from './$types';
-
-export const load: PageLoad = async ({ parent }) => {
-  const { session } = await parent();
-  return {
-    session
-  };
-};
+// Removed client-side load function - now handled server-side in +page.server.ts
+// This ensures proper authentication checking and prevents redirect loops
