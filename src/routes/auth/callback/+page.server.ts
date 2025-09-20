@@ -16,17 +16,27 @@ export const load: PageServerLoad = async (event) => {
   const url = new URL(event.request.url);
   const accessToken = url.searchParams.get('access_token');
   const refreshToken = url.searchParams.get('refresh_token');
+  const code = url.searchParams.get('code');
   const type = url.searchParams.get('type');
   const error = url.searchParams.get('error');
   const errorDescription = url.searchParams.get('error_description');
 
   console.log('🔍 Callback URL:', event.request.url);
+  console.log('🔍 Callback headers:', {
+    userAgent: event.request.headers.get('user-agent'),
+    referer: event.request.headers.get('referer'),
+    origin: event.request.headers.get('origin')
+  });
   console.log('🔍 Callback parameters:', {
     accessToken: accessToken ? 'present' : 'missing',
-    refreshToken: refreshToken ? 'present' : 'missing', 
+    refreshToken: refreshToken ? 'present' : 'missing',
+    code: code ? 'present' : 'missing',
     type,
     error,
-    allParams: Object.fromEntries(url.searchParams)
+    allParams: Object.fromEntries(url.searchParams),
+    pathname: url.pathname,
+    search: url.search,
+    hash: url.hash || 'no-hash-on-server'
   });
 
   // Handle errors from the callback URL
@@ -39,26 +49,108 @@ export const load: PageServerLoad = async (event) => {
     };
   }
 
-  // If no tokens in query params, redirect to handle client-side processing
-  // This handles the case where Supabase uses URL fragments instead of query params
-  if (!accessToken || !refreshToken) {
-    console.log('⚠️ No tokens in query params, redirecting for client-side processing');
-    return {
-      status: 'redirect',
-      message: 'Processing authentication...',
-      needsClientProcessing: true
-    };
+  // Handle authorization code flow (Supabase sends 'code' instead of tokens directly)
+  if (code && !accessToken && !refreshToken) {
+    console.log('🔍 Authorization code flow detected - exchanging code for tokens');
+    
+    try {
+      const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+      
+      if (exchangeError) {
+        console.error('❌ Code exchange error:', exchangeError);
+        
+        // Handle specific error cases
+        if (exchangeError.message?.includes('flow_state_expired') || exchangeError.code === 'flow_state_expired') {
+          return {
+            status: 'error',
+            message: 'Password reset link has expired. Please request a new password reset.',
+            error: 'The reset link has expired. Links are only valid for a few minutes after being generated.'
+          };
+        }
+        
+        return {
+          status: 'error',
+          message: 'Failed to process authentication code',
+          error: exchangeError.message
+        };
+      }
+
+      console.log('✅ Code exchange successful for:', data.user?.email);
+      
+      // Check if this is a recovery flow
+      if (type === 'recovery') {
+        console.log('🔄 Password recovery - redirecting to reset password (this will show as "exception" but is normal)');
+        throw redirect(303, '/auth/reset-password');
+      } else {
+        console.log('🔄 Regular auth - redirecting to dashboard (this will show as "exception" but is normal)');
+        throw redirect(303, '/dashboard');
+      }
+      
+    } catch (error) {
+      if (error instanceof Response) {
+        throw error; // Re-throw redirects
+      }
+      
+      console.error('❌ Code exchange exception:', error);
+      console.error('❌ Error type:', typeof error);
+      console.error('❌ Error constructor:', error?.constructor?.name);
+      console.error('❌ Error details:', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        name: error instanceof Error ? error.name : undefined
+      });
+      
+      return {
+        status: 'error',
+        message: 'Authentication processing failed',
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }
+
+  // If no tokens and no code in query params, check for client-side processing
+  // Supabase might send tokens in URL fragments instead of query params
+  if (!accessToken && !refreshToken && !code) {
+    // Check various indicators that this might be a password recovery flow
+    const isLikelyRecovery = type === 'recovery' || 
+                            url.searchParams.has('recovery') ||
+                            url.searchParams.get('type') === 'recovery' ||
+                            event.request.referrer?.includes('forgot-password') ||
+                            url.pathname.includes('recovery');
+    
+    if (isLikelyRecovery) {
+      console.log('⚠️ Password recovery detected but no tokens/code in query params - processing client-side');
+      return {
+        status: 'redirect',
+        message: 'Processing password recovery...',
+        needsClientProcessing: true,
+        isRecovery: true
+      };
+    } else {
+      console.log('⚠️ No tokens/code in query params, redirecting for client-side processing');
+      return {
+        status: 'redirect',
+        message: 'Processing authentication...',
+        needsClientProcessing: true
+      };
+    }
   }
 
   try {
     // Check if this is a password recovery flow
     // Supabase may not always set type=recovery, so check multiple indicators
     const isPasswordRecovery = type === 'recovery' || 
+                              url.searchParams.get('type') === 'recovery' ||
                               url.pathname.includes('recovery') ||
                               url.searchParams.has('recovery') ||
                               event.request.referrer?.includes('forgot-password');
     
-    console.log('🔍 Is password recovery:', isPasswordRecovery);
+    console.log('🔍 Authentication type analysis:', { 
+      type, 
+      isPasswordRecovery, 
+      referrer: event.request.referrer,
+      hasTokens: { accessToken: !!accessToken, refreshToken: !!refreshToken }
+    });
 
     if (type === 'signup' || type === 'email_change') {
       // Email confirmation
@@ -69,6 +161,7 @@ export const load: PageServerLoad = async (event) => {
         });
 
         if (sessionError) {
+          console.error('❌ Email confirmation session error:', sessionError);
           return {
             status: 'error',
             message: 'Failed to confirm email',
@@ -90,8 +183,8 @@ export const load: PageServerLoad = async (event) => {
           error: 'Missing required parameters'
         };
       }
-    } else if (isPasswordRecovery || (accessToken && refreshToken)) {
-      // Password recovery - set session and redirect to reset password page
+    } else if (isPasswordRecovery) {
+      // Password recovery - ensure we have tokens
       if (accessToken && refreshToken) {
         console.log('🔍 Setting session for password recovery...');
         
@@ -101,10 +194,10 @@ export const load: PageServerLoad = async (event) => {
         });
 
         if (sessionError) {
-          console.log('❌ Session error:', sessionError);
+          console.error('❌ Password recovery session error:', sessionError);
           return {
             status: 'error',
-            message: 'Invalid password reset link',
+            message: 'Invalid password reset link. Please request a new password reset.',
             error: sessionError.message
           };
         }
@@ -117,38 +210,38 @@ export const load: PageServerLoad = async (event) => {
         console.log('❌ Missing tokens for password recovery');
         return {
           status: 'error',
-          message: 'Invalid password reset link',
-          error: 'Missing required parameters'
+          message: 'Invalid password reset link. Please request a new password reset.',
+          error: 'Missing authentication tokens'
         };
       }
-    } else {
-      // Generic callback - check if we have tokens
-      if (accessToken && refreshToken) {
-        const { data, error: sessionError } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken,
-        });
+    } else if (accessToken && refreshToken) {
+      // Generic callback with tokens
+      const { data, error: sessionError } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
 
-        if (sessionError) {
-          return {
-            status: 'error',
-            message: 'Authentication failed',
-            error: sessionError.message
-          };
-        }
-        
-        return {
-          status: 'success',
-          message: 'Authentication successful.',
-          redirectTo: '/dashboard'
-        };
-      } else {
+      if (sessionError) {
+        console.error('❌ Generic callback session error:', sessionError);
         return {
           status: 'error',
-          message: 'Invalid authentication link',
-          error: 'Missing required parameters'
+          message: 'Authentication failed',
+          error: sessionError.message
         };
       }
+      
+      console.log('✅ Generic authentication successful for:', data.user?.email);
+      return {
+        status: 'success',
+        message: 'Authentication successful.',
+        redirectTo: '/dashboard'
+      };
+    } else {
+      return {
+        status: 'error',
+        message: 'Invalid authentication link',
+        error: 'Missing required parameters'
+      };
     }
   } catch (error) {
     if (error instanceof Response) {
@@ -156,10 +249,25 @@ export const load: PageServerLoad = async (event) => {
     }
     
     console.error('❌ Callback handling error:', error);
+    console.error('❌ Error type:', typeof error);
+    console.error('❌ Error constructor:', error?.constructor?.name);
+    console.error('❌ Full error details:', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined,
+      code: (error as any)?.code,
+      status: (error as any)?.status
+    });
+    
     return {
       status: 'error',
-      message: 'An unexpected error occurred',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      message: 'An unexpected error occurred during authentication',
+      error: error instanceof Error ? error.message : String(error),
+      debug: {
+        type: typeof error,
+        constructor: error?.constructor?.name,
+        details: error instanceof Error ? error.stack?.split('\n')[0] : String(error)
+      }
     };
   }
 };
@@ -207,12 +315,15 @@ export const actions: Actions = {
 
       console.log('✅ Session established for:', data.user?.email);
 
+      // Check if this is a recovery/password reset flow
       if (type === 'recovery') {
+        console.log('🔄 Password recovery flow - redirecting to reset password');
         return {
           status: 'success',
           redirectTo: '/auth/reset-password'
         };
       } else {
+        console.log('🔄 Regular auth flow - redirecting to dashboard');
         return {
           status: 'success', 
           redirectTo: '/dashboard'

@@ -54,6 +54,7 @@ export const actions: Actions = {
 
     try {
       console.log('🔍 Server-side registration attempt for:', email);
+      
       const { data: signUpData, error: authError } = await supabase.auth.signUp({
         email,
         password,
@@ -67,6 +68,45 @@ export const actions: Actions = {
 
       if (authError) {
         console.log('❌ Server registration error:', authError);
+        
+        // Handle specific error cases with user-friendly messages
+        if (authError.message.includes('User already registered') || 
+            authError.message.includes('already registered') ||
+            authError.message.includes('already exists') ||
+            authError.message.includes('duplicate') ||
+            authError.message.includes('email address is already in use')) {
+          return fail(400, {
+            error: 'An account with this email address already exists. Please try signing in instead.',
+            email,
+            displayName
+          });
+        }
+        
+        if (authError.message.includes('Invalid email')) {
+          return fail(400, {
+            error: 'Please enter a valid email address.',
+            email,
+            displayName
+          });
+        }
+        
+        if (authError.message.includes('Password should be at least')) {
+          return fail(400, {
+            error: 'Password must be at least 6 characters long.',
+            email,
+            displayName
+          });
+        }
+        
+        if (authError.message.includes('weak password') || authError.message.includes('password strength')) {
+          return fail(400, {
+            error: 'Please choose a stronger password. Use a mix of letters, numbers, and symbols.',
+            email,
+            displayName
+          });
+        }
+        
+        // Default to the original error message for other cases
         return fail(400, {
           error: authError.message,
           email,

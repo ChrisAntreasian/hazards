@@ -10,6 +10,60 @@
   let processing = $state(false);
   let clientError = $state("");
 
+  // Helper function to process tokens once found
+  async function processTokens(
+    accessToken: string,
+    refreshToken: string,
+    tokenType?: string
+  ) {
+    // Determine if this is a recovery flow
+    const isRecovery =
+      tokenType === "recovery" ||
+      data.isRecovery ||
+      window.location.href.includes("recovery") ||
+      document.referrer.includes("forgot-password");
+
+    console.log("🔍 Processing tokens:", {
+      hasAccessToken: !!accessToken,
+      hasRefreshToken: !!refreshToken,
+      type: tokenType,
+      isRecovery,
+    });
+
+    // Send tokens to server for processing
+    const response = await fetch("/auth/callback", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        type: isRecovery ? "recovery" : tokenType,
+      }),
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      console.log("✅ Server processing result:", result);
+
+      if (result.redirectTo) {
+        console.log("🔄 Redirecting to:", result.redirectTo);
+        goto(result.redirectTo);
+      } else if (isRecovery) {
+        console.log("🔄 Redirecting to password reset");
+        goto("/auth/reset-password");
+      } else {
+        console.log("🔄 Redirecting to dashboard");
+        goto("/dashboard");
+      }
+    } else {
+      const errorText = await response.text();
+      console.error("❌ Server processing failed:", response.status, errorText);
+      throw new Error("Failed to process authentication");
+    }
+  }
+
   // Handle client-side URL fragment processing
   onMount(() => {
     if (data.needsClientProcessing) {
@@ -21,19 +75,57 @@
     processing = true;
 
     try {
+      // Log the complete URL for debugging
+      const fullUrl = window.location.href;
       const hash = window.location.hash.substring(1);
-      const params = new URLSearchParams(hash);
+      const search = window.location.search;
 
-      const accessToken = params.get("access_token");
-      const refreshToken = params.get("refresh_token");
-      const type = params.get("type");
-      const error = params.get("error");
+      console.log("🔍 Complete URL analysis:", {
+        fullUrl,
+        origin: window.location.origin,
+        pathname: window.location.pathname,
+        search,
+        hash: window.location.hash,
+        hashContent: hash,
+      });
 
-      console.log("🔍 Client-side params:", {
-        accessToken: !!accessToken,
-        refreshToken: !!refreshToken,
-        type,
-        error,
+      // Check both URL hash and search params for tokens
+      const hashParams = new URLSearchParams(hash);
+      const searchParams = new URLSearchParams(window.location.search);
+
+      // Log all available parameters
+      console.log("🔍 All URL parameters:", {
+        hashParams: Object.fromEntries(hashParams),
+        searchParams: Object.fromEntries(searchParams),
+      });
+
+      // Try to get tokens from hash first (Supabase default), then search params
+      const accessToken =
+        hashParams.get("access_token") || searchParams.get("access_token");
+      const refreshToken =
+        hashParams.get("refresh_token") || searchParams.get("refresh_token");
+      const type = hashParams.get("type") || searchParams.get("type");
+      const error = hashParams.get("error") || searchParams.get("error");
+
+      console.log("🔍 Client-side token analysis:", {
+        hasHash: !!window.location.hash,
+        hasSearch: !!window.location.search,
+        fromHash: {
+          accessToken: !!hashParams.get("access_token"),
+          refreshToken: !!hashParams.get("refresh_token"),
+          type: hashParams.get("type"),
+        },
+        fromSearch: {
+          accessToken: !!searchParams.get("access_token"),
+          refreshToken: !!searchParams.get("refresh_token"),
+          type: searchParams.get("type"),
+        },
+        final: {
+          accessToken: !!accessToken,
+          refreshToken: !!refreshToken,
+          type,
+          error,
+        },
       });
 
       if (error) {
@@ -41,38 +133,99 @@
         return;
       }
 
-      if (accessToken && refreshToken) {
-        // Send tokens to server for processing
-        const response = await fetch("/auth/callback", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-            type: type || "recovery",
-          }),
-        });
+      // If no tokens found in standard way, try alternative parsing methods
+      if (!accessToken && !refreshToken) {
+        console.log(
+          "🔍 No tokens found with standard parsing, trying alternatives..."
+        );
 
-        if (response.ok) {
-          const result = await response.json();
-          if (result.redirectTo) {
-            goto(result.redirectTo);
-          } else if (type === "recovery") {
-            goto("/auth/reset-password");
-          } else {
-            goto("/dashboard");
+        // Try parsing the entire URL after callback for tokens
+        const urlParts = fullUrl.split("/auth/callback")[1];
+        if (urlParts) {
+          console.log("🔍 URL parts after callback:", urlParts);
+
+          // Check if tokens are in a different format - try regex on full URL
+          const fullTokenMatch = fullUrl.match(/access_token=([^&\s#]+)/);
+          const fullRefreshMatch = fullUrl.match(/refresh_token=([^&\s#]+)/);
+
+          if (fullTokenMatch && fullRefreshMatch) {
+            console.log("✅ Found tokens via regex in full URL!");
+            // Extract the tokens
+            const regexAccessToken = fullTokenMatch[1];
+            const regexRefreshToken = fullRefreshMatch[1];
+
+            // Use these tokens instead
+            console.log("🔍 Regex extracted tokens:", {
+              accessToken: regexAccessToken.substring(0, 10) + "...",
+              refreshToken: regexRefreshToken.substring(0, 10) + "...",
+            });
+
+            // Override the empty tokens
+            return processTokens(
+              regexAccessToken,
+              regexRefreshToken,
+              type || "recovery"
+            );
           }
-        } else {
-          clientError = "Failed to process authentication";
         }
+
+        // Also check if the URL has been encoded/decoded incorrectly
+        try {
+          const decodedHash = decodeURIComponent(hash);
+          const decodedSearch = decodeURIComponent(search);
+          console.log("🔍 Decoded URL parts:", { decodedHash, decodedSearch });
+
+          // Try parsing decoded versions
+          const decodedHashParams = new URLSearchParams(decodedHash);
+          const decodedSearchParams = new URLSearchParams(decodedSearch);
+
+          const decodedAccessToken =
+            decodedHashParams.get("access_token") ||
+            decodedSearchParams.get("access_token");
+          const decodedRefreshToken =
+            decodedHashParams.get("refresh_token") ||
+            decodedSearchParams.get("refresh_token");
+
+          if (decodedAccessToken && decodedRefreshToken) {
+            console.log("✅ Found tokens in decoded URL parts!");
+            return processTokens(
+              decodedAccessToken,
+              decodedRefreshToken,
+              type || "recovery"
+            );
+          }
+        } catch (e) {
+          console.log("🔍 URL decoding failed:", e);
+        }
+      }
+
+      if (accessToken && refreshToken) {
+        await processTokens(accessToken, refreshToken, type);
       } else {
+        console.error("❌ Missing authentication tokens");
+        console.error("🔍 Debug info for missing tokens:", {
+          fullUrl,
+          expectedFormat:
+            "Should contain access_token and refresh_token in URL hash or search params",
+          commonIssues: [
+            "URL might be malformed",
+            "Tokens might be in unexpected location",
+            "Link might have expired",
+            "Email client might have modified the URL",
+          ],
+        });
         clientError = "Missing authentication tokens";
       }
     } catch (err) {
-      clientError = "Authentication processing failed";
-      console.error("Client auth error:", err);
+      console.error("❌ Client auth error:", err);
+      console.error("❌ Error type:", typeof err);
+      console.error("❌ Error details:", {
+        message: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+        name: err instanceof Error ? err.name : undefined,
+      });
+
+      clientError = `Authentication processing failed: ${err instanceof Error ? err.message : String(err)}`;
     } finally {
       processing = false;
     }
@@ -99,9 +252,20 @@
         <div class="error-icon">❌</div>
         <h1>Authentication Failed</h1>
         <p>{clientError}</p>
+        <div class="error-details">
+          <strong>What to try:</strong>
+          <ul>
+            <li>
+              Make sure you clicked the most recent password reset link from
+              your email
+            </li>
+            <li>Check if the link has expired (links expire after 1 hour)</li>
+            <li>Try requesting a new password reset</li>
+          </ul>
+        </div>
         <div class="actions">
           <a href="/auth/forgot-password" class="btn btn-primary"
-            >Try Password Reset Again</a
+            >Request New Password Reset</a
           >
           <a href="/auth/log-in" class="btn btn-secondary">Go to Login</a>
         </div>
@@ -234,6 +398,15 @@
     margin: 1rem 0;
     font-size: 0.9rem;
     text-align: left;
+  }
+
+  .error-details ul {
+    margin: 0.5rem 0 0 0;
+    padding-left: 1.5rem;
+  }
+
+  .error-details li {
+    margin-bottom: 0.25rem;
   }
 
   .actions {

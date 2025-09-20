@@ -69,6 +69,15 @@
 
       {#if form?.error}
         <MessageDisplay type="error" message={form.error} />
+
+        <!-- Show helpful link for duplicate email error -->
+        {#if form.error.includes("already exists")}
+          <div style="text-align: center; margin-top: 1rem;">
+            <a href="/auth/log-in" class="sign-in-link">
+              Already have an account? Sign in here
+            </a>
+          </div>
+        {/if}
       {/if}
 
       <FormField
@@ -125,3 +134,21 @@
     <AuthLinks links={authLinks} />
   {/snippet}
 </AuthFormWrapper>
+
+<style>
+  .sign-in-link {
+    color: #2563eb;
+    text-decoration: none;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border: 1px solid #2563eb;
+    border-radius: 6px;
+    display: inline-block;
+    transition: all 0.2s;
+  }
+
+  .sign-in-link:hover {
+    background: #2563eb;
+    color: white;
+  }
+</style>

@@ -8,16 +8,7 @@
   } from "$lib/components/auth";
   import type { PageData, ActionData } from "./$types";
 
-  interface ChangePasswordFormData {
-    success?: boolean;
-    message?: string;
-    error?: string;
-  }
-
   let { data, form }: { data: PageData; form: ActionData } = $props();
-
-  // Type assertion for form data
-  let formData = $derived(form as ChangePasswordFormData);
 
   let currentPassword = $state("");
   let newPassword = $state("");
@@ -63,16 +54,16 @@
   subtitle="Update your account password"
 >
   <!-- Display server success message -->
-  {#if formData?.success}
+  {#if form?.success}
     <MessageDisplay
       type="success"
-      message={formData.message || "Password updated successfully!"}
+      message={form.message || "Password updated successfully!"}
     />
   {/if}
 
   <!-- Display server error message -->
-  {#if formData?.error}
-    <MessageDisplay type="error" message={formData.error} />
+  {#if form?.error}
+    <MessageDisplay type="error" message={form.error} />
   {/if}
 
   <!-- Display client-side validation error -->
@@ -86,7 +77,6 @@
   {/if}
 
   <form
-    action="/auth?/changePassword"
     method="post"
     use:enhance={({ formData, cancel }) => {
       const error = validateForm();
@@ -96,7 +86,7 @@
         return;
       }
       loading = true;
-      return async ({ result }) => {
+      return async ({ result, update }) => {
         loading = false;
         if (result.type === "success") {
           // Clear form on success
@@ -104,6 +94,8 @@
           newPassword = "";
           confirmPassword = "";
         }
+        // This is crucial - update() populates the form data with server response
+        await update();
       };
     }}
   >

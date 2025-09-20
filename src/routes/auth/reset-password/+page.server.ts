@@ -16,13 +16,21 @@ export const load: PageServerLoad = async (event) => {
     // Check if user is authenticated via password reset flow
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     
+    console.log('🔍 Reset password page - user check:', { 
+      hasUser: !!user, 
+      userEmail: user?.email,
+      error: userError?.message 
+    });
+    
     if (userError || !user) {
+      console.log('❌ No authenticated user for password reset');
       return {
         user: null,
-        error: 'Not authenticated. Please use the password reset link from your email.'
+        error: 'Authentication required. Please click the password reset link from your email again.'
       };
     }
 
+    console.log('✅ User authenticated for password reset:', user.email);
     return {
       user: {
         id: user.id,
@@ -34,7 +42,7 @@ export const load: PageServerLoad = async (event) => {
     console.error('❌ Reset password page load error:', error);
     return {
       user: null,
-      error: 'Failed to verify authentication status'
+      error: 'Failed to verify authentication status. Please try the password reset link again.'
     };
   }
 };
@@ -68,18 +76,28 @@ export const actions: Actions = {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       
       if (userError || !user) {
-        return fail(401, { error: 'Not authenticated. Please use the password reset link from your email.' });
+        console.log('❌ No authenticated user for password update:', userError?.message);
+        return fail(401, { 
+          error: 'Authentication session expired. Please request a new password reset link.',
+          sessionExpired: true
+        });
       }
 
       console.log('🔍 Attempting password reset for user:', user.email);
 
       // Update password
-      const { error: updateError } = await supabase.auth.updateUser({
+      const { data, error: updateError } = await supabase.auth.updateUser({
         password: newPassword
       });
 
       if (updateError) {
         console.error('❌ Password reset error:', updateError);
+        if (updateError.message.includes('session')) {
+          return fail(401, { 
+            error: 'Session expired. Please request a new password reset link.',
+            sessionExpired: true
+          });
+        }
         return fail(400, { error: updateError.message });
       }
 
@@ -92,8 +110,8 @@ export const actions: Actions = {
       if (error instanceof Response) {
         throw error; // Re-throw redirects
       }
-      console.log('❌ Password reset exception:', error);
-      return fail(500, { error: 'Unexpected error during password reset' });
+      console.error('❌ Password reset exception:', error);
+      return fail(500, { error: 'Unexpected error during password reset. Please try again.' });
     }
   }
 };
