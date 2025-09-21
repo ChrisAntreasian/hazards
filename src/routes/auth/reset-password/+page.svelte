@@ -28,7 +28,7 @@
 
   // Handle session expiration
   $effect(() => {
-    if (form?.sessionExpired) {
+    if (form && "sessionExpired" in form && (form as any).sessionExpired) {
       setTimeout(() => {
         goto(
           "/auth/forgot-password?message=Session expired. Please request a new password reset link."
@@ -71,7 +71,7 @@
       >
         {#if form?.error}
           <MessageDisplay type="error" message={form.error} />
-          {#if form?.sessionExpired}
+          {#if form && "sessionExpired" in form && (form as any).sessionExpired}
             <div class="mt-2 text-center">
               <p class="text-sm text-gray-600">
                 Redirecting to request a new reset link...
