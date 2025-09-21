@@ -65,9 +65,6 @@
         {:else}
           <a href="/auth/log-in">Login</a>
           <a href="/auth/register">Register</a>
-          {#if dev}
-            <a href="/dev" class="dev-link">🔧 Dev</a>
-          {/if}
         {/if}
       </div>
     </nav>

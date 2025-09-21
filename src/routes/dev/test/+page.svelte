@@ -52,7 +52,8 @@
           regionsError.message.includes("session missing")
         ) {
           regions = [];
-          error = "Some data requires authentication. Please login to see all features.";
+          error =
+            "Some data requires authentication. Please login to see all features.";
         } else {
           throw regionsError;
         }

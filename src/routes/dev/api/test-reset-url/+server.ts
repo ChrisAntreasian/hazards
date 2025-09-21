@@ -17,16 +17,12 @@ export const POST = async (event: any) => {
 
   const redirectUrl = `${event.url.origin}/auth/callback?type=recovery`;
   
-  console.log('🔍 TEST - Password reset URL generation:');
-  console.log('   - Email:', email);
-  console.log('   - Origin:', event.url.origin);
-  console.log('   - Redirect URL:', redirectUrl);
-  console.log('   - Supabase URL:', PUBLIC_SUPABASE_URL);
+  console.log('Dev API: Testing reset URL generation for', email);
+  console.log('Dev API: Redirect URL -', redirectUrl);
 
   try {
     // This is a DRY RUN - we're not actually sending the email
     // Just testing the URL generation
-    console.log('🔍 This would generate a reset email with redirect URL:', redirectUrl);
     
     return json({
       success: true,
@@ -44,7 +40,7 @@ export const POST = async (event: any) => {
     });
     
   } catch (error) {
-    console.error('🔍 TEST ERROR:', error);
+    console.error('Dev API: Reset URL test error -', error instanceof Error ? error.message : String(error));
     return json({ 
       error: error instanceof Error ? error.message : 'Unknown error',
       redirectUrl,

@@ -1,25 +1,26 @@
 <script lang="ts">
   import { dev } from "$app/environment";
-  
+
   let tools = [
     {
       title: "System Status",
-      description: "View Supabase configuration, server info, and endpoint status",
+      description:
+        "View Supabase configuration, server info, and endpoint status",
       href: "/dev/status",
-      icon: "🚀"
+      icon: "🚀",
     },
     {
       title: "Database Test",
       description: "Test database connectivity and query basic tables",
       href: "/dev/test",
-      icon: "🧪"
+      icon: "🧪",
     },
     {
       title: "Image Upload Test",
       description: "Test image upload, processing, and gallery functionality",
       href: "/dev/test/images",
-      icon: "📸"
-    }
+      icon: "📸",
+    },
   ];
 </script>
 
@@ -31,12 +32,14 @@
   <div class="welcome-card">
     <h1>🔧 Development Tools</h1>
     <p class="description">
-      Welcome to the development dashboard. These tools help with debugging, testing, and monitoring during development.
+      Welcome to the development dashboard. These tools help with debugging,
+      testing, and monitoring during development.
     </p>
-    
+
     {#if !dev}
       <div class="warning-banner">
-        ⚠️ <strong>Warning:</strong> Development tools are only available in development mode.
+        ⚠️ <strong>Warning:</strong> Development tools are only available in development
+        mode.
       </div>
     {/if}
   </div>
@@ -52,22 +55,57 @@
     {/each}
   </div>
 
+  <div class="api-section">
+    <h2>🔗 API Endpoints</h2>
+    <div class="api-grid">
+      <div class="api-card">
+        <h3>🩺 Diagnostic</h3>
+        <p>Simple health check endpoint for testing API functionality</p>
+        <code>/dev/api/diagnostic</code>
+        <button
+          onclick={() => window.open("/dev/api/diagnostic", "_blank")}
+          class="api-btn"
+        >
+          Test Endpoint
+        </button>
+      </div>
+
+      <div class="api-card">
+        <h3>🔐 Reset URL Test</h3>
+        <p>Test password reset URL generation without sending emails</p>
+        <code>/dev/api/test-reset-url</code>
+        <div class="api-note">
+          POST endpoint - use from status page or dev tools
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="info-section">
     <h2>About Development Tools</h2>
     <div class="info-grid">
       <div class="info-card">
         <h3>🎯 Purpose</h3>
-        <p>These tools are designed to help developers debug issues, test functionality, and monitor system health during development.</p>
+        <p>
+          These tools are designed to help developers debug issues, test
+          functionality, and monitor system health during development.
+        </p>
       </div>
-      
+
       <div class="info-card">
         <h3>🔒 Security</h3>
-        <p>Development tools are automatically disabled in production environments and should not be accessible to end users.</p>
+        <p>
+          Development tools are automatically disabled in production
+          environments and should not be accessible to end users.
+        </p>
       </div>
-      
+
       <div class="info-card">
         <h3>🚀 Performance</h3>
-        <p>These pages may include verbose logging and testing code that could impact performance. Use only for development.</p>
+        <p>
+          These pages may include verbose logging and testing code that could
+          impact performance. Use only for development.
+        </p>
       </div>
     </div>
   </div>
@@ -170,6 +208,81 @@
     transform: translateX(4px);
   }
 
+  .api-section {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 2px solid #f1f5f9;
+  }
+
+  .api-section h2 {
+    text-align: center;
+    color: #1e293b;
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 2rem;
+  }
+
+  .api-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 3rem;
+  }
+
+  .api-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+  }
+
+  .api-card h3 {
+    margin: 0 0 0.75rem 0;
+    color: #374151;
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+
+  .api-card p {
+    margin: 0 0 1rem 0;
+    color: #6b7280;
+    line-height: 1.5;
+    font-size: 0.95rem;
+  }
+
+  .api-card code {
+    background: #1e293b;
+    color: #e2e8f0;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    font-family: "Courier New", monospace;
+    font-size: 0.875rem;
+    display: block;
+    margin-bottom: 1rem;
+  }
+
+  .api-btn {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+
+  .api-btn:hover {
+    background: #2563eb;
+  }
+
+  .api-note {
+    font-size: 0.8rem;
+    color: #9ca3af;
+    margin-top: 0.5rem;
+  }
+
   .info-section {
     margin-top: 3rem;
     padding-top: 2rem;
@@ -216,7 +329,7 @@
     .tools-grid {
       grid-template-columns: 1fr;
     }
-    
+
     .info-grid {
       grid-template-columns: 1fr;
     }

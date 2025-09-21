@@ -2,18 +2,18 @@
   import { page } from "$app/stores";
   import { dev } from "$app/environment";
   import { goto } from "$app/navigation";
-  
+
   interface Props {
-    children: import('svelte').Snippet;
+    children: import("svelte").Snippet;
   }
-  
+
   let { children }: Props = $props();
-  
+
   // Redirect to home if not in development mode
   if (!dev) {
     goto("/");
   }
-  
+
   let currentPath = $derived($page.url.pathname);
 </script>
 
@@ -23,14 +23,21 @@
       <h1>🔧 Development Tools</h1>
       <nav class="dev-menu">
         <a href="/dev" class:active={currentPath === "/dev"}>Overview</a>
-        <a href="/dev/status" class:active={currentPath === "/dev/status"}>System Status</a>
-        <a href="/dev/test" class:active={currentPath === "/dev/test"}>Database Test</a>
-        <a href="/dev/test/images" class:active={currentPath === "/dev/test/images"}>Image Test</a>
+        <a href="/dev/status" class:active={currentPath === "/dev/status"}
+          >System Status</a
+        >
+        <a href="/dev/test" class:active={currentPath === "/dev/test"}
+          >Database Test</a
+        >
+        <a
+          href="/dev/test/images"
+          class:active={currentPath === "/dev/test/images"}>Image Test</a
+        >
         <a href="/" class="home-link">← Back to App</a>
       </nav>
     </div>
   </div>
-  
+
   <div class="dev-content">
     {@render children()}
   </div>
@@ -40,7 +47,10 @@
   .dev-layout {
     min-height: 100vh;
     background: #f8fafc;
-    font-family: system-ui, -apple-system, sans-serif;
+    font-family:
+      system-ui,
+      -apple-system,
+      sans-serif;
   }
 
   .dev-header {

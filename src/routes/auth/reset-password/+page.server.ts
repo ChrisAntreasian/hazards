@@ -13,7 +13,6 @@ export const load: PageServerLoad = async (event) => {
   }
 
   try {
-    // Check if user is authenticated via password reset flow
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     
     if (userError || !user) {
@@ -33,7 +32,7 @@ export const load: PageServerLoad = async (event) => {
       error: null
     };
   } catch (error) {
-    console.error('❌ Reset password page load error:', error);
+    console.error('Auth: Reset password page load error:', error);
     return {
       user: null,
       error: 'Failed to verify authentication status. Please try the password reset link again.'
@@ -66,7 +65,6 @@ export const actions: Actions = {
     }
 
     try {
-      // Get the current user (should be authenticated via password reset flow)
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       
       if (userError || !user) {
@@ -79,7 +77,6 @@ export const actions: Actions = {
 
       console.log('Auth: Updating password for', user.email);
 
-      // Update password
       const { data, error: updateError } = await supabase.auth.updateUser({
         password: newPassword
       });
@@ -97,18 +94,15 @@ export const actions: Actions = {
 
       console.log('Auth: Password reset successful for', user.email);
       
-      // Sign out user after password reset for security
       const { error: signOutError } = await supabase.auth.signOut();
       
       if (signOutError) {
-        console.warn('Auth: Failed to sign out after password reset -', signOutError.message);
+        console.warn('Auth: Sign out failed after password reset:', signOutError.message);
       }
       
-      // Use redirect for successful password reset
       throw redirect(303, '/auth/log-in?message=Password updated successfully! Please sign in with your new password.');
       
     } catch (error) {
-      // Re-throw redirects
       if (error && typeof error === 'object' && 'status' in error && 'location' in error) {
         throw error;
       }
@@ -117,7 +111,7 @@ export const actions: Actions = {
         throw error;
       }
       
-      console.error('Auth: Password reset exception -', error instanceof Error ? error.message : String(error));
+      console.error('Auth: Password reset error:', error instanceof Error ? error.message : String(error));
       
       return fail(500, { error: 'Unexpected error during password reset. Please try again.' });
     }

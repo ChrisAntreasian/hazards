@@ -8,6 +8,8 @@ This directory contains development and debugging tools for the Hazards App. The
 - `/dev/status` - System status dashboard showing configuration and endpoints
 - `/dev/test` - Database connectivity and basic table testing
 - `/dev/test/images` - Image upload and gallery functionality testing
+- `/dev/api/diagnostic` - Simple health check API endpoint
+- `/dev/api/test-reset-url` - Password reset URL testing API endpoint
 
 ## Security
 

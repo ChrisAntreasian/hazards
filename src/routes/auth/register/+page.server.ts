@@ -16,7 +16,6 @@ export const actions: Actions = {
     const confirmPassword = formData.get('confirmPassword') as string;
     const displayName = formData.get('displayName') as string;
 
-    // Server-side validation
     if (!email || !password || !confirmPassword || !displayName) {
       return fail(400, {
         error: 'All fields are required',
@@ -25,7 +24,6 @@ export const actions: Actions = {
       });
     }
 
-    // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return fail(400, {
@@ -35,7 +33,6 @@ export const actions: Actions = {
       });
     }
 
-    // Password validation
     if (password.length < 6) {
       return fail(400, {
         error: 'Password must be at least 6 characters long',
@@ -69,7 +66,6 @@ export const actions: Actions = {
       if (authError) {
         console.log('❌ Server registration error:', authError);
         
-        // Handle specific error cases with user-friendly messages
         if (authError.message.includes('User already registered') || 
             authError.message.includes('already registered') ||
             authError.message.includes('already exists') ||
@@ -106,7 +102,6 @@ export const actions: Actions = {
           });
         }
         
-        // Default to the original error message for other cases
         return fail(400, {
           error: authError.message,
           email,
@@ -115,7 +110,6 @@ export const actions: Actions = {
       }
 
       if (signUpData.user && !signUpData.session) {
-        // Email confirmation required
         console.log('✅ Registration successful, confirmation required for:', email);
         return {
           success: true,
@@ -125,7 +119,6 @@ export const actions: Actions = {
       }
 
       if (signUpData.user && signUpData.session) {
-        // Auto sign-in successful
         console.log('✅ Registration and auto sign-in successful for:', email);
         redirect(303, '/dashboard');
       }
@@ -138,7 +131,7 @@ export const actions: Actions = {
 
     } catch (error) {
       if (error instanceof Response) {
-        throw error; // Re-throw redirects
+        throw error;
       }
       
       console.log('❌ Server registration exception:', error);

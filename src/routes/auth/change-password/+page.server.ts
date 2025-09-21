@@ -2,8 +2,8 @@ import { redirect, fail } from '@sveltejs/kit';
 import { createSupabaseServerClient } from '$lib/supabase.js';
 import type { PageServerLoad, Actions } from './$types';
 
-export const load: PageServerLoad = async ({ url, cookies }) => {
-  const supabase = createSupabaseServerClient({ url, cookies });
+export const load: PageServerLoad = async (event) => {
+  const supabase = createSupabaseServerClient(event);
   
   if (!supabase) {
     return {
@@ -21,7 +21,6 @@ export const load: PageServerLoad = async ({ url, cookies }) => {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Require authentication for password change
   if (!session || !user) {
     throw redirect(303, '/auth/log-in?returnUrl=/auth/change-password');
   }
@@ -57,14 +56,12 @@ export const actions: Actions = {
     }
 
     try {
-      // Get the current user
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       
       if (userError || !user?.email) {
         return fail(401, { error: 'Not authenticated' });
       }
 
-      // Verify current password by attempting to sign in
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: user.email,
         password: currentPassword,
@@ -74,28 +71,24 @@ export const actions: Actions = {
         return fail(400, { error: 'Current password is incorrect' });
       }
 
-      // Update password
       const { error: updateError } = await supabase.auth.updateUser({
         password: newPassword
       });
 
       if (updateError) {
-        console.error('Password update error:', updateError);
+        console.error('Auth: Password update failed:', updateError.message);
         return fail(400, { error: updateError.message });
       }
 
-      console.log('✅ Password updated successfully for:', user.email);
+      console.log('Auth: Password updated successfully');
       
-      const result = {
+      return {
         success: true,
         message: 'Password updated successfully!'
       };
       
-      console.log('🔍 Returning result:', result);
-      return result;
-      
     } catch (error) {
-      console.log('❌ Password change exception:', error);
+      console.error('Auth: Password change error:', error);
       return fail(500, { error: 'Unexpected error during password change' });
     }
   }
