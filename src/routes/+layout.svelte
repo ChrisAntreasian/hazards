@@ -4,6 +4,7 @@
   import { goto } from "$app/navigation";
   import { page } from "$app/stores";
   import { createSupabaseLoadClient, signOut } from "$lib/supabase.js";
+  import { dev } from "$app/environment";
   import {
     authStore,
     session as authSession,
@@ -16,28 +17,13 @@
   const supabase = createSupabaseLoadClient();
 
   $effect(() => {
-    console.log(
-      "🔍 Auth initialization - using server-side session management"
-    );
-    console.log("- Server session:", data.session ? "EXISTS" : "NULL");
-    console.log("- Server user:", data.user ? "EXISTS" : "NULL");
-    console.log(
-      "- Current auth state:",
-      $isAuthenticated ? "AUTHENTICATED" : "NOT_AUTHENTICATED"
-    );
-
-    // Always update auth state with latest server data
-    // This ensures we pick up changes after login/logout
+    // Update auth state with server data
     if (data.session && data.user) {
-      console.log("✅ Initializing with server session data");
+      console.log("Auth: Initializing session for", data.user.email);
       authStore.updateAuthState(data.session, data.user);
     } else {
-      console.log("❌ No server session - clearing auth state");
       authStore.clearAuthState();
     }
-
-    // Note: Removed onAuthStateChange listener as client auth methods hang
-    // Auth state is now managed server-side and passed through data.session
   });
 
   async function handleSignOut() {
@@ -72,10 +58,16 @@
         {#if $isAuthenticated}
           <a href="/dashboard">Dashboard</a>
           <a href="/profile">Profile</a>
+          {#if dev}
+            <a href="/dev" class="dev-link">🔧 Dev</a>
+          {/if}
           <button onclick={handleSignOut}>Sign Out</button>
         {:else}
           <a href="/auth/log-in">Login</a>
           <a href="/auth/register">Register</a>
+          {#if dev}
+            <a href="/dev" class="dev-link">🔧 Dev</a>
+          {/if}
         {/if}
       </div>
     </nav>
@@ -134,6 +126,16 @@
   .nav-links a:hover,
   .nav-links button:hover {
     background: rgba(255, 255, 255, 0.1);
+  }
+
+  .nav-links .dev-link {
+    background: rgba(59, 130, 246, 0.2);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    font-size: 0.875rem;
+  }
+
+  .nav-links .dev-link:hover {
+    background: rgba(59, 130, 246, 0.3);
   }
 
   main {

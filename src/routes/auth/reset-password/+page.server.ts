@@ -16,21 +16,15 @@ export const load: PageServerLoad = async (event) => {
     // Check if user is authenticated via password reset flow
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     
-    console.log('🔍 Reset password page - user check:', { 
-      hasUser: !!user, 
-      userEmail: user?.email,
-      error: userError?.message 
-    });
-    
     if (userError || !user) {
-      console.log('❌ No authenticated user for password reset');
+      console.log('Auth: No authenticated user for password reset');
       return {
         user: null,
         error: 'Authentication required. Please click the password reset link from your email again.'
       };
     }
 
-    console.log('✅ User authenticated for password reset:', user.email);
+    console.log('Auth: User authenticated for password reset -', user.email);
     return {
       user: {
         id: user.id,
@@ -76,14 +70,14 @@ export const actions: Actions = {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       
       if (userError || !user) {
-        console.log('❌ No authenticated user for password update:', userError?.message);
+        console.log('Auth: No authenticated user for password update');
         return fail(401, { 
           error: 'Authentication session expired. Please request a new password reset link.',
           sessionExpired: true
         });
       }
 
-      console.log('🔍 Attempting password reset for user:', user.email);
+      console.log('Auth: Updating password for', user.email);
 
       // Update password
       const { data, error: updateError } = await supabase.auth.updateUser({
@@ -91,7 +85,7 @@ export const actions: Actions = {
       });
 
       if (updateError) {
-        console.error('❌ Password reset error:', updateError);
+        console.error('Auth: Password reset error -', updateError.message);
         if (updateError.message.includes('session')) {
           return fail(401, { 
             error: 'Session expired. Please request a new password reset link.',
@@ -101,16 +95,30 @@ export const actions: Actions = {
         return fail(400, { error: updateError.message });
       }
 
-      console.log('✅ Password reset successfully for:', user.email);
+      console.log('Auth: Password reset successful for', user.email);
+      
+      // Sign out user after password reset for security
+      const { error: signOutError } = await supabase.auth.signOut();
+      
+      if (signOutError) {
+        console.warn('Auth: Failed to sign out after password reset -', signOutError.message);
+      }
       
       // Use redirect for successful password reset
-      redirect(303, '/auth/log-in?message=Password updated successfully! Please sign in with your new password.');
+      throw redirect(303, '/auth/log-in?message=Password updated successfully! Please sign in with your new password.');
       
     } catch (error) {
-      if (error instanceof Response) {
-        throw error; // Re-throw redirects
+      // Re-throw redirects
+      if (error && typeof error === 'object' && 'status' in error && 'location' in error) {
+        throw error;
       }
-      console.error('❌ Password reset exception:', error);
+      
+      if (error instanceof Response) {
+        throw error;
+      }
+      
+      console.error('Auth: Password reset exception -', error instanceof Error ? error.message : String(error));
+      
       return fail(500, { error: 'Unexpected error during password reset. Please try again.' });
     }
   }

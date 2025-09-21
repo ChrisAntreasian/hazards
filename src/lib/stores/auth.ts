@@ -68,10 +68,11 @@ const createAuthStore = () => {
     dispatch,
     updateAuthState: (newSession: Session | null, newUser: User | null = null) => {
       if (newSession && newUser) {
+        console.log("Auth: Authenticated as", newUser.email);
         dispatch({ 
           type: 'SIGN_IN', 
           payload: { 
-            user: newUser, // Only use authenticated user data, never session.user
+            user: newUser,
             session: newSession 
           } 
         });

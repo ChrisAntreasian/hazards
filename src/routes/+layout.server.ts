@@ -20,8 +20,17 @@ export const load: LayoutServerLoad = async (event) => {
       return { session: null, user: null };
     }
 
-    // Return user data - session is not needed for most use cases
-    return { session: null, user };
+    // Create a minimal session object for auth store compatibility
+    // The auth store requires both session and user to be truthy for isAuthenticated
+    const minimalSession = {
+      user,
+      access_token: 'server-validated',
+      refresh_token: '',
+      expires_in: 3600,
+      token_type: 'bearer'
+    };
+
+    return { session: minimalSession, user };
   } catch (error) {
     console.error('Layout auth load error:', error);
     return { session: null, user: null };

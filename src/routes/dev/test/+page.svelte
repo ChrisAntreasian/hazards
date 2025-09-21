@@ -32,10 +32,8 @@
         .select("count(*)", { count: "exact", head: true });
 
       if (healthError) {
-        console.log("Health check failed:", healthError);
-        // Client auth methods hang, so we can't check user auth
-        error =
-          "Database connection failed. Client auth methods disabled to prevent hanging.";
+        console.log("Dev: Health check failed -", healthError.message);
+        error = "Database connection failed. Please check configuration.";
         connectionStatus = "❌ Connection failed";
         return;
       }
@@ -48,14 +46,13 @@
         .select("*");
 
       if (regionsError) {
-        console.log("Regions query error:", regionsError);
+        console.log("Dev: Regions query error -", regionsError.message);
         if (
           regionsError.message.includes("permission denied") ||
           regionsError.message.includes("session missing")
         ) {
           regions = [];
-          error =
-            "Some data requires authentication. Please login to see all features.";
+          error = "Some data requires authentication. Please login to see all features.";
         } else {
           throw regionsError;
         }
@@ -70,7 +67,7 @@
         .order("level", { ascending: true });
 
       if (categoriesError) {
-        console.log("Categories query error:", categoriesError);
+        console.log("Dev: Categories query error -", categoriesError.message);
         if (
           categoriesError.message.includes("permission denied") ||
           categoriesError.message.includes("session missing")
@@ -85,15 +82,12 @@
     } catch (e: any) {
       connectionStatus = "❌ Connection failed";
       error = e.message || "Unknown error";
-      console.error("Database test error:", e);
+      console.error("Dev: Database test error -", e.message);
     }
   }
 
   async function testUserRegistration() {
-    // Client auth methods hang, so registration test is disabled
-    alert(
-      "❌ Registration test disabled - client auth methods hang. Use the actual registration page instead."
-    );
+    alert("Use the actual registration page for testing: /auth/register");
   }
 </script>
 

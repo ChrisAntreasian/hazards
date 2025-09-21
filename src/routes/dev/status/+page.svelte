@@ -22,7 +22,7 @@
   let { data }: Props = $props();
 
   function testEndpoint(url: string) {
-    window.open(url, '_blank');
+    window.open(url, "_blank");
   }
 </script>
 
@@ -39,8 +39,10 @@
       <h2>🔧 Supabase Configuration</h2>
       <div class="status-item">
         <span class="label">Status:</span>
-        <span class="value {data.status.supabase.configured ? 'success' : 'error'}">
-          {data.status.supabase.configured ? '✅ Configured' : '❌ Missing'}
+        <span
+          class="value {data.status.supabase.configured ? 'success' : 'error'}"
+        >
+          {data.status.supabase.configured ? "✅ Configured" : "❌ Missing"}
         </span>
       </div>
       <div class="status-item">
@@ -93,10 +95,12 @@
   </div>
 
   <div class="actions">
-    <a href="/auth/forgot-password" class="btn primary">🔐 Test Forgot Password</a>
-    <a href="/debug-supabase" class="btn secondary">🔍 Debug Configuration</a>
-    <a href="/test-url" class="btn secondary">📊 Test URL Parsing</a>
-    <a href="/api/diagnostic" class="btn secondary">🩺 Diagnostic API</a>
+    <a href="/auth/forgot-password" class="btn primary"
+      >🔐 Test Forgot Password</a
+    >
+    <a href="/dev/test" class="btn secondary">🧪 Database Test</a>
+    <a href="/dev/test/images" class="btn secondary">� Image Test</a>
+    <a href="/dev" class="btn secondary">🔧 Dev Tools Home</a>
   </div>
 </div>
 
@@ -105,7 +109,8 @@
     max-width: 1200px;
     margin: 0 auto;
     padding: 2rem;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      sans-serif;
   }
 
   h1 {
@@ -161,7 +166,7 @@
   }
 
   .value {
-    font-family: 'SF Mono', Monaco, monospace;
+    font-family: "SF Mono", Monaco, monospace;
     font-size: 0.9rem;
   }
 
@@ -191,7 +196,7 @@
     color: #2563eb;
     text-decoration: underline;
     cursor: pointer;
-    font-family: 'SF Mono', Monaco, monospace;
+    font-family: "SF Mono", Monaco, monospace;
     font-size: 0.9rem;
     text-align: right;
   }

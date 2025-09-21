@@ -21,27 +21,9 @@ export const load: PageServerLoad = async (event) => {
   const error = url.searchParams.get('error');
   const errorDescription = url.searchParams.get('error_description');
 
-  console.log('🔍 Callback URL:', event.request.url);
-  console.log('🔍 Callback headers:', {
-    userAgent: event.request.headers.get('user-agent'),
-    referer: event.request.headers.get('referer'),
-    origin: event.request.headers.get('origin')
-  });
-  console.log('🔍 Callback parameters:', {
-    accessToken: accessToken ? 'present' : 'missing',
-    refreshToken: refreshToken ? 'present' : 'missing',
-    code: code ? 'present' : 'missing',
-    type,
-    error,
-    allParams: Object.fromEntries(url.searchParams),
-    pathname: url.pathname,
-    search: url.search,
-    hash: url.hash || 'no-hash-on-server'
-  });
-
   // Handle errors from the callback URL
   if (error) {
-    console.log('❌ Callback error:', error, errorDescription);
+    console.log('Auth: Callback error -', error);
     return {
       status: 'error',
       message: 'Authentication failed',
@@ -49,17 +31,14 @@ export const load: PageServerLoad = async (event) => {
     };
   }
 
-  // Handle authorization code flow (Supabase sends 'code' instead of tokens directly)
+  // Handle authorization code flow
   if (code && !accessToken && !refreshToken) {
-    console.log('🔍 Authorization code flow detected - exchanging code for tokens');
-    
     try {
       const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
       
       if (exchangeError) {
-        console.error('❌ Code exchange error:', exchangeError);
+        console.error('Auth: Code exchange failed -', exchangeError.message);
         
-        // Handle specific error cases
         if (exchangeError.message?.includes('flow_state_expired') || exchangeError.code === 'flow_state_expired') {
           return {
             status: 'error',
@@ -75,30 +54,33 @@ export const load: PageServerLoad = async (event) => {
         };
       }
 
-      console.log('✅ Code exchange successful for:', data.user?.email);
+      console.log('Auth: Code exchange successful for', data.user?.email);
       
-      // Check if this is a recovery flow
       if (type === 'recovery') {
-        console.log('🔄 Password recovery - redirecting to reset password (this will show as "exception" but is normal)');
-        throw redirect(303, '/auth/reset-password');
+        return {
+          status: 'success',
+          message: 'Password recovery authenticated successfully',
+          redirectTo: '/auth/reset-password'
+        };
       } else {
-        console.log('🔄 Regular auth - redirecting to dashboard (this will show as "exception" but is normal)');
-        throw redirect(303, '/dashboard');
+        return {
+          status: 'success',
+          message: 'Authentication successful',
+          redirectTo: '/dashboard'
+        };
       }
       
     } catch (error) {
-      if (error instanceof Response) {
-        throw error; // Re-throw redirects
+      // Re-throw redirects
+      if (error && typeof error === 'object' && 'status' in error && 'location' in error) {
+        throw error;
       }
       
-      console.error('❌ Code exchange exception:', error);
-      console.error('❌ Error type:', typeof error);
-      console.error('❌ Error constructor:', error?.constructor?.name);
-      console.error('❌ Error details:', {
-        message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-        name: error instanceof Error ? error.name : undefined
-      });
+      if (error instanceof Response) {
+        throw error;
+      }
+      
+      console.error('Auth: Code exchange exception -', error instanceof Error ? error.message : String(error));
       
       return {
         status: 'error',
@@ -204,8 +186,12 @@ export const load: PageServerLoad = async (event) => {
 
         console.log('✅ Password recovery session established for:', data.user?.email);
         
-        // Redirect immediately for password recovery
-        throw redirect(303, '/auth/reset-password');
+        // Return redirect for password recovery
+        return {
+          status: 'success',
+          message: 'Password recovery authenticated successfully',
+          redirectTo: '/auth/reset-password'
+        };
       } else {
         console.log('❌ Missing tokens for password recovery');
         return {
