@@ -1,20 +1,19 @@
-import { redirect, fail } from '@sveltejs/kit';
-import { createSupabaseServerClient } from '$lib/supabase.js';
+import { fail, redirect } from '@sveltejs/kit';
+import { createSupabaseServerClient } from '$lib/supabase';
+import { protectRoute } from '$lib/utils/routeProtection.js';
 import type { PageServerLoad, Actions } from './$types';
 
 export const load: PageServerLoad = async (event) => {
-  const supabase = createSupabaseServerClient(event);
-  
-  if (!supabase) {
-    throw redirect(303, '/auth/log-in');
-  }
-
   try {
-    // Get the current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
-    if (userError || !user) {
-      throw redirect(303, '/auth/log-in');
+    // Protect this route - require auth and block during password reset
+    const { user, authenticated } = await protectRoute(event, {
+      requireAuth: true,
+      blockDuringPasswordReset: true
+    });
+
+    const supabase = createSupabaseServerClient(event);
+    if (!supabase || !user) {
+      throw new Error('Supabase client or user not available');
     }
 
     // Fetch regions data that was previously loaded client-side
@@ -28,12 +27,16 @@ export const load: PageServerLoad = async (event) => {
       // Don't throw - just return empty regions
     }
 
-    // Fetch user profile data if you have a profiles table
-    // const { data: profile, error: profileError } = await supabase
-    //   .from('profiles')
-    //   .select('*')
-    //   .eq('id', user.id)
-    //   .single();
+    // Fetch user role and additional data from the users table
+    const { data: userProfile, error: profileError } = await supabase
+      .from('users')
+      .select('role, trust_score, created_at')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError) {
+      console.log('No user profile found, user may need to complete registration:', profileError);
+    }
 
     return {
       user: {
@@ -41,7 +44,9 @@ export const load: PageServerLoad = async (event) => {
         email: user.email,
         displayName: user.user_metadata?.display_name || 'User',
         emailConfirmed: !!user.email_confirmed_at,
-        createdAt: user.created_at
+        createdAt: user.created_at,
+        role: userProfile?.role || 'user',
+        trustScore: userProfile?.trust_score || 0
       },
       regions: regions || [],
       // profile: profile || null

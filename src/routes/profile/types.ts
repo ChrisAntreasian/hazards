@@ -6,6 +6,8 @@ export interface CustomUser {
   displayName: string;
   emailConfirmed: boolean;
   createdAt: string;
+  role: string;
+  trustScore: number;
 }
 
 export interface Region {

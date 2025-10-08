@@ -127,8 +127,31 @@
             </span>
           </div>
           <div class="stat-item">
+            <span class="stat-label">Account Role</span>
+            <span class="stat-value role-{profileUser?.role || 'user'}">
+              {#if profileUser?.role === "admin"}
+                👑 Administrator
+              {:else if profileUser?.role === "moderator"}
+                ⚖️ Moderator
+              {:else}
+                👤 User
+              {/if}
+            </span>
+          </div>
+          <div class="stat-item">
             <span class="stat-label">Trust Score</span>
-            <span class="stat-value">100 <small>(New User)</small></span>
+            <span class="stat-value">
+              {profileUser?.trustScore || 0}
+              <small>
+                {#if (profileUser?.trustScore || 0) >= 500}
+                  (Trusted)
+                {:else if (profileUser?.trustScore || 0) >= 100}
+                  (Active)
+                {:else}
+                  (New User)
+                {/if}
+              </small>
+            </span>
           </div>
           <div class="stat-item">
             <span class="stat-label">Reports Submitted</span>
@@ -248,6 +271,20 @@
   .stat-value {
     color: #1e293b;
     font-weight: 600;
+  }
+
+  .role-admin {
+    color: #dc2626;
+    font-weight: 700;
+  }
+
+  .role-moderator {
+    color: #d97706;
+    font-weight: 700;
+  }
+
+  .role-user {
+    color: #1e293b;
   }
 
   .actions {

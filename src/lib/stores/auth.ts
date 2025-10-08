@@ -7,7 +7,8 @@ const createAuthStore = () => {
     user: null,
     session: null,
     loading: true,
-    initialized: false
+    initialized: false,
+    inPasswordReset: false
   };
 
   const { subscribe, update } = writable<AuthState>(initialState);
@@ -29,7 +30,8 @@ const createAuthStore = () => {
             user: null,
             session: null,
             loading: false,
-            initialized: true
+            initialized: true,
+            inPasswordReset: false
           };
         case 'LOADING':
           return {
@@ -57,6 +59,11 @@ const createAuthStore = () => {
             loading: false,
             initialized: true
           };
+        case 'SET_PASSWORD_RESET':
+          return {
+            ...state,
+            inPasswordReset: action.payload
+          };
         default:
           return state;
       }
@@ -83,7 +90,8 @@ const createAuthStore = () => {
     clearAuthState: () => dispatch({ type: 'SIGN_OUT' }),
     setLoading: (loading: boolean) => dispatch({ type: 'LOADING', payload: loading }),
     initialize: (user: User | null, session: Session | null) => 
-      dispatch({ type: 'INITIALIZE', payload: { user, session } })
+      dispatch({ type: 'INITIALIZE', payload: { user, session } }),
+    setPasswordReset: (inReset: boolean) => dispatch({ type: 'SET_PASSWORD_RESET', payload: inReset })
   };
 };
 
@@ -95,5 +103,7 @@ export const session = derived(authStore, $auth => $auth.session);
 export const loading = derived(authStore, $auth => $auth.loading);
 export const initialized = derived(authStore, $auth => $auth.initialized);
 export const isAuthenticated = derived(authStore, $auth => !!$auth.session && !!$auth.user);
+export const inPasswordReset = derived(authStore, $auth => $auth.inPasswordReset);
+export const displayAsLoggedOut = derived(authStore, $auth => $auth.inPasswordReset);
 
-export const { updateAuthState, clearAuthState } = authStore;
+export const { updateAuthState, clearAuthState, setPasswordReset } = authStore;

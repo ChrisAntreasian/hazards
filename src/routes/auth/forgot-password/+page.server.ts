@@ -1,4 +1,4 @@
-import { createSupabaseServerClient } from '$lib/supabase.js';
+import { createSupabaseServerClient } from '$lib/supabase';
 import { redirect, fail } from '@sveltejs/kit';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import type { Actions } from './$types';

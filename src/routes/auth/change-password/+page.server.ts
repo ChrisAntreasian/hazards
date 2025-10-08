@@ -1,38 +1,49 @@
-import { redirect, fail } from '@sveltejs/kit';
-import { createSupabaseServerClient } from '$lib/supabase.js';
+import { fail } from '@sveltejs/kit';
+import { createSupabaseServerClient } from '$lib/supabase';
+import { protectRoute } from '$lib/utils/routeProtection.js';
 import type { PageServerLoad, Actions } from './$types';
 
 export const load: PageServerLoad = async (event) => {
-  const supabase = createSupabaseServerClient(event);
-  
-  if (!supabase) {
-    return {
-      session: null,
-      user: null,
-      error: 'Supabase not configured'
-    };
-  }
+  try {
+    // Protect this route - require auth and block during password reset
+    const { user, authenticated } = await protectRoute(event, {
+      requireAuth: true,
+      blockDuringPasswordReset: true,
+      redirectTo: '/auth/log-in?returnUrl=/auth/change-password'
+    });
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!session || !user) {
-    throw redirect(303, '/auth/log-in?returnUrl=/auth/change-password');
-  }
-
-  return {
-    session,
-    user,
-    meta: {
-      title: 'Change Password - Hazards App',
-      description: 'Update your account password'
+    if (!user) {
+      throw new Error('User should not be null after successful protection check');
     }
-  };
+
+    const supabase = createSupabaseServerClient(event);
+    if (!supabase) {
+      return {
+        session: null,
+        user: null,
+        error: 'Supabase not configured'
+      };
+    }
+
+    const { data: { session } } = await supabase.auth.getSession();
+
+    return {
+      session,
+      user,
+      meta: {
+        title: 'Change Password - Hazards App',
+        description: 'Update your account password'
+      }
+    };
+
+  } catch (error) {
+    if (error instanceof Response) {
+      throw error; // Re-throw redirects
+    }
+    
+    console.error('Change password load error:', error);
+    throw error;
+  }
 };
 
 export const actions: Actions = {

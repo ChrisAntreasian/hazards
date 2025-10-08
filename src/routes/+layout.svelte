@@ -10,11 +10,16 @@
     session as authSession,
     user,
     isAuthenticated,
+    displayAsLoggedOut,
   } from "$lib/stores/auth.js";
   import { preserveAuthState } from "$lib/utils/sessionUtils.js";
+  import { detectPasswordResetContext } from "$lib/utils/routeProtection.js";
 
   let { children, data } = $props();
   const supabase = createSupabaseLoadClient();
+
+  // Track user role for conditional navigation
+  let userRole = $state(data.userRole);
 
   $effect(() => {
     // Update auth state with server data
@@ -24,6 +29,15 @@
     } else {
       authStore.clearAuthState();
     }
+
+    // Update user role
+    userRole = data.userRole;
+  });
+
+  // Detect password reset context from current route
+  $effect(() => {
+    const isInPasswordReset = detectPasswordResetContext($page.url.pathname);
+    authStore.setPasswordReset(isInPasswordReset);
   });
 
   async function handleSignOut() {
@@ -55,9 +69,15 @@
         <a href="/">🚨 Hazards</a>
       </div>
       <div class="nav-links">
-        {#if $isAuthenticated}
+        {#if $isAuthenticated && !$displayAsLoggedOut}
           <a href="/dashboard">Dashboard</a>
           <a href="/profile">Profile</a>
+          {#if userRole === "admin" || userRole === "moderator"}
+            <a href="/moderation" class="mod-link">⚖️ Moderation</a>
+          {/if}
+          {#if userRole === "admin"}
+            <a href="/admin" class="admin-link">👑 Admin</a>
+          {/if}
           {#if dev}
             <a href="/dev" class="dev-link">🔧 Dev</a>
           {/if}
@@ -133,6 +153,26 @@
 
   .nav-links .dev-link:hover {
     background: rgba(59, 130, 246, 0.3);
+  }
+
+  .nav-links .mod-link {
+    background: rgba(245, 158, 11, 0.2);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    font-size: 0.875rem;
+  }
+
+  .nav-links .mod-link:hover {
+    background: rgba(245, 158, 11, 0.3);
+  }
+
+  .nav-links .admin-link {
+    background: rgba(220, 38, 38, 0.2);
+    border: 1px solid rgba(220, 38, 38, 0.3);
+    font-size: 0.875rem;
+  }
+
+  .nav-links .admin-link:hover {
+    background: rgba(220, 38, 38, 0.3);
   }
 
   main {

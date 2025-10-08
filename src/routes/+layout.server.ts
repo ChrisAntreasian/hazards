@@ -1,4 +1,4 @@
-import { createSupabaseServerClient } from '$lib/supabase.js';
+import { createSupabaseServerClient } from '$lib/supabase';
 import type { LayoutServerLoad } from './$types';
 
 export const load: LayoutServerLoad = async (event) => {
@@ -17,7 +17,23 @@ export const load: LayoutServerLoad = async (event) => {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     
     if (userError || !user) {
-      return { session: null, user: null };
+      return { session: null, user: null, userRole: null };
+    }
+
+    // Fetch user role and permissions
+    let userRole = null;
+    try {
+      const { data: userProfile, error: profileError } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (!profileError && userProfile) {
+        userRole = userProfile.role;
+      }
+    } catch (error) {
+      console.log('Could not fetch user role (user may be new):', error);
     }
 
     // Create a minimal session object for auth store compatibility
@@ -30,7 +46,7 @@ export const load: LayoutServerLoad = async (event) => {
       token_type: 'bearer'
     };
 
-    return { session: minimalSession, user };
+    return { session: minimalSession, user, userRole };
   } catch (error) {
     console.error('Layout auth load error:', error);
     return { session: null, user: null };

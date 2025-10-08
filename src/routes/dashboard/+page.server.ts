@@ -1,24 +1,20 @@
-import { redirect } from '@sveltejs/kit';
-import { createSupabaseServerClient } from '$lib/supabase.js';
+import { protectRoute } from '$lib/utils/routeProtection.js';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async (event) => {
-  const supabase = createSupabaseServerClient(event);
-  
-  if (!supabase) {
-    throw redirect(303, '/auth/log-in');
-  }
-
   try {
-    // Check if user is authenticated
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
-    if (userError || !user) {
-      console.log('❌ Dashboard access denied - no valid session');
-      throw redirect(303, '/auth/log-in');
-    }
+    // Protect this route - require auth and block during password reset
+    const { user, authenticated } = await protectRoute(event, {
+      requireAuth: true,
+      blockDuringPasswordReset: true
+    });
 
-    console.log('✅ Dashboard access granted for:', user.email);
+    console.log('✅ Dashboard access granted for:', user?.email);
+
+    // User is guaranteed to be non-null due to protectRoute check
+    if (!user) {
+      throw new Error('User should not be null after successful protection check');
+    }
 
     return {
       user: {
@@ -39,6 +35,7 @@ export const load: PageServerLoad = async (event) => {
     }
     
     console.error('Dashboard load error:', error);
-    throw redirect(303, '/auth/log-in');
+    // If protectRoute didn't handle it, something is wrong
+    throw error;
   }
 };
