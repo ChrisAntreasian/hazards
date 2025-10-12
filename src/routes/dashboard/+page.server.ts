@@ -3,6 +3,9 @@ import { createSupabaseServerClient } from '$lib/supabase.js';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async (event) => {
+  // Add dependency for invalidation when trust scores change
+  event.depends('trust-score-data');
+  
   try {
     // Protect this route - require auth and block during password reset
     const { user, authenticated } = await protectRoute(event, {
@@ -27,9 +30,25 @@ export const load: PageServerLoad = async (event) => {
       approved: 0,
       rejected: 0
     };
+    let userTrustScore = 0;
+    let recentActivity: any[] = [];
 
     if (supabase) {
       try {
+        // Fetch user's trust score from database
+        const { data: userProfile, error: profileError } = await supabase
+          .from('users')
+          .select('trust_score')
+          .eq('id', user.id)
+          .single();
+
+        if (profileError) {
+          console.error('❌ Error fetching user profile:', profileError);
+        } else {
+          userTrustScore = userProfile?.trust_score || 0;
+          console.log('✅ User trust score loaded:', userTrustScore);
+        }
+
         console.log('🔍 Fetching hazards for user:', user.id);
         
         // Use PostgreSQL function to get user's hazards (bypasses RLS issues)
@@ -61,6 +80,34 @@ export const load: PageServerLoad = async (event) => {
           
           console.log('📊 Stats:', hazardStats);
         }
+
+        // Fetch recent activity (including moderation decisions)
+        const { data: activityData, error: activityError } = await supabase
+          .from('moderation_queue')
+          .select(`
+            id,
+            status,
+            resolved_at,
+            created_at,
+            moderator_notes,
+            hazards:content_id (
+              id,
+              title,
+              status
+            )
+          `)
+          .eq('submitted_by', user.id)
+          .eq('type', 'hazard')
+          .order('resolved_at', { ascending: false, nullsFirst: false })
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (activityError) {
+          console.error('❌ Error fetching recent activity:', activityError);
+        } else {
+          recentActivity = activityData || [];
+          console.log('✅ Recent activity loaded:', recentActivity.length, 'items');
+        }
       } catch (err) {
         console.error('💥 Error in hazards query:', err);
       }
@@ -74,11 +121,13 @@ export const load: PageServerLoad = async (event) => {
         profileImageUrl: user.user_metadata?.profile_image_url || null,
         emailConfirmed: !!user.email_confirmed_at,
         createdAt: user.created_at,
+        trustScore: userTrustScore,
         // Include full user metadata for compatibility
         user_metadata: user.user_metadata
       },
       userHazards,
-      hazardStats
+      hazardStats,
+      recentActivity: recentActivity || []
     };
 
   } catch (error) {

@@ -168,7 +168,7 @@ export const PUT: RequestHandler = async (event) => {
       throw error(403, 'Admin access required');
     }
 
-    const { userId, role, trustScore, notes } = await request.json();
+    const { userId, role, trust_score, reason } = await request.json();
 
     if (!userId) {
       throw error(400, 'User ID is required');
@@ -186,8 +186,8 @@ export const PUT: RequestHandler = async (event) => {
     }
 
     // Validate trust score
-    if (trustScore !== undefined && (trustScore < 0 || trustScore > 1000)) {
-      throw error(400, 'Trust score must be between 0 and 1000');
+    if (trust_score !== undefined && (trust_score < 0 || trust_score > 2000)) {
+      throw error(400, 'Trust score must be between 0 and 2000');
     }
 
     // Build update object
@@ -196,7 +196,7 @@ export const PUT: RequestHandler = async (event) => {
     };
 
     if (role) updates.role = role;
-    if (trustScore !== undefined) updates.trust_score = trustScore;
+    if (trust_score !== undefined) updates.trust_score = trust_score;
 
     // Update user using admin client
     const { data: updatedProfile, error: updateError } = await adminSupabase
@@ -220,7 +220,7 @@ export const PUT: RequestHandler = async (event) => {
         target_id: userId,
         details: {
           changes: updates,
-          notes: notes || null,
+          notes: reason || null,
           timestamp: new Date().toISOString()
         }
       });

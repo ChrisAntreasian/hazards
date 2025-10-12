@@ -4,6 +4,9 @@ import { protectRoute } from '$lib/utils/routeProtection.js';
 import type { PageServerLoad, Actions } from './$types';
 
 export const load: PageServerLoad = async (event) => {
+  // Add dependency for invalidation when trust scores change
+  event.depends('trust-score-data');
+  
   try {
     // Protect this route - require auth and block during password reset
     const { user, authenticated } = await protectRoute(event, {

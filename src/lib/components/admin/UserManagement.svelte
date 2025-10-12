@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { invalidate } from "$app/navigation";
   import { formatRelativeTime, formatTrustScore } from "$lib/utils/helpers.js";
   import type {
     AdminUserData,
@@ -145,6 +146,8 @@
       if (result.success) {
         await loadUsers();
         closeModals();
+        // Invalidate dashboard and other pages that show trust score
+        await invalidate('trust-score-data');
       } else {
         error = result.error || "Failed to update user";
       }
