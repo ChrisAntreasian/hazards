@@ -10,7 +10,7 @@ export const load: PageServerLoad = async (event) => {
       blockDuringPasswordReset: true
     });
 
-    console.log('✅ Dashboard access granted for:', user?.email);
+    console.log('✅ My Reports access granted for:', user?.email);
 
     // User is guaranteed to be non-null due to protectRoute check
     if (!user) {
@@ -30,17 +30,14 @@ export const load: PageServerLoad = async (event) => {
 
     if (supabase) {
       try {
-        console.log('🔍 Fetching hazards for user:', user.id);
+        console.log('🔍 Fetching hazards for my-reports page for user:', user.id);
         
         // Use PostgreSQL function to get user's hazards (bypasses RLS issues)
-        console.log('🔧 About to call RPC function get_user_hazards with params:', { p_user_id: user.id });
         const { data: hazardResults, error: hazardsError } = await supabase
           .rpc('get_user_hazards', { p_user_id: user.id });
 
-        console.log('🔧 RPC call result:', { data: hazardResults, error: hazardsError });
-
         if (hazardsError) {
-          console.error('❌ Error fetching user hazards:', hazardsError);
+          console.error('❌ Error fetching user hazards in my-reports:', hazardsError);
         } else {
           // Transform the results to match expected structure
           userHazards = (hazardResults || []).map((hazard: any) => ({
@@ -51,7 +48,7 @@ export const load: PageServerLoad = async (event) => {
             }
           }));
           
-          console.log('✅ Found hazards:', userHazards.length, 'hazards for user', user.id);
+          console.log('✅ Found hazards for my-reports:', userHazards.length, 'hazards for user', user.id);
           
           // Calculate stats
           hazardStats.total = userHazards.length;
@@ -59,10 +56,10 @@ export const load: PageServerLoad = async (event) => {
           hazardStats.approved = userHazards.filter(h => h.status === 'approved').length;
           hazardStats.rejected = userHazards.filter(h => h.status === 'rejected').length;
           
-          console.log('📊 Stats:', hazardStats);
+          console.log('📊 My Reports Stats:', hazardStats);
         }
       } catch (err) {
-        console.error('💥 Error in hazards query:', err);
+        console.error('💥 Error in my-reports hazards query:', err);
       }
     }
 
@@ -86,7 +83,7 @@ export const load: PageServerLoad = async (event) => {
       throw error; // Re-throw redirects
     }
     
-    console.error('Dashboard load error:', error);
+    console.error('My Reports load error:', error);
     // If protectRoute didn't handle it, something is wrong
     throw error;
   }
