@@ -1,0 +1,589 @@
+<script lang="ts">
+  import { goto } from "$app/navigation";
+  import { createSupabaseLoadClient } from "$lib/supabase.js";
+  import ImageUpload from "$lib/components/ImageUpload.svelte";
+  import type { PageData } from "./$types";
+  import type { ImageUploadResult } from "$lib/types/images.js";
+  import { enhance } from '$app/forms';
+  import { page } from '$app/stores';
+
+  interface Props {
+    data: PageData;
+  }
+
+  let { data }: Props = $props();
+
+  // Authentication state
+  let user = $derived(data.user);
+  let session = $derived(data.session);
+  let isAuthenticated = $derived(!!user);
+
+  // Categories from server-side load
+  let categories = $derived(data.categories || []);
+
+  // Supabase setup
+  const supabase = createSupabaseLoadClient();
+
+  // Form state
+  let formData = $state({
+    title: "",
+    description: "",
+    category_id: "",
+    severity_level: 3,
+    latitude: "",
+    longitude: "",
+    reported_active_date: new Date().toISOString().split('T')[0],
+    is_seasonal: false
+  });
+
+  // UI state
+  let currentLocation = $state<{lat: number, lng: number} | null>(null);
+  let uploadedImages = $state<string[]>([]);
+  let loading = $state(false);
+  let error = $state("");
+  let success = $state("");
+  let locationLoading = $state(false);
+
+  // Get user's current location
+  const getCurrentLocation = async () => {
+    if (!navigator.geolocation) {
+      error = "Geolocation is not supported by this browser";
+      return;
+    }
+
+    locationLoading = true;
+    error = "";
+
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+          resolve,
+          reject,
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
+        );
+      });
+
+      currentLocation = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude
+      };
+
+      formData.latitude = position.coords.latitude.toString();
+      formData.longitude = position.coords.longitude.toString();
+
+      success = "Location acquired successfully!";
+      setTimeout(() => { success = ""; }, 3000);
+    } catch (err: any) {
+      console.error('Geolocation error:', err);
+      error = `Failed to get location: ${err.message || 'Unknown error'}`;
+      
+      // Default to Boston area as fallback
+      currentLocation = { lat: 42.3601, lng: -71.0589 };
+      formData.latitude = "42.3601";
+      formData.longitude = "-71.0589";
+    } finally {
+      locationLoading = false;
+    }
+  };
+
+  // Handle image upload results
+  const handleImageUpload = (event: CustomEvent<ImageUploadResult>) => {
+    const result = event.detail;
+    uploadedImages.push(result.id);
+    console.log('Image uploaded for hazard:', result.id);
+  };
+
+  const handleUploadError = (event: CustomEvent<{ message: string }>) => {
+    error = `Image upload failed: ${event.detail.message}`;
+  };
+
+  // Initialize
+  $effect(() => {
+    // Ensure Supabase client has the session
+    if (supabase && session) {
+      supabase.auth.setSession(session);
+    }
+  });
+</script>
+
+<svelte:head>
+  <title>Report Hazard - Hazards App</title>
+  <meta name="description" content="Report a new outdoor hazard to help keep the community safe" />
+</svelte:head>
+
+<div class="container">
+  <header class="page-header">
+    <h1>🚨 Report a Hazard</h1>
+    <p>Help keep the outdoor community safe by reporting hazards you encounter</p>
+  </header>
+
+  {#if !isAuthenticated}
+    <div class="auth-required">
+      <h2>Authentication Required</h2>
+      <p>You must be logged in to report hazards.</p>
+      <a href="/auth/log-in" class="btn btn-primary">Log In</a>
+    </div>
+  {:else}
+    <form class="hazard-form" method="POST" action="?/createHazard" use:enhance={() => {
+      loading = true;
+      error = "";
+      success = "";
+      
+      return async ({ result, update }: { result: any; update: any }) => {
+        loading = false;
+        
+        if (result.type === 'failure') {
+          const errorData = result.data as any;
+          error = errorData?.error || 'Failed to submit hazard';
+          console.error('Form submission failed:', errorData);
+        } else if (result.type === 'redirect') {
+          success = "Hazard reported successfully! Redirecting to dashboard...";
+          
+          // Reset form on success
+          formData = {
+            title: "",
+            description: "",
+            category_id: "",
+            severity_level: 3,
+            latitude: "",
+            longitude: "",
+            reported_active_date: new Date().toISOString().split('T')[0],
+            is_seasonal: false
+          };
+          uploadedImages = [];
+          currentLocation = null;
+          
+          // Let SvelteKit handle the redirect
+          await update();
+        } else {
+          // Update the page with any changes
+          await update();
+        }
+      };
+    }}>
+      <!-- Hidden field for uploaded images -->
+      <input type="hidden" name="uploaded_images" value={uploadedImages.join(',')} />
+      
+      <!-- Basic Information -->
+      <section class="form-section">
+        <h2>Basic Information</h2>
+        
+        <div class="form-group">
+          <label for="title">Hazard Title *</label>
+          <input
+            id="title"
+            name="title"
+            type="text"
+            bind:value={formData.title}
+            placeholder="e.g., Bear sighting on Main Trail"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="description">Description *</label>
+          <textarea
+            id="description"
+            name="description"
+            bind:value={formData.description}
+            placeholder="Provide detailed information about the hazard, when you encountered it, and any relevant details that could help others stay safe..."
+            rows="4"
+            required
+          ></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="category">Category *</label>
+          <select id="category" name="category_id" bind:value={formData.category_id} required>
+            <option value="">Select a category... ({categories.length} available)</option>
+            <!-- Level 0 categories (main categories) -->
+            {#each categories.filter(cat => cat.level === 0) as mainCategory}
+              <option value={mainCategory.id}>{mainCategory.icon} {mainCategory.name}</option>
+              <!-- Level 1 subcategories -->
+              {#each categories.filter(cat => cat.level === 1 && cat.path.startsWith(mainCategory.path + '/')) as subCategory}
+                <option value={subCategory.id}>  ↳ {subCategory.icon} {subCategory.name}</option>
+                <!-- Level 2 sub-subcategories -->
+                {#each categories.filter(cat => cat.level === 2 && cat.path.startsWith(subCategory.path + '/')) as subSubCategory}
+                  <option value={subSubCategory.id}>    ↳ {subSubCategory.icon} {subSubCategory.name}</option>
+                {/each}
+              {/each}
+            {/each}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="severity">Severity Level</label>
+          <div class="severity-selector">
+            <input
+              id="severity"
+              name="severity_level"
+              type="range"
+              min="1"
+              max="5"
+              bind:value={formData.severity_level}
+            />
+            <div class="severity-labels">
+              <span>1 - Low</span>
+              <span>2 - Moderate</span>
+              <span>3 - Significant</span>
+              <span>4 - High</span>
+              <span>5 - Extreme</span>
+            </div>
+            <div class="severity-display">
+              Current: <strong>{formData.severity_level} - {['', 'Low', 'Moderate', 'Significant', 'High', 'Extreme'][formData.severity_level]}</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Location -->
+      <section class="form-section">
+        <h2>Location</h2>
+        
+        <div class="location-controls">
+          <button type="button" class="btn btn-secondary" onclick={getCurrentLocation} disabled={locationLoading}>
+            {locationLoading ? 'Getting Location...' : '📍 Get Current Location'}
+          </button>
+          {#if currentLocation}
+            <span class="location-status">✅ Location acquired: {currentLocation.lat.toFixed(4)}, {currentLocation.lng.toFixed(4)}</span>
+          {/if}
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="latitude">Latitude *</label>
+            <input
+              id="latitude"
+              name="latitude"
+              type="number"
+              step="any"
+              bind:value={formData.latitude}
+              placeholder="42.3601"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <label for="longitude">Longitude *</label>
+            <input
+              id="longitude"
+              name="longitude"
+              type="number"
+              step="any"
+              bind:value={formData.longitude}
+              placeholder="-71.0589"
+              required
+            />
+          </div>
+        </div>
+      </section>
+
+      <!-- Additional Details -->
+      <section class="form-section">
+        <h2>Additional Details</h2>
+        
+        <div class="form-group">
+          <label for="date">Date Observed</label>
+          <input
+            id="date"
+            name="reported_active_date"
+            type="date"
+            bind:value={formData.reported_active_date}
+          />
+        </div>
+
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input
+              type="checkbox"
+              name="is_seasonal"
+              bind:checked={formData.is_seasonal}
+            />
+            This is a seasonal hazard (recurring annually)
+          </label>
+        </div>
+      </section>
+
+      <!-- Image Upload -->
+      <section class="form-section">
+        <h2>Photos</h2>
+        <p>Upload photos to help others identify and understand the hazard</p>
+        
+        <ImageUpload
+          hazardId={undefined}
+          userId={user?.id || ""}
+          hazardLocation={currentLocation || { lat: 42.3601, lng: -71.0589 }}
+          maxFiles={8}
+          disabled={!isAuthenticated}
+          supabaseClient={supabase}
+          currentSession={session}
+          currentUser={user}
+          on:upload={handleImageUpload}
+          on:error={handleUploadError}
+          on:success={(e) => console.log("Upload success:", e.detail)}
+        />
+        
+        {#if uploadedImages.length > 0}
+          <div class="uploaded-images-status">
+            <p>✅ {uploadedImages.length} image{uploadedImages.length !== 1 ? 's' : ''} uploaded and will be attached to this report</p>
+          </div>
+        {/if}
+      </section>
+
+      <!-- Submit -->
+      <section class="form-section">
+        {#if error}
+          <div class="alert alert-error">{error}</div>
+        {/if}
+        
+        {#if success}
+          <div class="alert alert-success">{success}</div>
+        {/if}
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick={() => goto('/dashboard')}>
+            Cancel
+          </button>
+          <button type="submit" class="btn btn-primary" disabled={loading}>
+            {loading ? 'Submitting...' : 'Submit Hazard Report'}
+          </button>
+        </div>
+      </section>
+    </form>
+  {/if}
+</div>
+
+<style>
+  .container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  .page-header {
+    text-align: center;
+    margin-bottom: 3rem;
+  }
+
+  .page-header h1 {
+    font-size: 2.5rem;
+    color: #1e293b;
+    margin-bottom: 0.5rem;
+  }
+
+  .page-header p {
+    font-size: 1.1rem;
+    color: #64748b;
+  }
+
+  .auth-required {
+    background: white;
+    padding: 3rem;
+    border-radius: 12px;
+    text-align: center;
+    border: 1px solid #e5e7eb;
+  }
+
+  .hazard-form {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+  }
+
+  .form-section {
+    padding: 2rem;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  .form-section:last-child {
+    border-bottom: none;
+  }
+
+  .form-section h2 {
+    font-size: 1.5rem;
+    color: #1e293b;
+    margin-bottom: 1.5rem;
+    font-weight: 600;
+  }
+
+  .form-group {
+    margin-bottom: 1.5rem;
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  label {
+    display: block;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 0.5rem;
+  }
+
+  input, select, textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 1rem;
+    transition: border-color 0.2s;
+  }
+
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  .severity-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .severity-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: #6b7280;
+  }
+
+  .severity-display {
+    text-align: center;
+    font-size: 1rem;
+    color: #374151;
+  }
+
+  .location-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  .location-status {
+    color: #059669;
+    font-size: 0.9rem;
+    font-weight: 500;
+  }
+
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-weight: normal;
+  }
+
+  .checkbox-label input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+  }
+
+  .uploaded-images-status {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 6px;
+    color: #16a34a;
+  }
+
+  .form-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+  }
+
+  .btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+  }
+
+  .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    background: #3b82f6;
+    color: white;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: #2563eb;
+  }
+
+  .btn-secondary {
+    background: #6b7280;
+    color: white;
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    background: #4b5563;
+  }
+
+  .alert {
+    padding: 1rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+  }
+
+  .alert-error {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+  }
+
+  .alert-success {
+    background: #f0fdf4;
+    color: #16a34a;
+    border: 1px solid #bbf7d0;
+  }
+
+  @media (max-width: 768px) {
+    .container {
+      padding: 1rem;
+    }
+
+    .page-header h1 {
+      font-size: 2rem;
+    }
+
+    .form-section {
+      padding: 1.5rem;
+    }
+
+    .form-row {
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
+    }
+
+    .location-controls {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .form-actions {
+      flex-direction: column;
+    }
+
+    .severity-labels {
+      flex-direction: column;
+      gap: 0.25rem;
+      text-align: center;
+    }
+  }
+</style>

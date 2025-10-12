@@ -27,9 +27,24 @@ export const load: PageServerLoad = async (event) => {
       approved: 0,
       rejected: 0
     };
+    let userTrustScore = 0;
 
     if (supabase) {
       try {
+        // Fetch user's trust score from database
+        const { data: userProfile, error: profileError } = await supabase
+          .from('users')
+          .select('trust_score')
+          .eq('id', user.id)
+          .single();
+
+        if (profileError) {
+          console.error('❌ Error fetching user profile:', profileError);
+        } else {
+          userTrustScore = userProfile?.trust_score || 0;
+          console.log('✅ User trust score loaded for my-reports:', userTrustScore);
+        }
+
         console.log('🔍 Fetching hazards for my-reports page for user:', user.id);
         
         // Use PostgreSQL function to get user's hazards (bypasses RLS issues)
@@ -75,7 +90,8 @@ export const load: PageServerLoad = async (event) => {
         user_metadata: user.user_metadata
       },
       userHazards,
-      hazardStats
+      hazardStats,
+      userTrustScore
     };
 
   } catch (error) {

@@ -12,6 +12,7 @@
   const user = data.user;
   const userHazards = data.userHazards || [];
   const hazardStats = data.hazardStats || { total: 0, pending: 0, approved: 0, rejected: 0 };
+  const recentActivity = data.recentActivity || [];
 
   // Check for success message from URL
   let successMessage = $derived($page.url.searchParams.get('success'));
@@ -94,7 +95,17 @@
       <div class="dashboard-card">
         <div class="card-icon">⭐</div>
         <h3>Trust Score</h3>
-        <p>Your community trust score: <strong>100</strong> (New User)</p>
+        <p>Your community trust score: <strong>{user?.trustScore || 0}</strong> 
+          {#if (user?.trustScore || 0) === 0}
+            (New User)
+          {:else if (user?.trustScore || 0) < 100}
+            (Building Reputation)
+          {:else if (user?.trustScore || 0) < 500}
+            (Trusted Contributor)
+          {:else}
+            (Community Leader)
+          {/if}
+        </p>
         <a href="/profile" class="btn btn-secondary">View Profile</a>
       </div>
 
@@ -110,7 +121,50 @@
     <div class="recent-activity">
       <h2>Recent Activity</h2>
       <div class="activity-list">
-        {#if userHazards.length > 0}
+        {#if recentActivity.length > 0}
+          {#each recentActivity.slice(0, 5) as activity}
+            <div class="activity-item">
+              <div class="activity-icon">
+                {#if activity.status === 'approved'}
+                  ✅
+                {:else if activity.status === 'rejected'}
+                  ❌
+                {:else if activity.status === 'pending'}
+                  ⏳
+                {:else}
+                  📍
+                {/if}
+              </div>
+              <div class="activity-content">
+                <div class="activity-title">
+                  {#if activity.status === 'approved'}
+                    Hazard report approved
+                  {:else if activity.status === 'rejected'}
+                    Hazard report rejected
+                  {:else if activity.status === 'pending'}
+                    Hazard report submitted for review
+                  {:else}
+                    Hazard report created
+                  {/if}
+                </div>
+                <div class="activity-description">
+                  <strong>{activity.hazards?.title || 'Unknown hazard'}</strong>
+                  {#if activity.moderator_notes}
+                    - {activity.moderator_notes}
+                  {/if}
+                </div>
+                <div class="activity-time">
+                  {activity.resolved_at ? formatDate(activity.resolved_at) : formatDate(activity.created_at)}
+                </div>
+              </div>
+              <div class="activity-status">
+                <span class="status-badge {activity.status === 'approved' ? 'status-approved' : activity.status === 'rejected' ? 'status-rejected' : 'status-pending'}">
+                  {activity.status}
+                </span>
+              </div>
+            </div>
+          {/each}
+        {:else if userHazards.length > 0}
           {#each userHazards.slice(0, 5) as hazard}
             <div class="activity-item">
               <div class="activity-icon">
@@ -329,6 +383,31 @@
   }
 
   .stats-breakdown .stat-item.rejected {
+    background-color: #fee2e2;
+    color: #991b1b;
+  }
+
+  /* Status badges for activity */
+  .status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .status-badge.status-pending {
+    background-color: #fef3c7;
+    color: #92400e;
+  }
+
+  .status-badge.status-approved {
+    background-color: #d1fae5;
+    color: #065f46;
+  }
+
+  .status-badge.status-rejected {
     background-color: #fee2e2;
     color: #991b1b;
   }

@@ -379,8 +379,9 @@
 
   .gallery-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-template-columns: repeat(4, 1fr);
     gap: 1rem;
+    width: 100%;
   }
 
   .gallery-item {
@@ -673,10 +674,24 @@
     color: #374151;
   }
 
-  @media (max-width: 640px) {
+  @media (max-width: 1024px) {
     .gallery-grid {
-      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.875rem;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .gallery-grid {
+      grid-template-columns: repeat(2, 1fr);
       gap: 0.75rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .gallery-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.5rem;
     }
 
     .image-meta {

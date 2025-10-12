@@ -23,10 +23,20 @@
   let selectedAction: "approve" | "reject" | "flag" | null = $state(null);
   let actionNotes = $state("");
   let selectedReason = $state("");
+  let currentView: "pending" | "approved" | "rejected" | "urgent" = $state("pending");
+  let filteredItems: ModerationItem[] = $state([]);
 
   // Load initial data
   onMount(async () => {
-    await Promise.all([loadNextItem(), loadStats(), loadQueueOverview()]);
+    await Promise.all([loadStats(), loadQueueOverview()]);
+    
+    // Auto-select the first item if any exist in the default pending view
+    if (filteredItems.length > 0) {
+      await selectQueueItem(filteredItems[0]);
+    } else {
+      // If no pending items, try to load the next available item
+      await loadNextItem();
+    }
   });
 
   async function loadNextItem() {
@@ -68,14 +78,77 @@
   async function loadQueueOverview() {
     try {
       const response = await fetch(
-        "/api/moderation/queue?limit=10&status=pending"
+        "/api/moderation/queue?limit=20&status=" + (currentView === "urgent" ? "pending" : currentView)
       );
       if (!response.ok) throw new Error("Failed to load queue");
 
       const data = await response.json();
       queueItems = data.items;
+      
+      // Filter for urgent items if needed
+      if (currentView === "urgent") {
+        filteredItems = queueItems.filter(item => item.priority === "urgent");
+      } else {
+        filteredItems = queueItems;
+      }
+      
+      // Debug logging to see what we're getting
+      console.log("Queue items loaded:", queueItems);
+      console.log("Filtered items:", filteredItems);
+      
     } catch (err) {
       console.error("Error loading queue overview:", err);
+    }
+  }
+
+  // Function to change view and load appropriate data
+  async function changeView(newView: "pending" | "approved" | "rejected" | "urgent") {
+    // Show loading state during transition
+    loading = true;
+    currentView = newView;
+    currentItem = null; // Clear current selection temporarily
+    selectedAction = null;
+    actionNotes = "";
+    selectedReason = "";
+    
+    try {
+      await loadQueueOverview();
+      
+      // Auto-select the most recent item if any exist
+      if (filteredItems.length > 0) {
+        await selectQueueItem(filteredItems[0]);
+      }
+    } catch (err) {
+      console.error('Error changing view:', err);
+      error = `Failed to load ${newView} items`;
+    } finally {
+      loading = false;
+    }
+  }
+
+  // Function to select a specific item from the queue
+  async function selectQueueItem(item: ModerationItem) {
+    currentItem = item;
+    selectedAction = null;
+    actionNotes = "";
+    selectedReason = "";
+    
+    // Update the item's assignment
+    try {
+      const response = await fetch("/api/moderation/next", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          moderatorId: userId,
+          specificItemId: item.id 
+        }),
+      });
+      
+      if (response.ok) {
+        await loadQueueOverview(); // Refresh queue
+      }
+    } catch (err) {
+      console.error("Error selecting item:", err);
     }
   }
 
@@ -163,22 +236,42 @@
   <!-- Stats Overview -->
   {#if stats}
     <div class="stats-grid">
-      <div class="stat-card">
+      <button 
+        class="stat-card clickable {currentView === 'pending' ? 'active' : ''} {loading && currentView === 'pending' ? 'loading' : ''}"
+        onclick={() => changeView('pending')}
+        type="button"
+        disabled={loading}
+      >
         <div class="stat-number">{stats.pending_count}</div>
         <div class="stat-label">Pending Review</div>
-      </div>
-      <div class="stat-card">
+      </button>
+      <button 
+        class="stat-card clickable {currentView === 'approved' ? 'active' : ''} {loading && currentView === 'approved' ? 'loading' : ''}"
+        onclick={() => changeView('approved')}
+        type="button"
+        disabled={loading}
+      >
         <div class="stat-number">{stats.approved_today}</div>
         <div class="stat-label">Approved Today</div>
-      </div>
-      <div class="stat-card">
+      </button>
+      <button 
+        class="stat-card clickable {currentView === 'rejected' ? 'active' : ''} {loading && currentView === 'rejected' ? 'loading' : ''}"
+        onclick={() => changeView('rejected')}
+        type="button"
+        disabled={loading}
+      >
         <div class="stat-number">{stats.rejected_today}</div>
         <div class="stat-label">Rejected Today</div>
-      </div>
-      <div class="stat-card">
+      </button>
+      <button 
+        class="stat-card clickable {currentView === 'urgent' ? 'active' : ''} {loading && currentView === 'urgent' ? 'loading' : ''}"
+        onclick={() => changeView('urgent')}
+        type="button"
+        disabled={loading}
+      >
         <div class="stat-number">{stats.items_by_priority.urgent}</div>
         <div class="stat-label">Urgent Items</div>
-      </div>
+      </button>
     </div>
   {/if}
 
@@ -224,6 +317,18 @@
             <div class="content-preview">
               <h3>{currentItem.content_preview.title}</h3>
 
+              {#if currentItem.content_preview.category}
+                <div class="category">
+                  <h4>Category:</h4>
+                  <div class="category-info">
+                    {#if currentItem.content_preview.category.icon}
+                      <span class="category-icon">{currentItem.content_preview.category.icon}</span>
+                    {/if}
+                    <span class="category-name">{currentItem.content_preview.category.name}</span>
+                  </div>
+                </div>
+              {/if}
+
               {#if currentItem.content_preview.description}
                 <div class="description">
                   <h4>Description:</h4>
@@ -255,6 +360,58 @@
                 </div>
               {/if}
 
+              {#if currentItem.content_preview.reported_active_date}
+                <div class="active-date">
+                  <h4>Reported Active Date:</h4>
+                  <p>{formatDate(currentItem.content_preview.reported_active_date)}</p>
+                </div>
+              {/if}
+
+              {#if currentItem.content_preview.is_seasonal !== undefined}
+                <div class="seasonal">
+                  <h4>Seasonal Hazard:</h4>
+                  <span class="seasonal-badge {currentItem.content_preview.is_seasonal ? 'yes' : 'no'}">
+                    {currentItem.content_preview.is_seasonal ? 'Yes' : 'No'}
+                  </span>
+                </div>
+              {/if}
+
+              {#if currentItem.content_preview.images && currentItem.content_preview.images.length > 0}
+                <div class="images-preview">
+                  <h4>Attached Images ({currentItem.content_preview.images.length}):</h4>
+                  <div class="images-grid">
+                    {#each currentItem.content_preview.images as image}
+                      <div class="image-item">
+                        <button
+                          type="button"
+                          class="image-button"
+                          onclick={() => window.open(image.image_url, '_blank')}
+                          title="Click to view full size"
+                        >
+                          <img
+                            src={image.thumbnail_url || image.image_url}
+                            alt={image.metadata?.alt_text || "Hazard image"}
+                            loading="lazy"
+                          />
+                        </button>
+                        <div class="image-info">
+                          {#if image.metadata?.alt_text}
+                            <p class="alt-text">{image.metadata.alt_text}</p>
+                          {/if}
+                          <p class="upload-date">Uploaded: {formatDate(image.uploaded_at)}</p>
+                          {#if image.metadata?.file_size}
+                            <p class="file-size">Size: {(image.metadata.file_size / 1024).toFixed(1)} KB</p>
+                          {/if}
+                          {#if image.vote_score !== undefined}
+                            <p class="vote-score">Score: {image.vote_score}</p>
+                          {/if}
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
+                </div>
+              {/if}
+
               {#if currentItem.content_preview.image_url}
                 <div class="image-preview">
                   <h4>Image:</h4>
@@ -279,84 +436,109 @@
             </div>
           {/if}
 
-          <!-- Action Buttons -->
-          {#if !selectedAction}
-            <div class="action-buttons">
-              <button
-                onclick={() => handleAction("approve")}
-                class="action-btn approve"
-                disabled={processing}
-              >
-                ✅ Approve
-              </button>
-              <button
-                onclick={() => handleAction("reject")}
-                class="action-btn reject"
-                disabled={processing}
-              >
-                ❌ Reject
-              </button>
-              <button
-                onclick={() => handleAction("flag")}
-                class="action-btn flag"
-                disabled={processing}
-              >
-                🏴 Flag for Review
-              </button>
-            </div>
-          {:else}
-            <!-- Action Form -->
-            <div class="action-form">
-              <h4>
-                {selectedAction === "approve"
-                  ? "Approve Content"
-                  : selectedAction === "reject"
-                    ? "Reject Content"
-                    : "Flag for Further Review"}
-              </h4>
-
-              {#if selectedAction === "reject" || selectedAction === "flag"}
-                <div class="form-group">
-                  <label for="reason">Reason:</label>
-                  <select bind:value={selectedReason} id="reason">
-                    <option value="">Select a reason...</option>
-                    {#each FLAGGING_REASONS as reason}
-                      <option value={reason}>{reason}</option>
-                    {/each}
-                  </select>
-                </div>
-              {/if}
-
-              <div class="form-group">
-                <label for="notes">Notes (optional):</label>
-                <textarea
-                  bind:value={actionNotes}
-                  id="notes"
-                  placeholder="Add any additional notes for this decision..."
-                  rows="3"
-                ></textarea>
-              </div>
-
-              <div class="form-actions">
+          <!-- Action Buttons - Only show for pending items -->
+          {#if currentItem.status === 'pending'}
+            {#if !selectedAction}
+              <div class="action-buttons">
                 <button
-                  onclick={submitAction}
-                  class="submit-btn {selectedAction}"
-                  disabled={processing ||
-                    (selectedAction !== "approve" && !selectedReason)}
-                >
-                  {processing ? "Processing..." : `Confirm ${selectedAction}`}
-                </button>
-                <button
-                  onclick={() => {
-                    selectedAction = null;
-                    actionNotes = "";
-                    selectedReason = "";
-                  }}
-                  class="cancel-btn"
+                  onclick={() => handleAction("approve")}
+                  class="action-btn approve"
                   disabled={processing}
                 >
-                  Cancel
+                  ✅ Approve
                 </button>
+                <button
+                  onclick={() => handleAction("reject")}
+                  class="action-btn reject"
+                  disabled={processing}
+                >
+                  ❌ Reject
+                </button>
+                <button
+                  onclick={() => handleAction("flag")}
+                  class="action-btn flag"
+                  disabled={processing}
+                >
+                  🏴 Flag for Review
+                </button>
+              </div>
+            {:else}
+              <!-- Action Form -->
+              <div class="action-form">
+                <h4>
+                  {selectedAction === "approve"
+                    ? "Approve Content"
+                    : selectedAction === "reject"
+                      ? "Reject Content"
+                      : "Flag for Further Review"}
+                </h4>
+
+                {#if selectedAction === "reject" || selectedAction === "flag"}
+                  <div class="form-group">
+                    <label for="reason">Reason:</label>
+                    <select bind:value={selectedReason} id="reason">
+                      <option value="">Select a reason...</option>
+                      {#each FLAGGING_REASONS as reason}
+                        <option value={reason}>{reason}</option>
+                      {/each}
+                    </select>
+                  </div>
+                {/if}
+
+                <div class="form-group">
+                  <label for="notes">Notes (optional):</label>
+                  <textarea
+                    bind:value={actionNotes}
+                    id="notes"
+                    placeholder="Add any additional notes for this decision..."
+                    rows="3"
+                  ></textarea>
+                </div>
+
+                <div class="form-actions">
+                  <button
+                    onclick={submitAction}
+                    class="submit-btn {selectedAction}"
+                    disabled={processing ||
+                      (selectedAction !== "approve" && !selectedReason)}
+                  >
+                    {processing ? "Processing..." : `Confirm ${selectedAction}`}
+                  </button>
+                  <button
+                    onclick={() => {
+                      selectedAction = null;
+                      actionNotes = "";
+                      selectedReason = "";
+                    }}
+                    class="cancel-btn"
+                    disabled={processing}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            {/if}
+          {:else}
+            <!-- Status Display for non-pending items -->
+            <div class="status-display">
+              <div class="status-info {currentItem.status}">
+                <span class="status-icon">
+                  {currentItem.status === 'approved' ? '✅' : '❌'}
+                </span>
+                <span class="status-text">
+                  This item has been {currentItem.status}
+                </span>
+                {#if currentItem.moderator_notes}
+                  <div class="moderator-notes">
+                    <h4>Moderator Notes:</h4>
+                    <p>{currentItem.moderator_notes}</p>
+                  </div>
+                {/if}
+                {#if currentItem.resolved_at}
+                  <p class="resolved-date">
+                    Resolved: {formatDate(currentItem.resolved_at)}
+                  </p>
+                {/if}
               </div>
             </div>
           {/if}
@@ -374,17 +556,30 @@
 
     <!-- Queue Overview -->
     <div class="queue-overview">
-      <h3>Queue Overview</h3>
+      <h3>
+        {currentView === 'pending' ? 'Pending Queue' : 
+         currentView === 'approved' ? 'Recently Approved' :
+         currentView === 'rejected' ? 'Recently Rejected' :
+         'Urgent Items'}
+        <span class="view-count">({filteredItems.length})</span>
+      </h3>
 
-      {#if queueItems.length > 0}
+      {#if filteredItems.length > 0}
         <div class="queue-list">
-          {#each queueItems as item}
-            <div class="queue-item">
+          {#each filteredItems as item}
+            <div 
+              class="queue-item {currentItem?.id === item.id ? 'selected' : ''} {item.status}"
+              onclick={() => selectQueueItem(item)}
+              role="button"
+              tabindex="0"
+              onkeydown={(e) => e.key === 'Enter' && selectQueueItem(item)}
+            >
               <div class="item-info">
                 <span class="type-badge {item.type}">{item.type}</span>
                 <span class="title"
                   >{item.content_preview?.title || "Untitled"}</span
                 >
+                <span class="status-badge {item.status}">{item.status}</span>
               </div>
               <div class="item-meta">
                 <span class="priority-badge {getPriorityColor(item.priority)}">
@@ -396,7 +591,21 @@
           {/each}
         </div>
       {:else}
-        <p class="empty-queue">Queue is empty</p>
+        <p class="empty-queue">
+          {#if currentView === 'pending'}
+            🎉 No items pending review!<br>
+            <span class="empty-subtitle">All caught up with moderation.</span>
+          {:else if currentView === 'approved'}
+            📋 No items approved today.<br>
+            <span class="empty-subtitle">Check back after reviewing some content.</span>
+          {:else if currentView === 'rejected'}
+            📋 No items rejected today.<br>
+            <span class="empty-subtitle">Check back after reviewing some content.</span>
+          {:else}
+            🚨 No urgent items.<br>
+            <span class="empty-subtitle">No high-priority hazards need immediate attention.</span>
+          {/if}
+        </p>
       {/if}
     </div>
   </div>
@@ -438,6 +647,49 @@
     border-radius: 8px;
     border: 1px solid #e2e8f0;
     text-align: center;
+  }
+
+  .stat-card.clickable {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none; /* Remove default button border */
+    font: inherit; /* Inherit font from parent */
+  }
+
+  .stat-card.clickable:hover {
+    border-color: #2563eb;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+    transform: translateY(-1px);
+  }
+
+  .stat-card.clickable.active {
+    border-color: #2563eb;
+    background: #dbeafe;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+  }
+
+  .stat-card.clickable:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .stat-card.clickable.loading {
+    opacity: 0.7;
+    position: relative;
+  }
+
+  .stat-card.clickable.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #2563eb;
+    border-top: 2px solid transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
   }
 
   .stat-number {
@@ -588,6 +840,111 @@
     font-size: 0.9rem;
     text-transform: uppercase;
     font-weight: 600;
+  }
+
+  .category-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #f8fafc;
+    padding: 0.5rem;
+    border-radius: 4px;
+  }
+
+  .category-icon {
+    font-size: 1.2rem;
+  }
+
+  .category-name {
+    font-weight: 500;
+    color: #1e293b;
+  }
+
+  .seasonal-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+
+  .seasonal-badge.yes {
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  .seasonal-badge.no {
+    background: #f0f9ff;
+    color: #0369a1;
+  }
+
+  .active-date p {
+    background: #f8fafc;
+    padding: 0.5rem;
+    border-radius: 4px;
+    margin: 0;
+    font-family: monospace;
+  }
+
+  .images-preview {
+    margin: 1.5rem 0;
+  }
+
+  .images-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  .image-item {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+    background: white;
+  }
+
+  .image-button {
+    width: 100%;
+    border: none;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+    display: block;
+  }
+
+  .image-button:hover {
+    opacity: 0.9;
+  }
+
+  .image-item img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    display: block;
+  }
+
+  .image-info {
+    padding: 0.75rem;
+  }
+
+  .image-info p {
+    margin: 0.25rem 0;
+    font-size: 0.8rem;
+    color: #64748b;
+  }
+
+  .alt-text {
+    color: #1e293b !important;
+    font-weight: 500;
+  }
+
+  .upload-date, .file-size, .vote-score {
+    font-family: monospace;
+  }
+
+  .vote-score {
+    font-weight: 500;
+    color: #059669 !important;
   }
 
   .description p {
@@ -799,10 +1156,127 @@
     align-items: center;
     padding: 0.75rem;
     border-bottom: 1px solid #f1f5f9;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-radius: 4px;
+    margin-bottom: 2px;
+  }
+
+  .queue-item:hover {
+    background-color: #f8fafc;
+    transform: translateX(2px);
+  }
+
+  .queue-item.selected {
+    background-color: #dbeafe;
+    border: 1px solid #2563eb;
+    box-shadow: 0 1px 3px rgba(37, 99, 235, 0.1);
+  }
+
+  .queue-item.approved {
+    border-left: 4px solid #10b981;
+    background-color: #f0fdf4;
+  }
+
+  .queue-item.rejected {
+    border-left: 4px solid #ef4444;
+    background-color: #fef2f2;
+  }
+
+  .queue-item.pending {
+    border-left: 4px solid #f59e0b;
   }
 
   .queue-item:last-child {
     border-bottom: none;
+  }
+
+  .status-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    margin-left: 0.5rem;
+  }
+
+  .status-badge.pending {
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  .status-badge.approved {
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  .status-badge.rejected {
+    background: #fecaca;
+    color: #991b1b;
+  }
+
+  .view-count {
+    font-size: 0.9rem;
+    color: #64748b;
+    font-weight: normal;
+  }
+
+  .status-display {
+    background: #f8fafc;
+    padding: 1.5rem;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    margin-top: 1.5rem;
+  }
+
+  .status-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .status-info.approved {
+    border-left: 4px solid #10b981;
+    padding-left: 1rem;
+  }
+
+  .status-info.rejected {
+    border-left: 4px solid #ef4444;
+    padding-left: 1rem;
+  }
+
+  .status-icon {
+    font-size: 1.5rem;
+  }
+
+  .status-text {
+    font-weight: 500;
+    color: #1e293b;
+  }
+
+  .moderator-notes {
+    background: white;
+    padding: 1rem;
+    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+  }
+
+  .moderator-notes h4 {
+    margin: 0 0 0.5rem 0;
+    color: #374151;
+    font-size: 0.9rem;
+  }
+
+  .moderator-notes p {
+    margin: 0;
+    color: #64748b;
+  }
+
+  .resolved-date {
+    font-size: 0.8rem;
+    color: #64748b;
+    font-family: monospace;
+    margin: 0;
   }
 
   .item-info {
@@ -832,6 +1306,14 @@
     text-align: center;
     color: #64748b;
     font-style: italic;
+    line-height: 1.6;
+  }
+
+  .empty-subtitle {
+    display: block;
+    font-size: 0.9rem;
+    color: #94a3b8;
+    margin-top: 0.5rem;
   }
 
   @media (max-width: 768px) {

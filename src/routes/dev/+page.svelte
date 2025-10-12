@@ -17,7 +17,7 @@
     },
     {
       title: "Image Upload Test",
-      description: "Test image upload, processing, and gallery functionality",
+      description: "Test complete image upload pipeline: drag-drop upload, WebP conversion, thumbnails, voting, and gallery display",
       href: "/dev/test/images",
       icon: "📸",
     },

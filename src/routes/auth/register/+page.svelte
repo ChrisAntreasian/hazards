@@ -65,70 +65,87 @@
     >
       {#if form?.success}
         <MessageDisplay type="success" message={form.message} />
-      {/if}
-
-      {#if form?.error}
-        <MessageDisplay type="error" message={form.error} />
-
-        <!-- Show helpful link for duplicate email error -->
-        {#if form.error.includes("already exists")}
-          <div style="text-align: center; margin-top: 1rem;">
-            <a href="/auth/log-in" class="sign-in-link">
-              Already have an account? Sign in here
+        
+        <!-- Hide form after successful submission and show additional info -->
+        <div style="text-align: center; margin-top: 1.5rem; padding: 1rem; background: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0;">
+          <p style="margin: 0 0 1rem 0; color: #166534;">
+            📧 <strong>Email sent successfully!</strong>
+          </p>
+          <p style="margin: 0 0 1rem 0; color: #374151; font-size: 0.9rem;">
+            Please check your email inbox (and spam folder) for a confirmation link from Hazards App.
+          </p>
+          <p style="margin: 0; color: #6b7280; font-size: 0.85rem;">
+            Already confirmed your email? 
+            <a href="/auth/log-in" style="color: #2563eb; text-decoration: none; font-weight: 500;">
+              Sign in here
             </a>
-          </div>
+          </p>
+        </div>
+      {:else}
+        <!-- Show form only if registration hasn't been successful yet -->
+        {#if form?.error}
+          <MessageDisplay type="error" message={form.error} />
+
+          <!-- Show helpful link for duplicate email error -->
+          {#if form.error.includes("already exists")}
+            <div style="text-align: center; margin-top: 1rem;">
+              <a href="/auth/log-in" class="sign-in-link">
+                Already have an account? Sign in here
+              </a>
+            </div>
+          {/if}
         {/if}
+
+        <FormField
+          label="Display Name"
+          name="displayName"
+          type="text"
+          placeholder="How others will see you"
+          required
+          disabled={loading}
+          bind:value={displayName}
+        />
+
+        <FormField
+          label="Email"
+          name="email"
+          type="email"
+          placeholder="your@email.com"
+          required
+          disabled={loading}
+          bind:value={email}
+        />
+
+        <FormField
+          label="Password"
+          name="password"
+          type="password"
+          placeholder="At least 6 characters"
+          required
+          disabled={loading}
+          bind:value={password}
+          minlength={6}
+        />
+
+        <FormField
+          label="Confirm Password"
+          name="confirmPassword"
+          type="password"
+          placeholder="Repeat your password"
+          required
+          disabled={loading}
+          bind:value={confirmPassword}
+          minlength={6}
+        />
+
+        <FormButton
+          disabled={loading}
+          {loading}
+          loadingText="Creating Account..."
+        >
+          Create Account
+        </FormButton>
       {/if}
-
-      <FormField
-        label="Display Name"
-        name="displayName"
-        type="text"
-        placeholder="How others will see you"
-        required
-        disabled={loading}
-        bind:value={displayName}
-      />
-
-      <FormField
-        label="Email"
-        name="email"
-        type="email"
-        placeholder="your@email.com"
-        required
-        disabled={loading}
-        bind:value={email}
-      />
-
-      <FormField
-        label="Password"
-        name="password"
-        type="password"
-        placeholder="At least 6 characters"
-        required
-        disabled={loading}
-        bind:value={password}
-        minlength={6}
-      />
-
-      <FormField
-        label="Confirm Password"
-        name="confirmPassword"
-        type="password"
-        placeholder="Repeat your password"
-        required
-        disabled={loading}
-        bind:value={confirmPassword}
-        minlength={6}
-      />
-
-      <FormButton
-        disabled={loading}
-        {loading}
-        loadingText="Creating Account..."
-      >
-        Create Account
-      </FormButton>
     </form>
 
     <AuthLinks links={authLinks} />

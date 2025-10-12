@@ -83,6 +83,31 @@ export class ImageStorage {
       const originalUrl = await this.getPublicUrl(originalPath);
       const thumbnailUrl = await this.getPublicUrl(thumbnailPath);
       
+      // Save metadata to database
+      const { data: imageRecord, error: dbError } = await this.supabase
+        .from('hazard_images')
+        .insert({
+          id: imageId,
+          hazard_id: hazardId || null,
+          user_id: user.id,
+          original_url: originalUrl,
+          thumbnail_url: thumbnailUrl,
+          original_path: originalPath,
+          thumbnail_path: thumbnailPath,
+          metadata: processedImage.metadata
+        })
+        .select()
+        .single();
+      
+      if (dbError) {
+        console.error('Database save error:', dbError);
+        // Clean up uploaded files since DB save failed
+        await this.supabase.storage.from(this.bucket).remove([originalPath, thumbnailPath]);
+        throw new Error(`Failed to save image metadata: ${dbError.message}`);
+      }
+      
+      console.log('✅ Image metadata saved to database:', imageRecord);
+      
       return {
         id: imageId,
         originalUrl,
@@ -121,11 +146,111 @@ export class ImageStorage {
   
   async voteOnImage(imageId: string, userId: string, vote: 'up' | 'down'): Promise<void> {
     if (!this.supabase) throw new Error('Supabase not configured');
-    // Simplified implementation for demo
+    
+    // Use upsert to handle vote updates
+    const { error } = await this.supabase
+      .from('image_votes')
+      .upsert({
+        image_id: imageId,
+        user_id: userId,
+        vote_type: vote
+      }, {
+        onConflict: 'image_id,user_id'
+      });
+    
+    if (error) {
+      throw new Error(`Failed to vote on image: ${error.message}`);
+    }
   }
 
   async deleteImage(imageId: string, userId: string): Promise<void> {
     if (!this.supabase) throw new Error('Supabase not configured');
-    // Simplified implementation for demo
+    
+    // Get image record to find file paths
+    const { data: imageRecord, error: fetchError } = await this.supabase
+      .from('hazard_images')
+      .select('original_path, thumbnail_path, user_id')
+      .eq('id', imageId)
+      .single();
+    
+    if (fetchError) {
+      throw new Error(`Image not found: ${fetchError.message}`);
+    }
+    
+    // Check if user owns the image
+    if (imageRecord.user_id !== userId) {
+      throw new Error('You can only delete your own images');
+    }
+    
+    // Delete files from storage
+    const { error: storageError } = await this.supabase.storage
+      .from(this.bucket)
+      .remove([imageRecord.original_path, imageRecord.thumbnail_path]);
+    
+    if (storageError) {
+      console.warn('Failed to delete files from storage:', storageError);
+      // Continue with database deletion even if storage fails
+    }
+    
+    // Delete database record (this will cascade delete votes due to foreign key)
+    const { error: dbError } = await this.supabase
+      .from('hazard_images')
+      .delete()
+      .eq('id', imageId)
+      .eq('user_id', userId); // Double-check ownership
+    
+    if (dbError) {
+      throw new Error(`Failed to delete image record: ${dbError.message}`);
+    }
+  }
+
+  async getImagesForHazard(hazardId: string): Promise<any[]> {
+    if (!this.supabase) throw new Error('Supabase not configured');
+    
+    const { data, error } = await this.supabase
+      .from('hazard_images')
+      .select(`
+        id,
+        hazard_id,
+        user_id,
+        original_url,
+        thumbnail_url,
+        vote_score,
+        uploaded_at,
+        metadata
+      `)
+      .eq('hazard_id', hazardId)
+      .order('vote_score', { ascending: false });
+    
+    if (error) {
+      throw new Error(`Failed to fetch images: ${error.message}`);
+    }
+    
+    return data || [];
+  }
+
+  async getUserImages(userId: string): Promise<any[]> {
+    if (!this.supabase) throw new Error('Supabase not configured');
+    
+    const { data, error } = await this.supabase
+      .from('hazard_images')
+      .select(`
+        id,
+        hazard_id,
+        user_id,
+        original_url,
+        thumbnail_url,
+        vote_score,
+        uploaded_at,
+        metadata
+      `)
+      .eq('user_id', userId)
+      .order('uploaded_at', { ascending: false });
+    
+    if (error) {
+      throw new Error(`Failed to fetch user images: ${error.message}`);
+    }
+    
+    return data || [];
   }
 }

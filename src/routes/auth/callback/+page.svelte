@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
+  import { invalidateAll } from "$app/navigation";
   import { onMount } from "svelte";
 
   interface Props {
@@ -151,8 +152,11 @@
   // Handle server-side redirect for successful confirmations
   $effect(() => {
     if (data.status === "success" && data.redirectTo) {
-      setTimeout(() => {
-        goto(data.redirectTo);
+      setTimeout(async () => {
+        // Force invalidation and fresh data load like logout does
+        await invalidateAll();
+        // Use window.location for reliable redirect with fresh state
+        window.location.href = data.redirectTo;
       }, 2000);
     }
   });

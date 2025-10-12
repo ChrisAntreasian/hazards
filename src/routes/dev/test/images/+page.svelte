@@ -23,6 +23,16 @@
   let uploadError = $state("");
   let uploadSuccess = $state("");
 
+  // Pagination state
+  let currentPage = $state(1);
+  const imagesPerPage = 12; // 4 columns × 3 rows
+  let totalPages = $derived(Math.ceil(images.length / imagesPerPage));
+  let paginatedImages = $derived.by(() => {
+    const startIndex = (currentPage - 1) * imagesPerPage;
+    const endIndex = startIndex + imagesPerPage;
+    return images.slice(startIndex, endIndex);
+  });
+
   // Use the centralized auth system instead of managing locally
   const supabase = createSupabaseLoadClient();
   let imageStorage: ImageStorage | null = null;
@@ -36,8 +46,9 @@
   });
 
   // Mock data for demonstration
-  const mockHazardId = "test-hazard-123";
-  let mockUserId = $derived(user?.id || "test-user-123");
+  const mockHazardId = null; // Use null for testing since we don't have a real hazard
+  // Use real user ID if authenticated, otherwise use a test user ID that exists in database
+  let mockUserId = $derived(user?.id || "aae81a04-9e69-4b82-ac61-a22bb457d8a6");
   const mockLocation = {
     lat: 42.3601,
     lng: -71.0589,
@@ -47,52 +58,50 @@
     loading = true;
     error = "";
 
+    if (!imageStorage) {
+      error = "Image storage not available";
+      loading = false;
+      return;
+    }
+
     try {
-      // For demo purposes, create some mock images
-      images = [
-        {
-          id: "1",
-          hazard_id: mockHazardId,
-          user_id: mockUserId,
-          original_url:
-            "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800",
-          thumbnail_url:
-            "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=200",
-          vote_score: 5,
-          uploaded_at: new Date(
-            Date.now() - 2 * 24 * 60 * 60 * 1000
-          ).toISOString(),
-          metadata: {
-            timestamp: new Date(
-              Date.now() - 2 * 24 * 60 * 60 * 1000
-            ).toISOString(),
-            fileSize: 1024 * 1024 * 1.5,
-            dimensions: { width: 800, height: 600 },
-          },
+      // Always load real images from database, using the current user's ID
+      const currentUserId = user?.id || mockUserId;
+      console.log('🔍 Loading images for user:', currentUserId);
+      console.log('🔍 User object:', user);
+      console.log('🔍 ImageStorage instance:', imageStorage);
+      
+      const userImages = await imageStorage.getUserImages(currentUserId);
+      console.log('📸 Loaded images from database:', userImages);
+      console.log('📸 Number of images found:', userImages.length);
+      
+      images = userImages.map(img => ({
+        id: img.id,
+        hazard_id: img.hazard_id || mockHazardId,
+        user_id: img.user_id,
+        original_url: img.original_url,
+        thumbnail_url: img.thumbnail_url,
+        vote_score: img.vote_score || 0,
+        uploaded_at: img.uploaded_at,
+        metadata: img.metadata || {
+          timestamp: img.uploaded_at,
+          fileSize: img.metadata?.fileSize || 0,
+          dimensions: img.metadata?.dimensions || { width: 0, height: 0 }
         },
-        {
-          id: "2",
-          hazard_id: mockHazardId,
-          user_id: "other-user-456",
-          original_url:
-            "https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=800",
-          thumbnail_url:
-            "https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=200",
-          vote_score: -2,
-          uploaded_at: new Date(
-            Date.now() - 5 * 24 * 60 * 60 * 1000
-          ).toISOString(),
-          metadata: {
-            timestamp: new Date(
-              Date.now() - 5 * 24 * 60 * 60 * 1000
-            ).toISOString(),
-            fileSize: 1024 * 1024 * 2.1,
-            dimensions: { width: 1200, height: 800 },
-          },
-        },
-      ];
+        user_vote: null // Will be populated if we implement voting
+      }));
+      
+      // If no images found, show helpful message
+      if (images.length === 0) {
+        console.log('❌ No images found for current user');
+      } else {
+        console.log('✅ Successfully loaded', images.length, 'images');
+      }
     } catch (err) {
+      console.error("Failed to load images:", err);
       error = err instanceof Error ? err.message : "Failed to load images";
+      // Fallback to empty array
+      images = [];
     } finally {
       loading = false;
     }
@@ -103,7 +112,7 @@
     uploadSuccess = `Successfully uploaded image: ${result.id}`;
     uploadError = "";
 
-    // Add new image to gallery
+    // Add new image to gallery (at the beginning)
     const newImage: HazardImage = {
       id: result.id,
       hazard_id: mockHazardId,
@@ -116,6 +125,9 @@
     };
 
     images = [newImage, ...images];
+    
+    // Reset to page 1 to show the new image
+    currentPage = 1;
 
     // Clear success message after 3 seconds
     setTimeout(() => {
@@ -187,6 +199,14 @@
 
       // Remove from local state
       images = images.filter((img) => img.id !== imageId);
+      
+      // Reset to page 1 if current page would be empty
+      const newTotalPages = Math.ceil(images.length / imagesPerPage);
+      if (currentPage > newTotalPages && newTotalPages > 0) {
+        currentPage = newTotalPages;
+      } else if (images.length === 0) {
+        currentPage = 1;
+      }
     } catch (err) {
       console.error("Delete failed:", err);
       error = "Failed to delete image";
@@ -256,7 +276,7 @@
     <div class="info-grid">
       <div class="info-item">
         <span class="info-label">Hazard ID:</span>
-        <code>{mockHazardId}</code>
+        <code>{mockHazardId || "null (test mode)"}</code>
       </div>
       <div class="info-item">
         <span class="info-label">User ID:</span>
@@ -321,8 +341,15 @@
       voting system.
     </p>
 
+    <div class="gallery-header">
+      <h2>Your Image Gallery ({images.length} images)</h2>
+      <p class="section-description">
+        Browse, vote on, and manage your uploaded images. Images are displayed in a 4×3 grid with pagination.
+      </p>
+    </div>
+
     <ImageGallery
-      {images}
+      images={paginatedImages}
       currentUserId={mockUserId}
       canVote={isAuthenticated}
       canDelete={isAuthenticated}
@@ -331,6 +358,34 @@
       on:delete={handleImageDelete}
       on:view={(e) => console.log("Viewing image:", e.detail.image)}
     />
+
+    <!-- Pagination Controls -->
+    {#if totalPages > 1}
+      <div class="pagination">
+        <button
+          class="pagination-btn"
+          disabled={currentPage === 1}
+          onclick={() => currentPage = Math.max(1, currentPage - 1)}
+        >
+          ← Previous
+        </button>
+        
+        <div class="pagination-info">
+          <span>Page {currentPage} of {totalPages}</span>
+          <span class="pagination-details">
+            Showing {((currentPage - 1) * imagesPerPage) + 1}-{Math.min(currentPage * imagesPerPage, images.length)} of {images.length} images
+          </span>
+        </div>
+        
+        <button
+          class="pagination-btn"
+          disabled={currentPage === totalPages}
+          onclick={() => currentPage = Math.min(totalPages, currentPage + 1)}
+        >
+          Next →
+        </button>
+      </div>
+    {/if}
   </div>
 
   <!-- Technical Details -->
@@ -550,6 +605,90 @@
     .details-grid {
       grid-template-columns: 1fr;
       gap: 1.5rem;
+    }
+  }
+
+  /* Gallery Header */
+  .gallery-header {
+    margin-bottom: 2rem;
+    text-align: center;
+  }
+
+  .gallery-header h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0 0 0.5rem 0;
+  }
+
+  /* Pagination */
+  .pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 2rem;
+    padding: 1rem;
+  }
+
+  .pagination-btn {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
+  }
+
+  .pagination-btn:hover:not(:disabled) {
+    background: #2563eb;
+    transform: translateY(-1px);
+  }
+
+  .pagination-btn:disabled {
+    background: #d1d5db;
+    color: #9ca3af;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .pagination-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.875rem;
+    color: #6b7280;
+    min-width: 200px;
+    text-align: center;
+  }
+
+  .pagination-info span:first-child {
+    font-weight: 600;
+    color: #374151;
+  }
+
+  .pagination-details {
+    font-size: 0.75rem;
+    color: #9ca3af;
+  }
+
+  @media (max-width: 640px) {
+    .pagination {
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .pagination-btn {
+      padding: 0.625rem 1.25rem;
+      font-size: 0.8rem;
+    }
+
+    .pagination-info {
+      min-width: auto;
     }
   }
 </style>

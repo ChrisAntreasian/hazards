@@ -35,8 +35,8 @@
 		</div>
 
 		<div class="cta-buttons">
-			<a href="/map" class="btn btn-primary">Explore Map</a>
-			<a href="/education" class="btn btn-secondary">Learn About Hazards</a>
+			<a href="/hazards/create" class="btn btn-primary">Report a Hazard</a>
+			<a href="/map" class="btn btn-secondary">Explore Map</a>
 		</div>
 
 		<div class="region-info">

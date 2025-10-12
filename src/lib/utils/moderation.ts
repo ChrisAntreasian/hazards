@@ -50,6 +50,44 @@ export class ModerationQueue {
   }
 
   /**
+   * Get a specific moderation item by ID
+   */
+  async getSpecificItem(itemId: string, moderatorId: string): Promise<ModerationItem | null> {
+    const supabase = this.supabase;
+    if (!supabase) throw new Error('Supabase not configured');
+
+    try {
+      // Get the specific item
+      const { data, error } = await supabase
+        .from('moderation_queue')
+        .select('*')
+        .eq('id', itemId)
+        .eq('status', 'pending')
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') return null; // Item not found
+        throw error;
+      }
+
+      // Assign to moderator if not already assigned
+      if (!data.assigned_moderator) {
+        await supabase
+          .from('moderation_queue')
+          .update({ assigned_moderator: moderatorId })
+          .eq('id', data.id);
+      }
+
+      // Transform to ModerationItem format
+      return await this.transformToModerationItem(data);
+
+    } catch (error) {
+      console.error('Error getting specific moderation item:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Add item to moderation queue
    */
   async addToQueue(item: Omit<ModerationItem, 'id' | 'created_at'>): Promise<void> {
@@ -197,12 +235,21 @@ export class ModerationQueue {
       let query = supabase
         .from('moderation_queue')
         .select('*', { count: 'exact' })
-        .order('priority', { ascending: false })
-        .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
 
       if (status) {
         query = query.eq('status', status);
+      }
+
+      // Apply appropriate sorting based on status
+      if (status === 'approved' || status === 'rejected') {
+        // For completed items, sort by most recently resolved
+        query = query.order('resolved_at', { ascending: false });
+      } else {
+        // For pending items, sort by priority then by creation date
+        query = query
+          .order('priority', { ascending: false })
+          .order('created_at', { ascending: true }); // Oldest pending first for fairness
       }
 
       const { data, error, count } = await query;
@@ -244,21 +291,50 @@ export class ModerationQueue {
 
     // Fetch content preview based on type
     if (data.type === 'hazard' && data.content_id) {
-      const { data: hazardData } = await supabase!
-        .from('hazards')
-        .select('title, description, severity_level, latitude, longitude')
-        .eq('id', data.content_id)
-        .single();
+      // Use the security definer function to bypass RLS for moderation
+      const { data: hazardData, error: hazardError } = await supabase!
+        .rpc('get_hazard_for_moderation', { hazard_id: data.content_id });
       
-      if (hazardData) {
+      // Also fetch images for this hazard
+      const { data: imageData, error: imageError } = await supabase!
+        .rpc('get_hazard_images_for_moderation_v2', { target_hazard_id: data.content_id });
+      
+      console.log('Hazard data fetch result:', { hazardData, hazardError, content_id: data.content_id });
+      console.log('Images data fetch result:', { imageData, imageError });
+      
+      if (hazardData && hazardData.length > 0) {
+        const hazard = hazardData[0];
         contentPreview = {
-          title: hazardData.title,
-          description: hazardData.description,
-          severity_level: hazardData.severity_level,
+          title: hazard.title,
+          description: hazard.description,
+          severity_level: hazard.severity_level,
           location: {
-            latitude: hazardData.latitude,
-            longitude: hazardData.longitude
-          }
+            latitude: hazard.latitude,
+            longitude: hazard.longitude
+          },
+          category: {
+            name: hazard.category_name,
+            icon: hazard.category_icon
+          },
+          reported_active_date: hazard.reported_active_date,
+          is_seasonal: hazard.is_seasonal,
+          created_at: hazard.created_at,
+          images: imageData ? imageData.map((img: any) => ({
+            id: img.id,
+            image_url: img.original_url,
+            thumbnail_url: img.thumbnail_url,
+            uploaded_at: img.uploaded_at,
+            vote_score: img.vote_score,
+            metadata: img.metadata
+          })) : []
+        };
+      } else {
+        console.warn('No hazard data found for content_id:', data.content_id);
+        contentPreview = {
+          title: 'Unknown Hazard',
+          description: 'Data not available',
+          severity_level: 0,
+          images: []
         };
       }
     } else if (data.type === 'image' && data.content_id) {
