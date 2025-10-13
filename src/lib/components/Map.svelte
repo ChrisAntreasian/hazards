@@ -4,8 +4,22 @@
 
 	interface Props {
 		hazards?: any[];
-		height?: string;
-		center?: [number, number];
+		height?: 		// Add new markers for hazards
+		let addedMarkers = 0;
+		hazards.forEach((hazard, index) => {
+			try {
+				if (hazard?.latitude && hazard?.longitude) {
+				const categoryColor = categoryColors[hazard?.category_name || 'Other'] || categoryColors['Other'];
+				
+				const marker = L.marker([parseFloat(hazard.latitude), parseFloat(hazard.longitude)], {
+					icon: L.divIcon({
+						className: 'hazard-marker',
+						html: `<div style="background: ${categoryColor}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: bold;">${getMarkerIcon(hazard.category_name)}</div>`,
+						iconSize: [24, 24],
+						iconAnchor: [12, 12]
+					})
+				});
+				addedMarkers++;ter?: [number, number];
 		zoom?: number;
 		showUserLocation?: boolean;
 	}
@@ -20,7 +34,7 @@
 
 	let mapElement: HTMLDivElement;
 	let map = $state<LeafletMap>();
-	let markers = $state<Marker[]>([]);
+	let markers: Marker[] = []; // Don't make this reactive to avoid triggering effects
 	let userLocationMarker = $state<Marker | null>(null);
 	let markerClusterGroup = $state<any>(null);
 	let L = $state<any>();
@@ -102,41 +116,49 @@
 				maxZoom: 19
 			}).addTo(map);
 
-			// Initialize MarkerClusterGroup if available
+			// Initialize MarkerClusterGroup with better configuration
 			if (L.markerClusterGroup) {
 				try {
+					console.log('Initializing MarkerClusterGroup...');
 					markerClusterGroup = L.markerClusterGroup({
-						// Customize cluster appearance
+						// More aggressive clustering settings
+						maxClusterRadius: 60, // Reduced from 80 for tighter clustering
+						disableClusteringAtZoom: 16, // Cluster until zoom level 16 (was 18)
+						spiderfyOnMaxZoom: true, // Show spider legs when max zoom reached
+						showCoverageOnHover: true, // Show coverage area on hover
+						zoomToBoundsOnClick: true,
+						// Remove spider legs delay for better UX
+						spiderfyDistanceMultiplier: 1.2,
+						
+						// Custom cluster icon
 						iconCreateFunction: function(cluster: any) {
 							const childCount = cluster.getChildCount();
 							let className = 'marker-cluster-';
+							let size = 30;
 							
-							// Size clusters based on count
-							if (childCount < 10) {
+							// Size and color clusters based on count
+							if (childCount < 5) {
 								className += 'small';
-							} else if (childCount < 100) {
+								size = 30;
+							} else if (childCount < 15) {
 								className += 'medium';
+								size = 40;
 							} else {
 								className += 'large';
+								size = 50;
 							}
 
 							return L.divIcon({
 								html: `<div><span>${childCount}</span></div>`,
 								className: `marker-cluster ${className}`,
-								iconSize: L.point(40, 40)
+								iconSize: [size, size],
+								iconAnchor: [size / 2, size / 2]
 							});
-						},
-						// Show coverage area when hovering
-						showCoverageOnHover: false,
-						// Zoom to show all markers when cluster is clicked
-						zoomToBoundsOnClick: true,
-						// Cluster at all zoom levels except the max
-						disableClusteringAtZoom: 18,
-						// Maximum radius for clustering
-						maxClusterRadius: 80
+						}
 					});
 
 					map?.addLayer(markerClusterGroup);
+					console.log('MarkerClusterGroup initialized successfully');
 				} catch (error) {
 					console.error('Failed to initialize marker clustering:', error);
 					markerClusterGroup = null;
@@ -193,6 +215,8 @@
 			return;
 		}
 
+		console.log(`Updating hazard markers: ${hazards.length} hazards, clustering: ${!!markerClusterGroup}`);
+
 		// Clear existing markers
 		if (markerClusterGroup) {
 			markerClusterGroup.clearLayers();
@@ -200,7 +224,7 @@
 			// Clear individual markers if no cluster group
 			markers.forEach(marker => marker.remove());
 		}
-		markers = [];
+		markers.length = 0; // Clear array without reassigning (avoid potential reactivity issues)
 
 		// Add new markers for hazards
 		hazards.forEach((hazard, index) => {
@@ -250,6 +274,13 @@
 				console.error(`Error creating marker for hazard at index ${index}:`, error, hazard);
 			}
 		});
+		
+		console.log(`Successfully added ${addedMarkers} markers to ${markerClusterGroup ? 'cluster group' : 'map directly'}`);
+		
+		// Force refresh of cluster groups
+		if (markerClusterGroup) {
+			markerClusterGroup.refreshClusters();
+		}
 	}
 
 	function getMarkerIcon(categoryName: string): string {
@@ -288,9 +319,11 @@
 		return icons[categoryName] || '❗';
 	}
 
-	// Reactive update when hazards change
+	// Watch for hazards changes - since markers is no longer reactive, this won't loop
+	let lastHazardsLength = -1;
 	$effect(() => {
-		if (map && L) {
+		if (map && L && hazards && hazards.length !== lastHazardsLength) {
+			lastHazardsLength = hazards.length;
 			updateHazardMarkers();
 		}
 	});
@@ -325,47 +358,58 @@
 		border: none !important;
 	}
 
-	/* Marker cluster styling */
-	:global(.marker-cluster-small) {
-		background-color: rgba(181, 226, 140, 0.8);
-		border: 2px solid rgba(110, 204, 57, 0.8);
-	}
-	
-	:global(.marker-cluster-small div) {
-		background-color: rgba(110, 204, 57, 0.8);
-	}
-
-	:global(.marker-cluster-medium) {
-		background-color: rgba(241, 211, 87, 0.8);
-		border: 2px solid rgba(240, 194, 12, 0.8);
-	}
-	
-	:global(.marker-cluster-medium div) {
-		background-color: rgba(240, 194, 12, 0.8);
-	}
-
-	:global(.marker-cluster-large) {
-		background-color: rgba(253, 156, 115, 0.8);
-		border: 2px solid rgba(241, 128, 23, 0.8);
-	}
-	
-	:global(.marker-cluster-large div) {
-		background-color: rgba(241, 128, 23, 0.8);
-	}
-
+	/* Enhanced marker cluster styling */
 	:global(.marker-cluster) {
 		border-radius: 50%;
 		text-align: center;
 		color: white;
 		font-weight: bold;
-		box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+		border: 3px solid rgba(255, 255, 255, 0.9);
+		cursor: pointer;
+		transition: all 0.2s ease;
+	}
+
+	:global(.marker-cluster:hover) {
+		transform: scale(1.1);
+		box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
 	}
 
 	:global(.marker-cluster div) {
 		border-radius: 50%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 100%;
+		height: 100%;
+		font-size: 12px;
+		font-weight: 700;
+	}
+
+	:global(.marker-cluster-small) {
+		background: linear-gradient(135deg, #4CAF50, #45a049);
 		width: 30px;
 		height: 30px;
-		margin-left: 5px;
+	}
+
+	:global(.marker-cluster-medium) {
+		background: linear-gradient(135deg, #FF9800, #F57C00);
+		width: 40px;
+		height: 40px;
+	}
+	
+	:global(.marker-cluster-medium div) {
+		font-size: 14px;
+	}
+
+	:global(.marker-cluster-large) {
+		background: linear-gradient(135deg, #F44336, #D32F2F);
+		width: 50px;
+		height: 50px;
+	}
+	
+	:global(.marker-cluster-large div) {
+		font-size: 16px;
 		margin-top: 5px;
 		text-align: center;
 		border: 1px solid white;
