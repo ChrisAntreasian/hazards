@@ -20,7 +20,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
     }
 
     // Validate single field
-    const validationError = validateField(field, value, context);
+    const validationError = validateField(field, value);
 
     if (validationError) {
       return json({

@@ -260,7 +260,6 @@
 
           const result = await imageStorage.uploadProcessedImage(
             processedImage,
-            userId,
             hazardId,
             currentSession,
             currentUser

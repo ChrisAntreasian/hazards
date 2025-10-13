@@ -1,7 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { invalidateAll } from "$app/navigation";
-  import { onMount } from "svelte";
 
   interface Props {
     data: any;
@@ -55,7 +54,7 @@
   }
 
   // Handle client-side URL fragment processing
-  onMount(() => {
+  $effect(() => {
     if (data.needsClientProcessing) {
       handleClientSideAuth();
     }

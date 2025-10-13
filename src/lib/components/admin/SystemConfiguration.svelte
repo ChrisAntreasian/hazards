@@ -639,7 +639,7 @@
                       type="checkbox"
                       checked={getNotificationStringArrayValue(
                         "notification_types"
-                      ).includes(notificationType.value)}
+                      ).includes(notificationType.value as NotificationType)}
                       onchange={(e) => {
                         const target = e.target as HTMLInputElement;
                         const current =
@@ -687,7 +687,7 @@
                       onchange={(e) =>
                         updateFeatureConfig(
                           "user_generated_templates",
-                          e.target.checked
+                          (e.target as HTMLInputElement)?.checked || false
                         )}
                       disabled={isLoading}
                     />
@@ -717,7 +717,7 @@
                       onchange={(e) =>
                         updateFeatureConfig(
                           "advanced_mapping",
-                          e.target.checked
+                          (e.target as HTMLInputElement)?.checked || false
                         )}
                       disabled={isLoading}
                     />
@@ -745,7 +745,7 @@
                       onchange={(e) =>
                         updateFeatureConfig(
                           "community_voting",
-                          e.target.checked
+                          (e.target as HTMLInputElement)?.checked || false
                         )}
                       disabled={isLoading}
                     />
@@ -772,7 +772,7 @@
                       onchange={(e) =>
                         updateFeatureConfig(
                           "hazard_comments",
-                          e.target.checked
+                          (e.target as HTMLInputElement)?.checked || false
                         )}
                       disabled={isLoading}
                     />
@@ -801,7 +801,7 @@
                       onchange={(e) =>
                         updateFeatureConfig(
                           "real_time_collaboration",
-                          e.target.checked
+                          (e.target as HTMLInputElement)?.checked || false
                         )}
                       disabled={isLoading}
                     />
@@ -831,7 +831,7 @@
                       onchange={(e) =>
                         updateFeatureConfig(
                           "ai_assisted_categorization",
-                          e.target.checked
+                          (e.target as HTMLInputElement)?.checked || false
                         )}
                       disabled={isLoading}
                     />

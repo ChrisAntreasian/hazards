@@ -3,9 +3,13 @@
 	import Map from '$lib/components/Map.svelte';
 	import { page } from '$app/stores';
 
-	export let data: PageData;
+	interface Props {
+		data: PageData;
+	}
 
-	$: hazards = data.hazards || [];
+	let { data }: Props = $props();
+
+	const hazards = $derived(data.hazards || []);
 </script>
 
 <svelte:head>

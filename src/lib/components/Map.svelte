@@ -1,20 +1,29 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
 	import type { Map as LeafletMap, Marker, TileLayer } from 'leaflet';
 	// import type { HazardWithDetails } from '$lib/types/database.js';
 
-	export let hazards: any[] = [];
-	export let height = '400px';
-	export let center: [number, number] = [42.3601, -71.0589]; // Default to Boston area
-	export let zoom = 10;
-	export let showUserLocation = true;
+	interface Props {
+		hazards?: any[];
+		height?: string;
+		center?: [number, number];
+		zoom?: number;
+		showUserLocation?: boolean;
+	}
+
+	let {
+		hazards = [],
+		height = '400px',
+		center = [42.3601, -71.0589], // Default to Boston area
+		zoom = 10,
+		showUserLocation = true
+	}: Props = $props();
 
 	let mapElement: HTMLDivElement;
-	let map: LeafletMap;
-	let markers: Marker[] = [];
-	let userLocationMarker: Marker | null = null;
-	let markerClusterGroup: any = null;
-	let L: any;
+	let map = $state<LeafletMap>();
+	let markers = $state<Marker[]>([]);
+	let userLocationMarker = $state<Marker | null>(null);
+	let markerClusterGroup = $state<any>(null);
+	let L = $state<any>();
 
 	// Hazard category colors for markers
 	const categoryColors: Record<string, string> = {
@@ -50,122 +59,128 @@
 		'Other': '#424242'
 	};
 
-	onMount(async () => {
-		// Dynamic import of Leaflet to avoid SSR issues
-		L = await import('leaflet');
-		
-		// Import MarkerCluster plugin - this extends the L object
-		try {
-			await import('leaflet.markercluster');
-		} catch (error) {
-			console.error('Failed to load MarkerCluster plugin:', error);
-		}
-		
-		// Import Leaflet and MarkerCluster CSS
-		if (typeof window !== 'undefined') {
-			const leafletLink = document.createElement('link');
-			leafletLink.rel = 'stylesheet';
-			leafletLink.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-			document.head.appendChild(leafletLink);
+	$effect(() => {
+		if (!mapElement) return;
 
-			const clusterLink = document.createElement('link');
-			clusterLink.rel = 'stylesheet';
-			clusterLink.href = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css';
-			document.head.appendChild(clusterLink);
-
-			const clusterDefaultLink = document.createElement('link');
-			clusterDefaultLink.rel = 'stylesheet';
-			clusterDefaultLink.href = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css';
-			document.head.appendChild(clusterDefaultLink);
-		}
-
-		// Initialize the map
-		map = L.map(mapElement).setView(center, zoom);
-
-		// Add OpenStreetMap tiles
-		L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-			attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-			maxZoom: 19
-		}).addTo(map);
-
-		// Initialize MarkerClusterGroup if available
-		if (L.markerClusterGroup) {
+		// Initialize map asynchronously
+		(async () => {
+			// Dynamic import of Leaflet to avoid SSR issues
+			L = await import('leaflet');
+			
+			// Import MarkerCluster plugin - this extends the L object
 			try {
-				markerClusterGroup = L.markerClusterGroup({
-					// Customize cluster appearance
-					iconCreateFunction: function(cluster: any) {
-						const childCount = cluster.getChildCount();
-						let className = 'marker-cluster-';
-						
-						// Size clusters based on count
-						if (childCount < 10) {
-							className += 'small';
-						} else if (childCount < 100) {
-							className += 'medium';
-						} else {
-							className += 'large';
-						}
-
-						return L.divIcon({
-							html: `<div><span>${childCount}</span></div>`,
-							className: `marker-cluster ${className}`,
-							iconSize: L.point(40, 40)
-						});
-					},
-					// Show coverage area when hovering
-					showCoverageOnHover: false,
-					// Zoom to show all markers when cluster is clicked
-					zoomToBoundsOnClick: true,
-					// Cluster at all zoom levels except the max
-					disableClusteringAtZoom: 18,
-					// Maximum radius for clustering
-					maxClusterRadius: 80
-				});
-
-				map.addLayer(markerClusterGroup);
+				await import('leaflet.markercluster');
 			} catch (error) {
-				console.error('Failed to initialize marker clustering:', error);
+				console.error('Failed to load MarkerCluster plugin:', error);
+			}
+			
+			// Import Leaflet and MarkerCluster CSS
+			if (typeof window !== 'undefined') {
+				const leafletLink = document.createElement('link');
+				leafletLink.rel = 'stylesheet';
+				leafletLink.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+				document.head.appendChild(leafletLink);
+
+				const clusterLink = document.createElement('link');
+				clusterLink.rel = 'stylesheet';
+				clusterLink.href = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css';
+				document.head.appendChild(clusterLink);
+
+				const clusterDefaultLink = document.createElement('link');
+				clusterDefaultLink.rel = 'stylesheet';
+				clusterDefaultLink.href = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css';
+				document.head.appendChild(clusterDefaultLink);
+			}
+
+			// Initialize the map
+			map = L.map(mapElement).setView(center, zoom);
+
+			// Add OpenStreetMap tiles
+			L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+				attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+				maxZoom: 19
+			}).addTo(map);
+
+			// Initialize MarkerClusterGroup if available
+			if (L.markerClusterGroup) {
+				try {
+					markerClusterGroup = L.markerClusterGroup({
+						// Customize cluster appearance
+						iconCreateFunction: function(cluster: any) {
+							const childCount = cluster.getChildCount();
+							let className = 'marker-cluster-';
+							
+							// Size clusters based on count
+							if (childCount < 10) {
+								className += 'small';
+							} else if (childCount < 100) {
+								className += 'medium';
+							} else {
+								className += 'large';
+							}
+
+							return L.divIcon({
+								html: `<div><span>${childCount}</span></div>`,
+								className: `marker-cluster ${className}`,
+								iconSize: L.point(40, 40)
+							});
+						},
+						// Show coverage area when hovering
+						showCoverageOnHover: false,
+						// Zoom to show all markers when cluster is clicked
+						zoomToBoundsOnClick: true,
+						// Cluster at all zoom levels except the max
+						disableClusteringAtZoom: 18,
+						// Maximum radius for clustering
+						maxClusterRadius: 80
+					});
+
+					map?.addLayer(markerClusterGroup);
+				} catch (error) {
+					console.error('Failed to initialize marker clustering:', error);
+					markerClusterGroup = null;
+				}
+			} else {
+				console.warn('L.markerClusterGroup not available, using regular markers');
 				markerClusterGroup = null;
 			}
-		} else {
-			console.warn('L.markerClusterGroup not available, using regular markers');
-			markerClusterGroup = null;
-		}
 
-		// Get user location if enabled
-		if (showUserLocation && navigator.geolocation) {
-			navigator.geolocation.getCurrentPosition(
-				(position) => {
-					const userLat = position.coords.latitude;
-					const userLng = position.coords.longitude;
-					
-					// Add user location marker
-					userLocationMarker = L.marker([userLat, userLng], {
-						icon: L.divIcon({
-							className: 'user-location-marker',
-							html: '<div style="background: #2196f3; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 6px rgba(0,0,0,0.3);"></div>',
-							iconSize: [16, 16],
-							iconAnchor: [8, 8]
-						})
-					}).addTo(map);
+			// Get user location if enabled
+			if (showUserLocation && navigator.geolocation) {
+				navigator.geolocation.getCurrentPosition(
+					(position) => {
+						const userLat = position.coords.latitude;
+						const userLng = position.coords.longitude;
+						
+						// Add user location marker
+						userLocationMarker = L.marker([userLat, userLng], {
+							icon: L.divIcon({
+								className: 'user-location-marker',
+								html: '<div style="background: #2196f3; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 6px rgba(0,0,0,0.3);"></div>',
+								iconSize: [16, 16],
+								iconAnchor: [8, 8]
+							})
+						}).addTo(map!);
 
-					// Center map on user location
-					map.setView([userLat, userLng], 12);
-				},
-				(error) => {
-					console.warn('Could not get user location:', error);
-				}
-			);
-		}
+						// Center map on user location
+						map?.setView([userLat, userLng], 12);
+					},
+					(error) => {
+						console.warn('Could not get user location:', error);
+					}
+				);
+			}
 
-		// Add hazard markers
-		updateHazardMarkers();
-	});
+			// Add hazard markers
+			updateHazardMarkers();
+		})();
 
-	onDestroy(() => {
-		if (map) {
-			map.remove();
-		}
+		// Cleanup function
+		return () => {
+			if (map) {
+				map.remove();
+			}
+		};
 	});
 
 	function updateHazardMarkers() {
@@ -266,9 +281,11 @@
 	}
 
 	// Reactive update when hazards change
-	$: if (map && L) {
-		updateHazardMarkers();
-	}
+	$effect(() => {
+		if (map && L) {
+			updateHazardMarkers();
+		}
+	});
 </script>
 
 <div bind:this={mapElement} style="height: {height}; width: 100%;" class="map-container"></div>

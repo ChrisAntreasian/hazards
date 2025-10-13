@@ -1,30 +1,51 @@
 <script lang="ts">
-  import { onMount } from "svelte";
   import { debounce } from "$lib/utils/helpers.js";
   import type { ValidationError } from "$lib/validation/hazard-validation.js";
 
-  export let field: string;
-  export let value: any;
-  export let context: any = null;
-  export let validateOnBlur = true;
-  export let validateOnInput = true;
-  export let debounceMs = 500;
-  export let disabled = false;
+  interface Props {
+    field: string;
+    value: any;
+    context?: any;
+    validateOnBlur?: boolean;
+    validateOnInput?: boolean;
+    debounceMs?: number;
+    disabled?: boolean;
+    children?: import('svelte').Snippet<[{
+      isValidating: boolean;
+      isValid: boolean;
+      hasError: boolean;
+      validationError: ValidationError | null;
+      handleBlur: () => void;
+    }]>;
+  }
 
-  let validationError: ValidationError | null = null;
-  let isValidating = false;
-  let hasValidated = false;
+  let {
+    field,
+    value = $bindable(),
+    context = null,
+    validateOnBlur = true,
+    validateOnInput = true,
+    debounceMs = 500,
+    disabled = false,
+    children
+  }: Props = $props();
 
-  $: isValid = !validationError && hasValidated;
-  $: hasError = validationError !== null;
+  let validationError = $state<ValidationError | null>(null);
+  let isValidating = $state(false);
+  let hasValidated = $state(false);
+
+  const isValid = $derived(!validationError && hasValidated);
+  const hasError = $derived(validationError !== null);
 
   // Debounced validation function
   const debouncedValidate = debounce(validateField, debounceMs);
 
   // Watch for value changes
-  $: if (validateOnInput && value !== undefined && !disabled) {
-    debouncedValidate();
-  }
+  $effect(() => {
+    if (validateOnInput && value !== undefined && !disabled) {
+      debouncedValidate();
+    }
+  });
 
   async function validateField() {
     if (disabled || value === undefined) return;
@@ -111,7 +132,7 @@
   class:valid={isValid}
   class:error={hasError}
 >
-  <slot {isValidating} {isValid} {hasError} {validationError} {handleBlur} />
+  {@render children?.({ isValidating, isValid, hasError, validationError, handleBlur })}
 
   {#if isValidating}
     <div class="validation-indicator validating">

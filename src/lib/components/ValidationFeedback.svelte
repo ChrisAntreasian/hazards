@@ -2,17 +2,25 @@
   import { createEventDispatcher } from "svelte";
   import type { ValidationError } from "$lib/validation/hazard-validation.js";
 
-  export let errors: ValidationError[] = [];
-  export let warnings: string[] = [];
-  export let showDetails = false;
+  interface Props {
+    errors?: ValidationError[];
+    warnings?: string[];
+    showDetails?: boolean;
+  }
+
+  let {
+    errors = [],
+    warnings = [],
+    showDetails = $bindable(false)
+  }: Props = $props();
 
   const dispatch = createEventDispatcher<{
     retry: void;
     dismiss: void;
   }>();
 
-  $: hasErrors = errors.length > 0;
-  $: hasWarnings = warnings.length > 0;
+  const hasErrors = $derived(errors.length > 0);
+  const hasWarnings = $derived(warnings.length > 0);
 
   function getFieldLabel(fieldPath: string): string {
     const fieldMap: Record<string, string> = {
@@ -63,7 +71,7 @@
           <button
             type="button"
             class="toggle-details"
-            on:click={() => (showDetails = !showDetails)}
+            onclick={() => (showDetails = !showDetails)}
             aria-expanded={showDetails}
           >
             {showDetails ? "▼" : "▶"}
@@ -90,7 +98,7 @@
           <button
             type="button"
             class="retry-button"
-            on:click={() => dispatch("retry")}
+            onclick={() => dispatch("retry")}
           >
             🔄 Fix and Retry
           </button>
@@ -107,7 +115,7 @@
           <button
             type="button"
             class="toggle-details"
-            on:click={() => (showDetails = !showDetails)}
+            onclick={() => (showDetails = !showDetails)}
             aria-expanded={showDetails}
           >
             {showDetails ? "▼" : "▶"}
@@ -133,7 +141,7 @@
           <button
             type="button"
             class="dismiss-button"
-            on:click={() => dispatch("dismiss")}
+            onclick={() => dispatch("dismiss")}
           >
             ✓ Acknowledge and Continue
           </button>

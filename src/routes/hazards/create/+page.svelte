@@ -318,7 +318,6 @@
           currentUser={user}
           on:upload={handleImageUpload}
           on:error={handleUploadError}
-          on:success={handleImageUpload}
         />
         
         {#if uploadedImages.length > 0}
