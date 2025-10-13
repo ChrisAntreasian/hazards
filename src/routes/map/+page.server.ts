@@ -3,7 +3,7 @@ import { error } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ locals: { supabase } }) => {
 	try {
-		// Load hazards with category information and basic details for the map
+		// Load hazards first
 		const { data: hazards, error: hazardsError } = await supabase
 			.from('hazards')
 			.select(`
@@ -15,12 +15,7 @@ export const load: PageServerLoad = async ({ locals: { supabase } }) => {
 				severity_level,
 				status,
 				created_at,
-				category_id,
-				hazard_categories (
-					id,
-					name,
-					level
-				)
+				category_id
 			`)
 			.eq('status', 'approved')  // Only show approved hazards on the map
 			.not('latitude', 'is', null)  // Only hazards with location data
@@ -32,10 +27,25 @@ export const load: PageServerLoad = async ({ locals: { supabase } }) => {
 			throw error(500, 'Failed to load hazard data');
 		}
 
+		// Load categories separately
+		const { data: categories, error: categoriesError } = await supabase
+			.from('hazard_categories')
+			.select('id, name, level');
+
+		if (categoriesError) {
+			console.error('Error loading categories for map:', categoriesError);
+		}
+
+		// Create category lookup map
+		const categoryMap = new Map();
+		categories?.forEach(category => {
+			categoryMap.set(category.id, category.name);
+		});
+
 		// Transform the data to include category name at the top level
 		const hazardsWithDetails = hazards?.map(hazard => ({
 			...hazard,
-			category_name: (hazard.hazard_categories as any)?.name || 'Unknown'
+			category_name: categoryMap.get(hazard.category_id) || 'Unknown'
 		})) || [];
 
 		return {

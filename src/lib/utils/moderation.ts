@@ -126,15 +126,36 @@ export class ModerationQueue {
 
     try {
       // Update moderation queue item
+      const updateData: any = {
+        assigned_moderator: moderatorId,
+        moderator_notes: action.notes,
+      };
+
+      // Only set resolved_at and status for approve/reject actions
+      if (action.type === 'approve') {
+        updateData.status = 'approved';
+        updateData.resolved_at = new Date().toISOString();
+      } else if (action.type === 'reject') {
+        updateData.status = 'rejected';
+        updateData.resolved_at = new Date().toISOString();
+      } else if (action.type === 'flag') {
+        // For flag action, keep status as 'pending' but add flagged reasons
+        const flaggedReasons = [];
+        if (action.reason) {
+          flaggedReasons.push(action.reason);
+        }
+        if (action.notes) {
+          flaggedReasons.push(action.notes);
+        }
+        if (flaggedReasons.length === 0) {
+          flaggedReasons.push('Flagged for additional review');
+        }
+        updateData.flagged_reasons = flaggedReasons;
+      }
+
       const { error: queueError } = await supabase
         .from('moderation_queue')
-        .update({
-          status: action.type === 'approve' ? 'approved' : 
-                  action.type === 'reject' ? 'rejected' : 'needs_review',
-          assigned_moderator: moderatorId,
-          moderator_notes: action.notes,
-          resolved_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', itemId);
 
       if (queueError) throw queueError;

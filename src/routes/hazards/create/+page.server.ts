@@ -124,21 +124,15 @@ export const actions: Actions = {
         }
       }
 
-      // Redirect to dashboard on success
-      throw redirect(303, '/dashboard?success=hazard-created');
-
     } catch (err) {
-      // Check if this is a redirect (success case)
-      if (err instanceof Response && err.status === 303) {
-        // Re-throw the redirect - this is the success case
-        throw err;
-      }
-      
       console.error('Failed to submit hazard:', err);
       return fail(500, { 
         error: `Failed to submit hazard: ${err instanceof Error ? err.message : 'Unknown error'}`,
         code: err instanceof Error ? (err as any).code : 'UNKNOWN'
       });
     }
+
+    // Redirect to dashboard on success (outside try-catch to prevent redirect being caught as error)
+    redirect(303, '/dashboard?success=hazard-created');
   }
 };

@@ -18,11 +18,33 @@
 
 	// Hazard category colors for markers
 	const categoryColors: Record<string, string> = {
+		// Animal-related categories
 		'Animals': '#d32f2f',
+		'Large Mammals': '#d32f2f',
+		'Biting': '#c62828',
+		'Insects': '#e57373',
+		'Reptiles': '#f44336',
+		'Stinging': '#ef5350',
+		'wolves': '#b71c1c',
+		
+		// Plant-related categories
 		'Plants': '#388e3c',
+		'Thorns': '#2e7d32',
+		'Poisonous': '#689f38',
+		
+		// Terrain and environment
 		'Terrain': '#6d4c41',
+		'Unstable': '#5d4037',
+		'ice': '#81c784',
+		
+		// Weather
 		'Weather': '#1976d2',
+		
+		// Water hazards
 		'Water': '#0277bd',
+		'Water Hazards': '#0277bd',
+		
+		// Infrastructure and other
 		'Infrastructure': '#f57f17',
 		'Chemical': '#9c27b0',
 		'Other': '#424242'
@@ -31,6 +53,13 @@
 	onMount(async () => {
 		// Dynamic import of Leaflet to avoid SSR issues
 		L = await import('leaflet');
+		
+		// Import MarkerCluster plugin - this extends the L object
+		try {
+			await import('leaflet.markercluster');
+		} catch (error) {
+			console.error('Failed to load MarkerCluster plugin:', error);
+		}
 		
 		// Import Leaflet and MarkerCluster CSS
 		if (typeof window !== 'undefined') {
@@ -59,40 +88,49 @@
 			maxZoom: 19
 		}).addTo(map);
 
-		// Import and initialize MarkerClusterGroup
-		const markerCluster = await import('leaflet.markercluster');
-		markerClusterGroup = L.markerClusterGroup({
-			// Customize cluster appearance
-			iconCreateFunction: function(cluster: any) {
-				const childCount = cluster.getChildCount();
-				let className = 'marker-cluster-';
-				
-				// Size clusters based on count
-				if (childCount < 10) {
-					className += 'small';
-				} else if (childCount < 100) {
-					className += 'medium';
-				} else {
-					className += 'large';
-				}
+		// Initialize MarkerClusterGroup if available
+		if (L.markerClusterGroup) {
+			try {
+				markerClusterGroup = L.markerClusterGroup({
+					// Customize cluster appearance
+					iconCreateFunction: function(cluster: any) {
+						const childCount = cluster.getChildCount();
+						let className = 'marker-cluster-';
+						
+						// Size clusters based on count
+						if (childCount < 10) {
+							className += 'small';
+						} else if (childCount < 100) {
+							className += 'medium';
+						} else {
+							className += 'large';
+						}
 
-				return L.divIcon({
-					html: `<div><span>${childCount}</span></div>`,
-					className: `marker-cluster ${className}`,
-					iconSize: L.point(40, 40)
+						return L.divIcon({
+							html: `<div><span>${childCount}</span></div>`,
+							className: `marker-cluster ${className}`,
+							iconSize: L.point(40, 40)
+						});
+					},
+					// Show coverage area when hovering
+					showCoverageOnHover: false,
+					// Zoom to show all markers when cluster is clicked
+					zoomToBoundsOnClick: true,
+					// Cluster at all zoom levels except the max
+					disableClusteringAtZoom: 18,
+					// Maximum radius for clustering
+					maxClusterRadius: 80
 				});
-			},
-			// Show coverage area when hovering
-			showCoverageOnHover: false,
-			// Zoom to show all markers when cluster is clicked
-			zoomToBoundsOnClick: true,
-			// Cluster at all zoom levels except the max
-			disableClusteringAtZoom: 18,
-			// Maximum radius for clustering
-			maxClusterRadius: 80
-		});
 
-		map.addLayer(markerClusterGroup);
+				map.addLayer(markerClusterGroup);
+			} catch (error) {
+				console.error('Failed to initialize marker clustering:', error);
+				markerClusterGroup = null;
+			}
+		} else {
+			console.warn('L.markerClusterGroup not available, using regular markers');
+			markerClusterGroup = null;
+		}
 
 		// Get user location if enabled
 		if (showUserLocation && navigator.geolocation) {
@@ -131,18 +169,26 @@
 	});
 
 	function updateHazardMarkers() {
-		if (!map || !L || !markerClusterGroup) return;
+		if (!map || !L) {
+			return;
+		}
 
-		// Clear existing markers from cluster group
-		markerClusterGroup.clearLayers();
+		// Clear existing markers
+		if (markerClusterGroup) {
+			markerClusterGroup.clearLayers();
+		} else {
+			// Clear individual markers if no cluster group
+			markers.forEach(marker => marker.remove());
+		}
 		markers = [];
 
 		// Add new markers for hazards
-		hazards.forEach(hazard => {
+		hazards.forEach((hazard, index) => {
+			
 			if (hazard.latitude && hazard.longitude) {
 				const categoryColor = categoryColors[hazard.category_name] || categoryColors['Other'];
 				
-				const marker = L.marker([hazard.latitude, hazard.longitude], {
+				const marker = L.marker([parseFloat(hazard.latitude), parseFloat(hazard.longitude)], {
 					icon: L.divIcon({
 						className: 'hazard-marker',
 						html: `<div style="background: ${categoryColor}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: bold;">${getMarkerIcon(hazard.category_name)}</div>`,
@@ -172,8 +218,12 @@
 					className: 'hazard-popup-container'
 				});
 
-				// Add marker to cluster group instead of directly to map
-				markerClusterGroup.addLayer(marker);
+				// Add marker to cluster group or directly to map
+				if (markerClusterGroup) {
+					markerClusterGroup.addLayer(marker);
+				} else {
+					marker.addTo(map);
+				}
 				markers.push(marker);
 			}
 		});
@@ -181,11 +231,33 @@
 
 	function getMarkerIcon(categoryName: string): string {
 		const icons: Record<string, string> = {
+			// Animal-related categories
 			'Animals': '🐻',
+			'Large Mammals': '🦌',
+			'Biting': '🦷',
+			'Insects': '🐛',
+			'Reptiles': '🐍',
+			'Stinging': '🐝',
+			'wolves': '🐺',
+			
+			// Plant-related categories
 			'Plants': '🌿',
+			'Thorns': '🌹',
+			'Poisonous': '☠️',
+			
+			// Terrain and environment
 			'Terrain': '⛰️',
+			'Unstable': '🪨',
+			'ice': '🧊',
+			
+			// Weather
 			'Weather': '🌩️',
+			
+			// Water hazards
 			'Water': '💧',
+			'Water Hazards': '🌊',
+			
+			// Infrastructure and other
 			'Infrastructure': '🏗️',
 			'Chemical': '⚠️',
 			'Other': '❗'

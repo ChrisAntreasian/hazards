@@ -298,6 +298,9 @@
               <span class="type-badge {currentItem.type}"
                 >{currentItem.type}</span
               >
+              {#if currentItem.flagged_reasons.length > 0}
+                <span class="flag-indicator large" title="This item has been flagged for review">🚩</span>
+              {/if}
               <span
                 class="priority-badge {getPriorityColor(currentItem.priority)}"
               >
@@ -427,7 +430,7 @@
           <!-- Flagged Reasons -->
           {#if currentItem.flagged_reasons.length > 0}
             <div class="flagged-reasons">
-              <h4>Flagged for:</h4>
+              <h4>🚩 This item has been flagged for review:</h4>
               <ul>
                 {#each currentItem.flagged_reasons as reason}
                   <li>{reason}</li>
@@ -458,6 +461,7 @@
                   onclick={() => handleAction("flag")}
                   class="action-btn flag"
                   disabled={processing}
+                  title="Flag this item as needing additional review or escalation. This marks it for senior moderator attention while keeping it in pending status."
                 >
                   🏴 Flag for Review
                 </button>
@@ -470,8 +474,15 @@
                     ? "Approve Content"
                     : selectedAction === "reject"
                       ? "Reject Content"
-                      : "Flag for Further Review"}
+                      : "Flag for Review"}
                 </h4>
+
+                {#if selectedAction === "flag"}
+                  <p class="flag-explanation">
+                    Flagging this item will keep it in pending status but mark it as needing attention from a senior moderator. 
+                    Use this when content requires additional expertise or policy clarification.
+                  </p>
+                {/if}
 
                 {#if selectedAction === "reject" || selectedAction === "flag"}
                   <div class="form-group">
@@ -576,6 +587,9 @@
             >
               <div class="item-info">
                 <span class="type-badge {item.type}">{item.type}</span>
+                {#if item.flagged_reasons.length > 0}
+                  <span class="flag-indicator" title="This item has been flagged for review">🚩</span>
+                {/if}
                 <span class="title"
                   >{item.content_preview?.title || "Untitled"}</span
                 >
@@ -1072,6 +1086,40 @@
   .action-form h4 {
     margin: 0 0 1rem;
     color: #1e293b;
+  }
+
+  .flag-explanation {
+    background: #fffbeb;
+    color: #92400e;
+    padding: 0.75rem;
+    border-radius: 4px;
+    border-left: 4px solid #f59e0b;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    margin-bottom: 1rem;
+  }
+
+  .flag-indicator {
+    font-size: 0.9rem;
+    color: #dc2626;
+    filter: drop-shadow(0 1px 2px rgba(220, 38, 38, 0.3));
+    animation: flagPulse 2s ease-in-out infinite;
+  }
+
+  .flag-indicator.large {
+    font-size: 1.2rem;
+    margin: 0 0.25rem;
+  }
+
+  @keyframes flagPulse {
+    0%, 100% { 
+      opacity: 1; 
+      transform: scale(1);
+    }
+    50% { 
+      opacity: 0.7; 
+      transform: scale(1.1);
+    }
   }
 
   .form-group {
