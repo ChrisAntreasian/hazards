@@ -1,15 +1,58 @@
 import { createSupabaseServerClient } from '$lib/supabase.js';
 import type { ModerationItem, ModerationAction, ModerationStats, AutoModerationResult } from '$lib/types/moderation.js';
 
+/**
+ * Core moderation queue management class for handling content review workflows.
+ * Provides comprehensive CRUD operations for moderation items, automated screening,
+ * and statistical reporting for administrative oversight.
+ * 
+ * @example
+ * ```typescript
+ * // Initialize moderation queue in a SvelteKit load function
+ * const moderationQueue = new ModerationQueue(event);
+ * 
+ * // Get next item for review
+ * const nextItem = await moderationQueue.getNextItem(moderatorId);
+ * 
+ * // Process moderation decision
+ * await moderationQueue.processAction(itemId, {
+ *   type: 'approve',
+ *   notes: 'Content meets guidelines'
+ * }, moderatorId);
+ * ```
+ */
 export class ModerationQueue {
+  /**
+   * Creates a new ModerationQueue instance with SvelteKit event context.
+   * @param event - SvelteKit RequestEvent containing cookies and request context
+   */
   constructor(private event: any) {}
 
+  /**
+   * Gets authenticated Supabase client from the current request context.
+   * @private
+   * @returns Supabase client configured with user session
+   */
   private get supabase() {
     return createSupabaseServerClient(this.event);
   }
 
   /**
-   * Get next moderation item for a moderator
+   * Retrieves the next highest-priority moderation item for a specific moderator.
+   * Implements intelligent queue management by prioritizing urgent items and ensuring
+   * fair distribution of oldest pending items among moderators.
+   * 
+   * @param moderatorId - Unique identifier of the moderator requesting work
+   * @returns Promise resolving to the next ModerationItem or null if queue is empty
+   * @throws {Error} When Supabase client is not configured or database error occurs
+   * 
+   * @example
+   * ```typescript
+   * const nextItem = await moderationQueue.getNextItem('mod-123');
+   * if (nextItem) {
+   *   console.log(`Assigned ${nextItem.type} item: ${nextItem.content_preview.title}`);
+   * }
+   * ```
    */
   async getNextItem(moderatorId: string): Promise<ModerationItem | null> {
     const supabase = this.supabase;
@@ -50,7 +93,20 @@ export class ModerationQueue {
   }
 
   /**
-   * Get a specific moderation item by ID
+   * Retrieves a specific moderation item by its unique identifier.
+   * Automatically assigns the item to the requesting moderator if unassigned,
+   * enabling deep-link access to specific moderation cases.
+   * 
+   * @param itemId - Unique identifier of the moderation item to retrieve
+   * @param moderatorId - ID of the moderator requesting the specific item
+   * @returns Promise resolving to ModerationItem or null if not found/not pending
+   * @throws {Error} When Supabase client is not configured or database error occurs
+   * 
+   * @example
+   * ```typescript
+   * // Direct access to specific moderation case
+   * const item = await moderationQueue.getSpecificItem('mod-item-456', 'moderator-123');
+   * ```
    */
   async getSpecificItem(itemId: string, moderatorId: string): Promise<ModerationItem | null> {
     const supabase = this.supabase;
@@ -88,7 +144,23 @@ export class ModerationQueue {
   }
 
   /**
-   * Add item to moderation queue
+   * Adds new content to the moderation queue for review.
+   * Accepts hazard reports, image uploads, or template submissions that require
+   * human review before publication to the platform.
+   * 
+   * @param item - Moderation item data excluding auto-generated fields (id, created_at)
+   * @throws {Error} When Supabase client is not configured or database insertion fails
+   * 
+   * @example
+   * ```typescript
+   * await moderationQueue.addToQueue({
+   *   type: 'hazard',
+   *   content_id: 'hazard-789',
+   *   submitted_by: 'user-123',
+   *   flagged_reasons: ['Automated screening flagged location'],
+   *   priority: 'high'
+   * });
+   * ```
    */
   async addToQueue(item: Omit<ModerationItem, 'id' | 'created_at'>): Promise<void> {
     const supabase = this.supabase;
@@ -114,7 +186,30 @@ export class ModerationQueue {
   }
 
   /**
-   * Process moderation action (approve/reject/flag)
+   * Processes a moderation decision for a specific queue item.
+   * Handles three action types: approve (publish content), reject (hide content),
+   * or flag (mark for additional review). Updates both queue status and actual content.
+   * 
+   * @param itemId - Unique identifier of the moderation item being reviewed
+   * @param action - Moderation decision containing type, reason, and notes
+   * @param moderatorId - ID of the moderator making the decision
+   * @throws {Error} When Supabase client is not configured or database update fails
+   * 
+   * @example
+   * ```typescript
+   * // Approve content for publication
+   * await moderationQueue.processAction('item-123', {
+   *   type: 'approve',
+   *   notes: 'Verified hazard location and severity level'
+   * }, 'moderator-456');
+   * 
+   * // Reject inappropriate content
+   * await moderationQueue.processAction('item-456', {
+   *   type: 'reject',
+   *   reason: 'spam',
+   *   notes: 'Content violates community guidelines'
+   * }, 'moderator-456');
+   * ```
    */
   async processAction(
     itemId: string, 
@@ -181,7 +276,18 @@ export class ModerationQueue {
   }
 
   /**
-   * Calculate average review time in minutes from resolved items
+   * Calculates the average time moderators take to review and resolve items.
+   * Samples the most recent 100 resolved items to compute meaningful statistics
+   * for performance monitoring and workload assessment.
+   * 
+   * @private
+   * @param supabase - Authenticated Supabase client for database queries
+   * @returns Promise resolving to average review time in minutes (rounded)
+   * 
+   * @example
+   * // Internal usage in getStats()
+   * const avgTime = await this.calculateAverageReviewTime(supabase);
+   * // Result: 23 (minutes average review time)
    */
   private async calculateAverageReviewTime(supabase: any): Promise<number> {
     try {
@@ -212,7 +318,19 @@ export class ModerationQueue {
   }
 
   /**
-   * Get moderation statistics for dashboard
+   * Retrieves comprehensive moderation statistics for administrative dashboards.
+   * Provides real-time metrics including queue depth, daily activity, performance
+   * indicators, and priority distribution for operational oversight.
+   * 
+   * @returns Promise resolving to ModerationStats object with current metrics
+   * @throws {Error} When Supabase client is not configured or query fails
+   * 
+   * @example
+   * ```typescript
+   * const stats = await moderationQueue.getStats();
+   * console.log(`Pending: ${stats.pending_count}, Avg Review: ${stats.avg_review_time_minutes}min`);
+   * // Output: "Pending: 15, Avg Review: 23min"
+   * ```
    */
   async getStats(): Promise<ModerationStats> {
     const supabase = this.supabase;
@@ -273,7 +391,24 @@ export class ModerationQueue {
   }
 
   /**
-   * Get moderation queue with pagination
+   * Retrieves paginated moderation queue with optional status filtering.
+   * Implements intelligent sorting: pending items by priority/age, resolved items
+   * by recency. Essential for building moderation dashboard interfaces.
+   * 
+   * @param status - Optional filter for item status ('pending', 'approved', 'rejected')
+   * @param limit - Maximum number of items per page (default: 20)
+   * @param offset - Number of items to skip for pagination (default: 0)
+   * @returns Promise resolving to paginated results with total count
+   * @throws {Error} When Supabase client is not configured or query fails
+   * 
+   * @example
+   * ```typescript
+   * // Get first page of pending items
+   * const { items, totalCount } = await moderationQueue.getQueue('pending', 10, 0);
+   * 
+   * // Get second page of all items (any status)
+   * const page2 = await moderationQueue.getQueue(undefined, 10, 10);
+   * ```
    */
   async getQueue(
     status?: 'pending' | 'approved' | 'rejected',
@@ -324,7 +459,19 @@ export class ModerationQueue {
   }
 
   /**
-   * Transform database result to ModerationItem format
+   * Transforms raw database moderation queue records into structured ModerationItem objects.
+   * Enriches items with content previews, submitter information, and associated media
+   * for comprehensive moderation review interfaces.
+   * 
+   * @private
+   * @param data - Raw moderation queue record from database
+   * @returns Promise resolving to fully populated ModerationItem object
+   * 
+   * @example
+   * // Internal transformation process
+   * const rawRecord = { id: '123', type: 'hazard', content_id: '456', ... };
+   * const moderationItem = await this.transformToModerationItem(rawRecord);
+   * // Result includes content_preview with hazard details and images
    */
   private async transformToModerationItem(data: any): Promise<ModerationItem> {
     const supabase = this.supabase;
@@ -433,7 +580,19 @@ export class ModerationQueue {
   }
 
   /**
-   * Update the actual content status based on moderation decision
+   * Updates the actual content record status based on moderation decisions.
+   * Applies approved/rejected status to hazards, images, or templates in their
+   * respective tables to control public visibility and platform inclusion.
+   * 
+   * @private
+   * @param item - Moderation queue item containing content type and ID
+   * @param action - Moderation decision: 'approve' or 'reject'
+   * @throws {Error} When database update fails for the target content
+   * 
+   * @example
+   * // Internal usage after moderation decision
+   * await this.updateContentStatus(moderationItem, 'approve');
+   * // Updates hazards.status = 'approved' for public visibility
    */
   private async updateContentStatus(item: any, action: 'approve' | 'reject'): Promise<void> {
     const supabase = this.supabase;
@@ -472,7 +631,32 @@ export class ModerationQueue {
 }
 
 /**
- * Automated pre-moderation screening
+ * Performs automated pre-moderation screening using rule-based analysis.
+ * Analyzes content for spam indicators, location validity, and appropriateness
+ * to determine if content can be auto-approved, auto-rejected, or needs human review.
+ * 
+ * @param content - Content object to analyze (hazard, image, or template data)
+ * @param contentType - Type of content being screened for appropriate analysis
+ * @returns Promise resolving to AutoModerationResult with action recommendation
+ * 
+ * @example
+ * ```typescript
+ * // Screen new hazard report before human moderation
+ * const result = await runAutomatedModeration({
+ *   title: 'Pothole on Main St',
+ *   description: 'Large pothole causing tire damage',
+ *   latitude: 42.3601,
+ *   longitude: -71.0589
+ * }, 'hazard');
+ * 
+ * if (result.action === 'approve') {
+ *   // Auto-publish high-confidence good content
+ * } else if (result.action === 'reject') {
+ *   // Auto-reject obvious spam/inappropriate content  
+ * } else {
+ *   // Queue for human review
+ * }
+ * ```
  */
 export async function runAutomatedModeration(
   content: any,
@@ -526,7 +710,21 @@ export async function runAutomatedModeration(
 }
 
 /**
- * Basic text analysis for spam detection
+ * Analyzes text content for spam indicators and inappropriate language.
+ * Uses rule-based detection for common spam patterns, length validation,
+ * and basic profanity filtering to compute content quality scores.
+ * 
+ * @param text - Combined text content (title + description) to analyze
+ * @returns Analysis object with spam score, sentiment, and language appropriateness
+ * 
+ * @example
+ * ```typescript
+ * const analysis = analyzeText('Click here for free money now!!!');
+ * // Returns: { spam_score: 0.8, sentiment: 0.5, language_appropriate: true }
+ * 
+ * const legitAnalysis = analyzeText('Pothole causing flat tires on Main Street');
+ * // Returns: { spam_score: 0.1, sentiment: 0.5, language_appropriate: true }
+ * ```
  */
 function analyzeText(text: string) {
   const lowerText = text.toLowerCase();
@@ -550,7 +748,29 @@ function analyzeText(text: string) {
 }
 
 /**
- * Basic location validation
+ * Validates geographic coordinates and checks for potential duplicate reports.
+ * Ensures coordinates are within valid ranges, fall within supported regions
+ * (currently Boston area), and detects nearby existing hazards to prevent spam.
+ * 
+ * @param lat - Latitude coordinate to validate
+ * @param lng - Longitude coordinate to validate  
+ * @param supabase - Optional Supabase client for duplicate detection queries
+ * @returns Promise resolving to location analysis with validity flags
+ * 
+ * @example
+ * ```typescript
+ * // Validate Boston-area coordinates
+ * const result = await analyzeLocation(42.3601, -71.0589, supabase);
+ * // Returns: { 
+ * //   valid_location: true, 
+ * //   in_supported_region: true, 
+ * //   duplicate_nearby: false 
+ * // }
+ * 
+ * // Invalid coordinates outside supported region
+ * const invalid = await analyzeLocation(40.7589, -73.9851); // NYC coords
+ * // Returns: { valid_location: true, in_supported_region: false, duplicate_nearby: false }
+ * ```
  */
 async function analyzeLocation(lat: number, lng: number, supabase?: any) {
   // Check if coordinates are valid

@@ -1,3 +1,46 @@
+<!--
+/**
+ * @fileoverview Advanced image upload component with drag-and-drop, queue management, and progress tracking.
+ * Provides secure image handling for hazard reports with automatic processing, validation, and batch uploads.
+ * 
+ * @component ImageUpload
+ * @example
+ * ```svelte
+ * <ImageUpload 
+ *   {userId} 
+ *   {hazardId}
+ *   {hazardLocation}
+ *   maxFiles={3}
+ *   {supabaseClient}
+ *   on:upload={(e) => handleImageUpload(e.detail)}
+ *   on:error={(e) => showError(e.detail.message)}
+ *   on:success={(e) => showSuccess(e.detail.message)}
+ * />
+ * ```
+ * 
+ * @dispatches upload - Fired when an image is successfully uploaded
+ * @dispatches error - Fired when upload validation or processing fails
+ * @dispatches progress - Fired during upload progress for each file
+ * @dispatches success - Fired when all uploads complete successfully
+ * 
+ * @features
+ * - Drag and drop interface with visual feedback
+ * - Multi-file selection with queue management
+ * - Real-time upload progress tracking
+ * - Image validation (type, size, dimensions)
+ * - Automatic image processing and optimization
+ * - Geographic metadata integration
+ * - Toast notification system
+ * - Responsive design for mobile/desktop
+ * 
+ * @security
+ * - File type validation (images only)
+ * - Size limits (1KB - 10MB per image)
+ * - Content scanning via ImageProcessor
+ * - Secure upload to Supabase Storage with RLS
+ */
+-->
+
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
   import type { SupabaseClient } from "@supabase/supabase-js";
@@ -5,14 +48,26 @@
   import { ImageStorage } from "$lib/images/storage.js";
   import type { GeoPoint, ImageUploadResult } from "$lib/types/images.js";
 
+  /**
+   * Component props interface for type-safe property binding.
+   * @interface Props
+   */
   interface Props {
+    /** Optional hazard ID to associate uploaded images with existing hazard report */
     hazardId?: string;
+    /** Required user ID for image ownership and RLS security */
     userId: string;
+    /** Optional geographic coordinates for EXIF data and location validation */
     hazardLocation?: GeoPoint;
+    /** Maximum number of images that can be uploaded at once (default: 5) */
     maxFiles?: number;
+    /** Disables upload functionality when true (loading states, permissions) */
     disabled?: boolean;
+    /** Authenticated Supabase client for secure upload operations */
     supabaseClient?: SupabaseClient | null;
+    /** Current user session for authorization and metadata */
     currentSession?: any;
+    /** Current user object for additional context and validation */
     currentUser?: any;
   }
 

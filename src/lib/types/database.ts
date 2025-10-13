@@ -1,4 +1,29 @@
-// Core database types will be generated from Supabase
+/**
+ * @fileoverview Core database type definitions for HazardTracker application.
+ * Provides comprehensive TypeScript interfaces matching Supabase database schema
+ * with support for type-safe queries, mutations, and RPC function results.
+ * 
+ * @module DatabaseTypes
+ * @author HazardTracker Development Team
+ * @version 2.0.0
+ * 
+ * @description
+ * These types are designed to be compatible with Supabase's generated types
+ * while providing additional business logic types and computed interfaces.
+ * All interfaces include proper temporal fields (created_at, updated_at) and
+ * follow consistent naming conventions across the application.
+ * 
+ * @security
+ * - All user-facing content includes moderation status tracking
+ * - Geographic data includes multiple indexing strategies (geohash, geo_cell)
+ * - Permission-based access control through UserRole enumeration
+ * - Content ownership tracking for Row Level Security (RLS) policies
+ */
+
+/**
+ * Root database interface providing type-safe access to all Supabase tables.
+ * Extends Supabase's generated Database type with custom business logic interfaces.
+ */
 export interface Database {
   public: {
     Tables: {
@@ -41,13 +66,24 @@ export interface Database {
   };
 }
 
+/**
+ * User account information with gamification and permission tracking.
+ * Trust scores enable community-driven content quality through user reputation.
+ */
 export interface User {
+  /** Unique user identifier matching Supabase Auth user ID */
   id: string;
+  /** Email address for authentication and notifications */
   email: string;
+  /** Computed trust score based on contribution quality and community feedback (0-1000+) */
   trust_score: number;
+  /** Total number of hazards, images, and ratings contributed by user */
   total_contributions: number;
+  /** Permission level determining available actions and moderation capabilities */
   role: UserRole;
+  /** Account creation timestamp in ISO 8601 format */
   created_at: string;
+  /** Last profile update timestamp for tracking account changes */
   updated_at: string;
 }
 
@@ -75,24 +111,46 @@ export interface HazardTemplate {
   created_at: string;
 }
 
+/**
+ * Core hazard report containing location, description, and community validation data.
+ * Supports both template-based reporting and custom hazard submissions with geographic indexing.
+ */
 export interface Hazard {
+  /** Unique hazard identifier for referencing and sharing */
   id: string;
+  /** Optional reference to HazardTemplate for standardized hazard types */
   template_id: string | null;
+  /** User who submitted the hazard report (null for system-generated) */
   user_id: string | null;
+  /** User-provided title describing the specific hazard instance */
   title: string;
+  /** Detailed description of hazard location, characteristics, and risks */
   description: string;
+  /** Risk level from 1 (low) to 5 (extreme) affecting map display and filtering */
   severity_level: 1 | 2 | 3 | 4 | 5;
+  /** GPS latitude coordinate for precise hazard positioning */
   latitude: number;
+  /** GPS longitude coordinate for precise hazard positioning */
   longitude: number;
+  /** Geographic cell identifier for efficient spatial queries and clustering */
   geo_cell: string;
+  /** Geohash string enabling proximity searches and geographic indexing */
   geohash: string;
+  /** Regional identifier for timezone, seasonal data, and local context */
   region_id: string;
+  /** Moderation status controlling public visibility and map inclusion */
   status: 'pending' | 'approved' | 'flagged' | 'removed';
+  /** Computed reliability score based on reporter trust and community verification */
   trust_score: number;
+  /** Number of users who have verified this hazard's accuracy and current status */
   verification_count: number;
+  /** Whether hazard follows seasonal patterns requiring temporal filtering */
   is_seasonal: boolean;
+  /** When hazard was last observed active (null if status unknown) */
   reported_active_date: string | null;
+  /** Initial submission timestamp for chronological ordering */
   created_at: string;
+  /** Last modification timestamp tracking status changes and edits */
   updated_at: string;
 }
 
@@ -171,17 +229,44 @@ export type HazardType =
   | 'water_hazard'
   | 'other';
 
-// RPC function result types
+/**
+ * Result types for Supabase RPC (Remote Procedure Call) functions.
+ * These interfaces define the shape of data returned by custom database functions
+ * that perform complex queries, joins, or computed operations.
+ */
+
+/**
+ * Enriched hazard data returned by user-specific RPC functions.
+ * Combines hazard details with category information for dashboard displays.
+ * 
+ * @example
+ * ```typescript
+ * // RPC function: get_user_hazards(user_id UUID)
+ * const { data } = await supabase.rpc('get_user_hazards', { user_id });
+ * const hazards: UserHazardRpcResult[] = data;
+ * ```
+ */
 export interface UserHazardRpcResult {
+  /** Hazard unique identifier */
   id: string;
+  /** User-provided hazard title */
   title: string;
+  /** Detailed hazard description */
   description: string;
+  /** Formatted location string for display */
   location: string;
+  /** GPS latitude coordinate */
   latitude: number;
+  /** GPS longitude coordinate */
   longitude: number;
+  /** Current moderation/approval status */
   status: 'pending' | 'approved' | 'rejected';
+  /** Human-readable category name (e.g., "Poison Ivy") */
   category_name: string;
+  /** Icon identifier for category display */
   category_icon: string;
+  /** Hazard creation timestamp */
   created_at: string;
+  /** Last modification timestamp */
   updated_at: string;
 }

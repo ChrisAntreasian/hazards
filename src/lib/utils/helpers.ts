@@ -1,9 +1,32 @@
 /**
- * Utility functions for common operations
+ * @fileoverview Core utility functions for common operations across the HazardTracker application.
+ * Provides reusable helpers for async operations, data formatting, validation, and UI enhancements.
+ * 
+ * @author HazardTracker Development Team
+ * @version 1.0.0
  */
 
 /**
- * Debounce function to limit rapid function calls
+ * Creates a debounced version of a function that delays execution until after
+ * the specified wait time has passed since its last invocation. Essential for
+ * performance optimization in search inputs, API calls, and event handlers.
+ * 
+ * @template T - Function type being debounced
+ * @param func - The function to debounce
+ * @param wait - Milliseconds to delay execution after last call
+ * @returns Debounced function that delays execution
+ * 
+ * @example
+ * ```typescript
+ * // Debounce search API calls
+ * const debouncedSearch = debounce(async (query: string) => {
+ *   const results = await searchHazards(query);
+ *   updateResults(results);
+ * }, 300);
+ * 
+ * // Usage in input handler
+ * <input on:input={(e) => debouncedSearch(e.target.value)} />
+ * ```
  */
 export function debounce<T extends (...args: any[]) => any>(
   func: T,
@@ -17,7 +40,30 @@ export function debounce<T extends (...args: any[]) => any>(
 }
 
 /**
- * Retry function with exponential backoff
+ * Executes an async function with automatic retry logic and exponential backoff.
+ * Provides resilient error handling for network requests, database operations,
+ * and external API calls that may experience transient failures.
+ * 
+ * @template T - Return type of the async function being retried
+ * @param fn - Async function to execute with retry logic
+ * @param options - Retry configuration object
+ * @param options.retries - Maximum number of retry attempts (default: 3)
+ * @param options.delay - Initial delay in milliseconds (default: 1000)
+ * @param options.backoff - Delay multiplier for exponential backoff (default: 2)
+ * @returns Promise resolving to the successful function result
+ * @throws The last error encountered if all retry attempts fail
+ * 
+ * @example
+ * ```typescript
+ * // Retry failed API calls with exponential backoff
+ * const hazardData = await retry(
+ *   () => fetch('/api/hazards').then(r => r.json()),
+ *   { retries: 5, delay: 500, backoff: 2 }
+ * );
+ * 
+ * // Retry database operations
+ * await retry(() => supabase.from('hazards').insert(newHazard));
+ * ```
  */
 export async function retry<T>(
   fn: () => Promise<T>,
@@ -41,7 +87,26 @@ export async function retry<T>(
 }
 
 /**
- * Safe JSON parse with fallback
+ * Safely parses JSON strings with automatic fallback for invalid JSON.
+ * Prevents application crashes from malformed data in localStorage, API responses,
+ * or user inputs while providing predictable fallback behavior.
+ * 
+ * @template T - Expected type of the parsed JSON object
+ * @param json - JSON string to parse safely
+ * @param fallback - Default value returned if parsing fails
+ * @returns Parsed object of type T, or fallback if parsing fails
+ * 
+ * @example
+ * ```typescript
+ * // Parse user preferences with default fallback
+ * const userPrefs = safeJsonParse(localStorage.getItem('preferences'), {
+ *   theme: 'light',
+ *   notifications: true
+ * });
+ * 
+ * // Parse API response with empty array fallback
+ * const hazards = safeJsonParse(responseData, []);
+ * ```
  */
 export function safeJsonParse<T>(json: string, fallback: T): T {
   try {
@@ -52,7 +117,27 @@ export function safeJsonParse<T>(json: string, fallback: T): T {
 }
 
 /**
- * Format error messages for display
+ * Extracts user-friendly error messages from various error object formats.
+ * Provides consistent error message formatting across different error sources
+ * including Supabase, fetch responses, and custom application errors.
+ * 
+ * @param error - Error object, string, or any error-like structure
+ * @returns Human-readable error message string suitable for user display
+ * 
+ * @example
+ * ```typescript
+ * // Handle different error formats consistently
+ * try {
+ *   await createHazard(hazardData);
+ * } catch (error) {
+ *   const message = formatErrorMessage(error);
+ *   showNotification(message, 'error');
+ * }
+ * 
+ * // Supabase error -> "Email already registered"
+ * // Network error -> "Failed to fetch"
+ * // Custom error -> "Invalid hazard coordinates"
+ * ```
  */
 export function formatErrorMessage(error: any): string {
   if (typeof error === 'string') return error;

@@ -1,8 +1,29 @@
-import { z } from 'zod';
-
 /**
- * Comprehensive validation schemas for hazard submissions
+ * @fileoverview Comprehensive hazard validation system using Zod schemas.
+ * Provides type-safe validation for hazard submissions, image uploads, templates,
+ * and user ratings with detailed error reporting and business logic checks.
+ * 
+ * @module HazardValidation
+ * @author HazardTracker Development Team
+ * @version 2.1.0
+ * 
+ * @features
+ * - Geographic coordinate validation (Boston MVP focus)
+ * - Content safety checks (profanity, spam detection)
+ * - Image file validation (size, type, format)
+ * - Category path validation against predefined taxonomy
+ * - Real-time field validation for UX
+ * - Batch validation for administrative imports
+ * - Business logic warnings and recommendations
+ * 
+ * @security
+ * - Input sanitization for all text fields
+ * - Geographic bounds enforcement
+ * - File type and size restrictions
+ * - Content appropriateness validation
  */
+
+import { z } from 'zod';
 
 // Base coordinate validation
 const CoordinateSchema = z.object({
@@ -234,7 +255,33 @@ export interface ValidationError {
 }
 
 /**
- * Validate hazard submission with detailed error reporting
+ * Validates complete hazard submission data with comprehensive error reporting.
+ * Performs both schema validation and business logic checks to ensure data quality
+ * and platform safety before submission to moderation queue.
+ * 
+ * @param data - Unknown data object to validate against HazardSubmissionSchema
+ * @returns ValidationResult with parsed data, errors, and business logic warnings
+ * 
+ * @example
+ * ```typescript
+ * const result = validateHazardSubmission({
+ *   title: 'Poison ivy near trail entrance',
+ *   description: 'Large patch of poison ivy growing along the main trail...',
+ *   category_path: 'plants/poisonous/poison_ivy',
+ *   location: { latitude: 42.3601, longitude: -71.0589 },
+ *   severity_level: 3,
+ *   images: [imageFile1, imageFile2]
+ * });
+ * 
+ * if (result.success) {
+ *   await submitHazard(result.data);
+ *   if (result.warnings?.length) {
+ *     showWarnings(result.warnings);
+ *   }
+ * } else {
+ *   displayErrors(result.errors);
+ * }
+ * ```
  */
 export function validateHazardSubmission(data: unknown): ValidationResult<z.infer<typeof HazardSubmissionSchema>> {
   try {
@@ -290,7 +337,30 @@ export function validateHazardSubmission(data: unknown): ValidationResult<z.infe
 }
 
 /**
- * Quick validation for real-time feedback
+ * Performs real-time validation of individual form fields for immediate user feedback.
+ * Enables responsive form validation without full submission processing,
+ * improving user experience through instant validation feedback.
+ * 
+ * @param fieldName - Name of the field to validate (title, description, location, etc.)
+ * @param value - Field value to validate against corresponding schema rule
+ * @returns ValidationError object if validation fails, null if valid
+ * 
+ * @example
+ * ```typescript
+ * // Real-time title validation in Svelte component
+ * $: titleError = validateField('title', hazardTitle);
+ * 
+ * // Display error in form
+ * {#if titleError}
+ *   <span class="error">{titleError.message}</span>
+ * {/if}
+ * 
+ * // Location validation with coordinates
+ * const locationError = validateField('location', { 
+ *   latitude: 42.3601, 
+ *   longitude: -71.0589 
+ * });
+ * ```
  */
 export function validateField(fieldName: string, value: any): ValidationError | null {
   try {
@@ -331,7 +401,32 @@ export function validateField(fieldName: string, value: any): ValidationError | 
 }
 
 /**
- * Batch validate multiple submissions (for admin import)
+ * Validates multiple hazard submissions in batch for administrative data imports.
+ * Processes arrays of submission data efficiently while maintaining individual
+ * error tracking for bulk operations and data migration scenarios.
+ * 
+ * @param submissions - Array of unknown submission objects to validate
+ * @returns Object containing separated valid and invalid submissions with indices
+ * 
+ * @example
+ * ```typescript
+ * // Admin bulk import scenario
+ * const importData = await parseCSVFile(csvFile);
+ * const { valid, invalid } = validateBatch(importData);
+ * 
+ * console.log(`Processing ${valid.length} valid submissions`);
+ * console.log(`Found ${invalid.length} submissions with errors`);
+ * 
+ * // Process valid submissions
+ * for (const { index, data } of valid) {
+ *   await createHazard(data);
+ * }
+ * 
+ * // Report invalid submissions
+ * for (const { index, errors } of invalid) {
+ *   console.log(`Row ${index + 1}: ${errors.map(e => e.message).join(', ')}`);
+ * }
+ * ```
  */
 export function validateBatch(submissions: unknown[]): {
   valid: Array<{ index: number; data: z.infer<typeof HazardSubmissionSchema> }>;

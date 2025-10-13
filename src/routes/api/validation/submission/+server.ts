@@ -1,3 +1,13 @@
+/**
+ * @fileoverview Hazard submission validation and automated pre-screening API endpoint.
+ * Provides comprehensive validation pipeline including schema validation, content screening,
+ * automated moderation decisions, and queue management for human review workflow.
+ * 
+ * @route POST /api/validation/submission
+ * @security Requires authenticated user session with valid Supabase JWT
+ * @ratelimit Inherits from global rate limiting middleware
+ */
+
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
 import { validateHazardSubmission } from '$lib/validation/hazard-validation.js';
@@ -6,8 +16,56 @@ import { ModerationQueue } from '$lib/utils/moderation.js';
 import { createSupabaseServerClient } from '$lib/supabase.js';
 
 /**
- * API endpoint for full hazard submission validation and pre-screening
- * POST /api/validation/submission
+ * Comprehensive hazard submission validation and automated pre-screening endpoint.
+ * Processes user-submitted hazard data through multi-stage validation pipeline
+ * including schema validation, content safety screening, and intelligent routing
+ * for automatic approval or moderation queue assignment.
+ * 
+ * @param request - SvelteKit request containing JSON hazard submission data
+ * @param cookies - Authentication cookies for Supabase client creation
+ * @param locals - SvelteKit locals (unused but available for extensions)
+ * @returns JSON response with validation results and next action instructions
+ * 
+ * @example
+ * ```typescript
+ * // Frontend usage
+ * const response = await fetch('/api/validation/submission', {
+ *   method: 'POST',
+ *   headers: { 'Content-Type': 'application/json' },
+ *   body: JSON.stringify({
+ *     title: 'Poison ivy near trail entrance',
+ *     description: 'Large patch growing along main trail...',
+ *     category_path: 'plants/poisonous/poison_ivy',
+ *     location: { latitude: 42.3601, longitude: -71.0589 },
+ *     severity_level: 3,
+ *     images: [imageFile1, imageFile2]
+ *   })
+ * });
+ * 
+ * const result = await response.json();
+ * if (result.success) {
+ *   if (result.next_action === 'auto_approve') {
+ *     showSuccess('Hazard published successfully!');
+ *   } else {
+ *     showInfo(`Queued for review: ${result.message}`);
+ *   }
+ * }
+ * ```
+ * 
+ * @workflow
+ * 1. Authentication validation and user session retrieval
+ * 2. JSON schema validation against HazardSubmissionSchema
+ * 3. User trust score lookup for screening context
+ * 4. Automated content pre-screening analysis
+ * 5. Routing decision: auto-approve, auto-reject, or queue for moderation
+ * 6. Temporary hazard creation and moderation queue assignment (if needed)
+ * 7. Response with validation results and user guidance
+ * 
+ * @responses
+ * - 200: Validation complete with success/failure details and next steps
+ * - 400: Schema validation failed with detailed field errors
+ * - 401: User authentication required or invalid session
+ * - 500: Server error during validation pipeline or database operations
  */
 export const POST: RequestHandler = async ({ request, cookies, locals }) => {
   try {
@@ -150,7 +208,12 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
 };
 
 /**
- * Helper function to generate user-friendly messages
+ * Generates user-friendly messages explaining the outcome of submission validation.
+ * Provides clear guidance on what happens next and expected timelines for review.
+ * 
+ * @param action - Automated screening decision (approve, reject, flag, review)
+ * @param estimatedTime - Optional estimated review time in minutes
+ * @returns Human-readable message for user notification and UI display
  */
 function getActionMessage(action: string, estimatedTime?: number): string {
   switch (action) {
@@ -168,7 +231,12 @@ function getActionMessage(action: string, estimatedTime?: number): string {
 }
 
 /**
- * Calculate geo-cell for geographic partitioning
+ * Calculates geographic cell identifier for efficient spatial database partitioning.
+ * Rounds coordinates to nearest 0.1 degree boundary for consistent cell assignment
+ * within the Northeast US region supported by the application.
+ * 
+ * @param location - Geographic coordinates with latitude and longitude
+ * @returns String identifier for database partitioning (e.g., "us_northeast_42.3_-71.0")
  */
 function calculateGeoCell(location: { latitude: number; longitude: number }): string {
   const lat = Math.floor(location.latitude * 10) / 10;
@@ -177,7 +245,13 @@ function calculateGeoCell(location: { latitude: number; longitude: number }): st
 }
 
 /**
- * Calculate geohash for proximity queries
+ * Generates geohash-like identifier for proximity-based hazard queries.
+ * Provides spatial indexing support for "hazards near me" functionality
+ * and geographic clustering operations on the map interface.
+ * 
+ * @param location - Geographic coordinates with latitude and longitude  
+ * @returns String hash for spatial indexing (e.g., "42360100_-71058900")
+ * @note Production implementation should use proper geohash library for standardization
  */
 function calculateGeohash(location: { latitude: number; longitude: number }): string {
   // Simple geohash implementation - in production, use a proper geohash library
