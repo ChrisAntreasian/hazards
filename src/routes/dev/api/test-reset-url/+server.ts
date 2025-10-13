@@ -1,13 +1,8 @@
 import { json } from '@sveltejs/kit';
-import { createSupabaseServerClient } from '$lib/supabase.js';
+import type { RequestHandler } from './$types';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 
-export const POST = async (event: any) => {
-  const supabase = createSupabaseServerClient(event);
-  
-  if (!supabase) {
-    return json({ error: 'Supabase not configured' }, { status: 500 });
-  }
+export const POST: RequestHandler = async (event) => {
 
   const { email } = await event.request.json();
   

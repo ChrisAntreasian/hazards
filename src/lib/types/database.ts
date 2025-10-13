@@ -170,3 +170,18 @@ export type HazardType =
   | 'insects'
   | 'water_hazard'
   | 'other';
+
+// RPC function result types
+export interface UserHazardRpcResult {
+  id: string;
+  title: string;
+  description: string;
+  location: string;
+  latitude: number;
+  longitude: number;
+  status: 'pending' | 'approved' | 'rejected';
+  category_name: string;
+  category_icon: string;
+  created_at: string;
+  updated_at: string;
+}

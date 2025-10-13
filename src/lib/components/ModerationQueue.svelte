@@ -92,10 +92,6 @@
         filteredItems = queueItems;
       }
       
-      // Debug logging to see what we're getting
-      console.log("Queue items loaded:", queueItems);
-      console.log("Filtered items:", filteredItems);
-      
     } catch (err) {
       console.error("Error loading queue overview:", err);
     }

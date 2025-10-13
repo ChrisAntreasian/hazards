@@ -6,7 +6,7 @@ import type { PageServerLoad, Actions } from './$types';
 export const load: PageServerLoad = async (event) => {
   try {
     // Protect this route - require auth and block during password reset
-    const { user, authenticated } = await protectRoute(event, {
+    const { user } = await protectRoute(event, {
       requireAuth: true,
       blockDuringPasswordReset: true,
       redirectTo: '/auth/log-in?returnUrl=/auth/change-password'

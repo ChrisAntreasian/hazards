@@ -24,9 +24,6 @@ export const load: ServerLoad = async (event) => {
       .eq('id', user.id)
       .single();
 
-    console.log('Moderation access check for user:', user.email, user.id);
-    console.log('User profile query result:', userProfile, profileError);
-
     if (profileError) {
       console.error('Error fetching user profile:', profileError);
       throw redirect(303, '/dashboard?error=Unable to verify permissions - Profile not found');
@@ -34,14 +31,10 @@ export const load: ServerLoad = async (event) => {
 
     // Check if user has moderation permissions
     const allowedRoles = ['moderator', 'admin'];
-    console.log('User role:', userProfile?.role, 'Allowed roles:', allowedRoles);
     
     if (!userProfile || !allowedRoles.includes(userProfile.role)) {
-      console.log('Access denied. User role:', userProfile?.role);
       throw redirect(303, '/dashboard?error=Insufficient permissions for moderation');
     }
-
-    console.log('Access granted to moderation page');
 
     return {
       user: {

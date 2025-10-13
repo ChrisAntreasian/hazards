@@ -463,12 +463,14 @@
   >
     <div
       class="modal"
-      role="document"
+      role="dialog"
+      aria-labelledby="edit-user-title"
+      tabindex="0"
       onclick={(e) => e.stopPropagation()}
       onkeydown={(e) => e.stopPropagation()}
     >
       <div class="modal-header">
-        <h3>
+        <h3 id="edit-user-title">
           Edit User: {selectedUser.profile?.display_name || selectedUser.email}
         </h3>
         <button onclick={closeModals}>×</button>
@@ -548,12 +550,14 @@
   >
     <div
       class="modal"
-      role="document"
+      role="dialog"
+      aria-labelledby="ban-user-title"
+      tabindex="0"
       onclick={(e) => e.stopPropagation()}
       onkeydown={(e) => e.stopPropagation()}
     >
       <div class="modal-header">
-        <h3>
+        <h3 id="ban-user-title">
           Ban User: {selectedUser.profile?.display_name || selectedUser.email}
         </h3>
         <button onclick={closeModals}>×</button>

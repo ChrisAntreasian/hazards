@@ -1,16 +1,15 @@
 import { protectRoute } from '$lib/utils/routeProtection.js';
 import { createSupabaseServerClient } from '$lib/supabase.js';
 import type { PageServerLoad } from './$types';
+import type { UserHazardRpcResult } from '$lib/types/database';
 
 export const load: PageServerLoad = async (event) => {
   try {
     // Protect this route - require auth and block during password reset
-    const { user, authenticated } = await protectRoute(event, {
+    const { user } = await protectRoute(event, {
       requireAuth: true,
       blockDuringPasswordReset: true
     });
-
-    console.log('✅ My Reports access granted for:', user?.email);
 
     // User is guaranteed to be non-null due to protectRoute check
     if (!user) {
@@ -42,11 +41,8 @@ export const load: PageServerLoad = async (event) => {
           console.error('❌ Error fetching user profile:', profileError);
         } else {
           userTrustScore = userProfile?.trust_score || 0;
-          console.log('✅ User trust score loaded for my-reports:', userTrustScore);
         }
 
-        console.log('🔍 Fetching hazards for my-reports page for user:', user.id);
-        
         // Use PostgreSQL function to get user's hazards (bypasses RLS issues)
         const { data: hazardResults, error: hazardsError } = await supabase
           .rpc('get_user_hazards', { p_user_id: user.id });
@@ -55,7 +51,7 @@ export const load: PageServerLoad = async (event) => {
           console.error('❌ Error fetching user hazards in my-reports:', hazardsError);
         } else {
           // Transform the results to match expected structure
-          userHazards = (hazardResults || []).map((hazard: any) => ({
+          userHazards = (hazardResults || []).map((hazard: UserHazardRpcResult) => ({
             ...hazard,
             hazard_categories: {
               name: hazard.category_name,
@@ -63,15 +59,11 @@ export const load: PageServerLoad = async (event) => {
             }
           }));
           
-          console.log('✅ Found hazards for my-reports:', userHazards.length, 'hazards for user', user.id);
-          
           // Calculate stats
           hazardStats.total = userHazards.length;
           hazardStats.pending = userHazards.filter(h => h.status === 'pending').length;
           hazardStats.approved = userHazards.filter(h => h.status === 'approved').length;
           hazardStats.rejected = userHazards.filter(h => h.status === 'rejected').length;
-          
-          console.log('📊 My Reports Stats:', hazardStats);
         }
       } catch (err) {
         console.error('💥 Error in my-reports hazards query:', err);

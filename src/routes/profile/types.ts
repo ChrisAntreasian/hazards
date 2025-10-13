@@ -1,5 +1,3 @@
-import type { User } from '@supabase/supabase-js';
-
 export interface CustomUser {
   id: string;
   email: string | undefined;

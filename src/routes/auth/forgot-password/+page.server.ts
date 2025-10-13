@@ -1,6 +1,5 @@
 import { createSupabaseServerClient } from '$lib/supabase';
-import { redirect, fail } from '@sveltejs/kit';
-import { PUBLIC_SUPABASE_URL } from '$env/static/public';
+import { fail } from '@sveltejs/kit';
 import type { Actions } from './$types';
 
 export const actions: Actions = {
@@ -32,7 +31,7 @@ export const actions: Actions = {
     try {
       const redirectUrl = `${event.url.origin}/auth/callback?type=recovery`;
       
-      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: redirectUrl,
       });
 

@@ -1,5 +1,4 @@
 import { createBrowserClient, createServerClient, isBrowser } from '@supabase/ssr';
-import { createClient } from '@supabase/supabase-js';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 import type { Database } from './types/database.js';
 
@@ -101,7 +100,7 @@ export function createSupabaseServerClient(event: any) {
 }
 
 // Enhanced auth helpers with better error handling - DISABLED to prevent hanging
-export const getCurrentUser = async (supabase: ReturnType<typeof createSupabaseLoadClient>) => {
+export const getCurrentUser = async () => {
   console.warn('getCurrentUser disabled - client auth methods hang. Use server-side auth instead.');
   return null;
   
@@ -129,7 +128,7 @@ export const getCurrentUser = async (supabase: ReturnType<typeof createSupabaseL
 };
 
 // Deep diagnostic function - DISABLED to prevent hanging
-export const diagnoseSupabaseIssues = async (supabase: ReturnType<typeof createSupabaseLoadClient>) => {
+export const diagnoseSupabaseIssues = async () => {
   console.warn('diagnoseSupabaseIssues disabled - contains hanging client auth methods. Use server-side auth diagnostics instead.');
   return;
   
@@ -240,11 +239,7 @@ async function fallbackLogout() {
 }
 
 // Enhanced session helpers - DISABLED to prevent hanging
-export const getSessionWithRetry = async (
-  supabase: ReturnType<typeof createSupabaseLoadClient>,
-  maxRetries = 3,
-  delay = 1000
-) => {
+export const getSessionWithRetry = async () => {
   console.warn('getSessionWithRetry disabled - client auth methods hang. Use server-side auth instead.');
   return { session: null, user: null };
 
@@ -276,7 +271,7 @@ export const getSessionWithRetry = async (
 };
 
 // Validate session integrity - DISABLED to prevent hanging
-export const validateSession = async (supabase: ReturnType<typeof createSupabaseLoadClient>) => {
+export const validateSession = async () => {
   console.warn('validateSession disabled - client auth methods hang. Use server-side auth instead.');
   return false;
 

@@ -1,10 +1,4 @@
-import type { 
-  ModerationItem, 
-  AutoModerationResult, 
-  ModerationAction 
-} from '$lib/types/moderation.js';
 import { validateHazardSubmission } from './hazard-validation.js';
-import { ModerationQueue } from '$lib/utils/moderation.js';
 
 /**
  * Automated content pre-screening service
@@ -373,11 +367,12 @@ export class ContentPreScreening {
         flags.push('Title similar to common submissions');
       }
 
-      // TODO: Implement actual duplicate detection with database queries
-      // This would check for:
-      // - Same location within 50 meters
-      // - Similar content within 24 hours
-      // - Same user submitting multiple times
+      // NOTE: Advanced duplicate detection would require database queries
+      // Future enhancement would check for:
+      // - Same location within 50 meters (using PostGIS)
+      // - Similar content within 24 hours (using text similarity algorithms)
+      // - Same user submitting multiple times (rate limiting)
+      // Basic location duplicate detection is implemented in moderation.ts
 
     } catch (error) {
       console.error('Duplicate check error:', error);

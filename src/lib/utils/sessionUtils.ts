@@ -1,7 +1,5 @@
-import { createSupabaseLoadClient } from '$lib/supabase.js';
-import { authStore, session as sessionStore, user as userStore } from '$lib/stores/auth.js';
+import { authStore, session as sessionStore } from '$lib/stores/auth.js';
 import { get } from 'svelte/store';
-import type { AuthState } from '$lib/types/auth.js';
 
 /**
  * Validates current session and refreshes if needed

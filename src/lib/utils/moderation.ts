@@ -181,6 +181,37 @@ export class ModerationQueue {
   }
 
   /**
+   * Calculate average review time in minutes from resolved items
+   */
+  private async calculateAverageReviewTime(supabase: any): Promise<number> {
+    try {
+      const { data: resolvedItems } = await supabase
+        .from('moderation_queue')
+        .select('created_at, resolved_at')
+        .in('status', ['approved', 'rejected'])
+        .not('resolved_at', 'is', null)
+        .order('resolved_at', { ascending: false })
+        .limit(100); // Sample recent 100 resolved items
+
+      if (!resolvedItems || resolvedItems.length === 0) {
+        return 0;
+      }
+
+      const totalMinutes = resolvedItems.reduce((sum: number, item: any) => {
+        const created = new Date(item.created_at);
+        const resolved = new Date(item.resolved_at);
+        const diffMinutes = (resolved.getTime() - created.getTime()) / (1000 * 60);
+        return sum + diffMinutes;
+      }, 0);
+
+      return Math.round(totalMinutes / resolvedItems.length);
+    } catch (error) {
+      console.error('Error calculating average review time:', error);
+      return 0;
+    }
+  }
+
+  /**
    * Get moderation statistics for dashboard
    */
   async getStats(): Promise<ModerationStats> {
@@ -231,7 +262,7 @@ export class ModerationQueue {
         pending_count: pendingCount || 0,
         approved_today: approvedToday || 0,
         rejected_today: rejectedToday || 0,
-        avg_review_time_minutes: 0, // TODO: Calculate from resolved items
+        avg_review_time_minutes: await this.calculateAverageReviewTime(supabase),
         items_by_priority: priorityCounts
       };
 
@@ -319,9 +350,6 @@ export class ModerationQueue {
       // Also fetch images for this hazard
       const { data: imageData, error: imageError } = await supabase!
         .rpc('get_hazard_images_for_moderation_v2', { target_hazard_id: data.content_id });
-      
-      console.log('Hazard data fetch result:', { hazardData, hazardError, content_id: data.content_id });
-      console.log('Images data fetch result:', { imageData, imageError });
       
       if (hazardData && hazardData.length > 0) {
         const hazard = hazardData[0];
@@ -465,7 +493,7 @@ export async function runAutomatedModeration(
       result.details.text_analysis = textScore;
 
       // Location validation
-      const locationScore = analyzeLocation(content.latitude, content.longitude);
+      const locationScore = await analyzeLocation(content.latitude, content.longitude);
       result.details.location_analysis = locationScore;
 
       // Determine action based on analysis
@@ -524,7 +552,7 @@ function analyzeText(text: string) {
 /**
  * Basic location validation
  */
-function analyzeLocation(lat: number, lng: number) {
+async function analyzeLocation(lat: number, lng: number, supabase?: any) {
   // Check if coordinates are valid
   const validLat = lat >= -90 && lat <= 90;
   const validLng = lng >= -180 && lng <= 180;
@@ -532,9 +560,38 @@ function analyzeLocation(lat: number, lng: number) {
   // Check if in Boston area (our supported region for MVP)
   const inBoston = lat >= 42.2 && lat <= 42.5 && lng >= -71.3 && lng <= -70.8;
   
+  // Basic duplicate detection within 100 meters
+  let duplicateNearby = false;
+  if (supabase && validLat && validLng) {
+    try {
+      // Use PostGIS distance calculation (assuming postgis extension is enabled)
+      const { data: nearbyHazards } = await supabase
+        .rpc('find_nearby_hazards', { 
+          target_lat: lat, 
+          target_lng: lng, 
+          radius_meters: 100 
+        });
+      
+      duplicateNearby = nearbyHazards && nearbyHazards.length > 0;
+    } catch (error) {
+      // If RPC function doesn't exist, fall back to basic coordinate comparison
+      const tolerance = 0.001; // Roughly 100 meters at Boston latitude
+      const { data: similarHazards } = await supabase
+        .from('hazards')
+        .select('latitude, longitude')
+        .gte('latitude', lat - tolerance)
+        .lte('latitude', lat + tolerance)
+        .gte('longitude', lng - tolerance)
+        .lte('longitude', lng + tolerance)
+        .limit(1);
+      
+      duplicateNearby = similarHazards && similarHazards.length > 0;
+    }
+  }
+  
   return {
     valid_location: validLat && validLng,
     in_supported_region: inBoston,
-    duplicate_nearby: false // TODO: Implement duplicate detection
+    duplicate_nearby: duplicateNearby
   };
 }

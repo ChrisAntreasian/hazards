@@ -9,7 +9,7 @@ export const load: PageServerLoad = async (event) => {
   
   try {
     // Protect this route - require auth and block during password reset
-    const { user, authenticated } = await protectRoute(event, {
+    const { user } = await protectRoute(event, {
       requireAuth: true,
       blockDuringPasswordReset: true
     });
@@ -38,7 +38,7 @@ export const load: PageServerLoad = async (event) => {
       .single();
 
     if (profileError) {
-      console.log('No user profile found, user may need to complete registration:', profileError);
+      // User profile not found - may need to complete registration
     }
 
     return {
@@ -99,8 +99,6 @@ export const actions: Actions = {
         console.error('Profile update error:', updateError);
         return fail(400, { error: updateError.message });
       }
-
-      console.log('✅ Profile updated successfully for:', user.email);
       
       return {
         success: true,
@@ -115,7 +113,7 @@ export const actions: Actions = {
       };
       
     } catch (error) {
-      console.log('❌ Profile update exception:', error);
+      console.error('Profile update exception:', error);
       return fail(500, { error: 'Unexpected error during profile update' });
     }
   }

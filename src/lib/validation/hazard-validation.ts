@@ -1,5 +1,4 @@
-import { z, type ZodError } from 'zod';
-import type { HazardCategory } from '$lib/types/database.js';
+import { z } from 'zod';
 
 /**
  * Comprehensive validation schemas for hazard submissions
@@ -293,7 +292,7 @@ export function validateHazardSubmission(data: unknown): ValidationResult<z.infe
 /**
  * Quick validation for real-time feedback
  */
-export function validateField(fieldName: string, value: any, fullData?: any): ValidationError | null {
+export function validateField(fieldName: string, value: any): ValidationError | null {
   try {
     switch (fieldName) {
       case 'title':

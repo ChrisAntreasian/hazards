@@ -1,4 +1,4 @@
-import { redirect } from '@sveltejs/kit';
+
 import { createSupabaseServerClient } from '$lib/supabase';
 import type { PageServerLoad, Actions } from './$types';
 

@@ -90,7 +90,6 @@
   const handleImageUpload = (event: CustomEvent<ImageUploadResult>) => {
     const result = event.detail;
     uploadedImages.push(result.id);
-    console.log('Image uploaded for hazard:', result.id);
   };
 
   const handleUploadError = (event: CustomEvent<{ message: string }>) => {
@@ -319,7 +318,7 @@
           currentUser={user}
           on:upload={handleImageUpload}
           on:error={handleUploadError}
-          on:success={(e) => console.log("Upload success:", e.detail)}
+          on:success={handleImageUpload}
         />
         
         {#if uploadedImages.length > 0}

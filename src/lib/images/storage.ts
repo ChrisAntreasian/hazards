@@ -22,7 +22,6 @@ export class ImageStorage {
   
   async uploadProcessedImage(
     processedImage: ProcessedImage, 
-    userId: string,
     hazardId?: string,
     authSession?: any,
     authUser?: any
@@ -60,7 +59,7 @@ export class ImageStorage {
     
     try {
       // Upload original image
-      const { data: originalData, error: originalError } = await this.supabase.storage
+      const { error: originalError } = await this.supabase.storage
         .from(this.bucket)
         .upload(originalPath, processedImage.original, {
           cacheControl: '31536000', // 1 year
@@ -70,7 +69,7 @@ export class ImageStorage {
       if (originalError) throw originalError;
       
       // Upload thumbnail
-      const { data: thumbnailData, error: thumbnailError } = await this.supabase.storage
+      const { error: thumbnailError } = await this.supabase.storage
         .from(this.bucket)
         .upload(thumbnailPath, processedImage.thumbnail, {
           cacheControl: '31536000', // 1 year

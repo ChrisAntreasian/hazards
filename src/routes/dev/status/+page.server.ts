@@ -1,6 +1,7 @@
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+import type { PageServerLoad } from './$types';
 
-export const load = async (event: any) => {
+export const load: PageServerLoad = async (event) => {
   const currentTime = new Date().toISOString();
   const currentOrigin = event.url.origin;
   

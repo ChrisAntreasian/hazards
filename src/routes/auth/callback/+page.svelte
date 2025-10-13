@@ -24,12 +24,6 @@
       window.location.href.includes("recovery") ||
       document.referrer.includes("forgot-password");
 
-    console.log(
-      "Auth: Processing",
-      isRecovery ? "recovery" : "login",
-      "tokens"
-    );
-
     // Send tokens to server for processing
     const response = await fetch("/auth/callback", {
       method: "POST",

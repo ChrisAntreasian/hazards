@@ -46,7 +46,7 @@
   });
 
   // Mock data for demonstration
-  const mockHazardId = null; // Use null for testing since we don't have a real hazard
+  const mockHazardId: string | null = null; // Use null for testing since we don't have a real hazard
   // Use real user ID if authenticated, otherwise use a test user ID that exists in database
   let mockUserId = $derived(user?.id || "aae81a04-9e69-4b82-ac61-a22bb457d8a6");
   const mockLocation = {
@@ -115,7 +115,7 @@
     // Add new image to gallery (at the beginning)
     const newImage: HazardImage = {
       id: result.id,
-      hazard_id: mockHazardId,
+      hazard_id: mockHazardId || 'test-hazard-id',
       user_id: mockUserId,
       original_url: result.originalUrl,
       thumbnail_url: result.thumbnailUrl,
@@ -318,7 +318,7 @@
     </p>
 
     <ImageUpload
-      hazardId={mockHazardId}
+      hazardId={mockHazardId || undefined}
       userId={mockUserId}
       hazardLocation={mockLocation}
       maxFiles={5}

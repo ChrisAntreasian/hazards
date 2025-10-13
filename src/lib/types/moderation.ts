@@ -25,6 +25,23 @@ export interface ContentPreview {
     longitude: number;
   };
   severity_level?: number;
+  category?: {
+    name: string;
+    icon?: string;
+  };
+  reported_active_date?: string;
+  is_seasonal?: boolean;
+  images?: Array<{
+    id: string;
+    image_url: string;
+    thumbnail_url?: string;
+    uploaded_at: string;
+    vote_score?: number;
+    metadata?: {
+      alt_text?: string;
+      file_size?: number;
+    };
+  }>;
   additional_data?: Record<string, any>;
 }
 
