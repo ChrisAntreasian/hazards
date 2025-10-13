@@ -64,15 +64,16 @@
 
 		// Initialize map asynchronously
 		(async () => {
-			// Dynamic import of Leaflet to avoid SSR issues
-			L = await import('leaflet');
-			
-			// Import MarkerCluster plugin - this extends the L object
 			try {
-				await import('leaflet.markercluster');
-			} catch (error) {
-				console.error('Failed to load MarkerCluster plugin:', error);
-			}
+				// Dynamic import of Leaflet to avoid SSR issues
+				L = await import('leaflet');
+				
+				// Import MarkerCluster plugin - this extends the L object
+				try {
+					await import('leaflet.markercluster');
+				} catch (error) {
+					console.error('Failed to load MarkerCluster plugin:', error);
+				}
 			
 			// Import Leaflet and MarkerCluster CSS
 			if (typeof window !== 'undefined') {
@@ -173,6 +174,10 @@
 
 			// Add hazard markers
 			updateHazardMarkers();
+			} catch (error) {
+				console.error('Failed to initialize map:', error);
+				// You could also dispatch an error event here for the parent to handle
+			}
 		})();
 
 		// Cleanup function
@@ -199,14 +204,14 @@
 
 		// Add new markers for hazards
 		hazards.forEach((hazard, index) => {
-			
-			if (hazard.latitude && hazard.longitude) {
-				const categoryColor = categoryColors[hazard.category_name] || categoryColors['Other'];
+			try {
+				if (hazard?.latitude && hazard?.longitude) {
+				const categoryColor = categoryColors[hazard?.category_name || 'Other'] || categoryColors['Other'];
 				
 				const marker = L.marker([parseFloat(hazard.latitude), parseFloat(hazard.longitude)], {
 					icon: L.divIcon({
 						className: 'hazard-marker',
-						html: `<div style="background: ${categoryColor}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: bold;">${getMarkerIcon(hazard.category_name)}</div>`,
+						html: `<div style="background: ${categoryColor}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: bold;">${getMarkerIcon(hazard?.category_name || 'Other')}</div>`,
 						iconSize: [24, 24],
 						iconAnchor: [12, 12]
 					})
@@ -215,15 +220,15 @@
 				// Add popup with hazard details
 				const popupContent = `
 					<div class="hazard-popup">
-						<h3 style="margin: 0 0 8px 0; font-size: 16px; color: #333;">${hazard.title}</h3>
+						<h3 style="margin: 0 0 8px 0; font-size: 16px; color: #333;">${hazard?.title || 'Untitled Hazard'}</h3>
 						<p style="margin: 0 0 4px 0; font-size: 12px; color: #666;">
-							<strong>Category:</strong> ${hazard.category_name}
+							<strong>Category:</strong> ${hazard?.category_name || 'Unknown'}
 						</p>
 						<p style="margin: 0 0 8px 0; font-size: 14px; color: #444;">
-							${hazard.description}
+							${hazard?.description || 'No description available'}
 						</p>
 						<p style="margin: 0; font-size: 11px; color: #888;">
-							Reported: ${new Date(hazard.created_at).toLocaleDateString()}
+							Reported: ${hazard?.created_at ? new Date(hazard.created_at).toLocaleDateString() : 'Unknown date'}
 						</p>
 					</div>
 				`;
@@ -240,6 +245,9 @@
 					marker.addTo(map);
 				}
 				markers.push(marker);
+				}
+			} catch (error) {
+				console.error(`Error creating marker for hazard at index ${index}:`, error, hazard);
 			}
 		});
 	}
