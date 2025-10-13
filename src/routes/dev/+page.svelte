@@ -21,6 +21,12 @@
       href: "/dev/test/images",
       icon: "📸",
     },
+    {
+      title: "Interactive Map",
+      description: "Test the map functionality with marker clustering, GPS location, and hazard display",
+      href: "/map",
+      icon: "🗺️",
+    },
   ];
 </script>
 

@@ -110,6 +110,13 @@
       </div>
 
       <div class="dashboard-card">
+        <div class="card-icon">🗺️</div>
+        <h3>Interactive Map</h3>
+        <p>View reported hazards on an interactive map and explore your area.</p>
+        <a href="/map" class="btn btn-secondary">Explore Map</a>
+      </div>
+
+      <div class="dashboard-card">
         <div class="card-icon">🎓</div>
         <h3>Safety Education</h3>
         <p>Learn about outdoor hazards and safety best practices.</p>

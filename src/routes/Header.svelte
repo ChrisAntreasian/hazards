@@ -1,40 +1,37 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import logo from '$lib/images/svelte-logo.svg';
-	import github from '$lib/images/github.svg';
 </script>
 
 <header>
-	<div class="corner">
-		<a href="https://svelte.dev/docs/kit">
-			<img src={logo} alt="SvelteKit" />
+	<div class="logo">
+		<a href="/">
+			<span class="logo-icon">⚠️</span>
+			<span class="logo-text">HazardTracker</span>
 		</a>
 	</div>
 
 	<nav>
-		<svg viewBox="0 0 2 3" aria-hidden="true">
-			<path d="M0,0 L1,2 C1.5,3 1.5,3 2,3 L2,0 Z" />
-		</svg>
 		<ul>
 			<li aria-current={page.url.pathname === '/' ? 'page' : undefined}>
 				<a href="/">Home</a>
 			</li>
-			<li aria-current={page.url.pathname === '/about' ? 'page' : undefined}>
-				<a href="/about">About</a>
+			<li aria-current={page.url.pathname === '/map' ? 'page' : undefined}>
+				<a href="/map">🗺️ Map</a>
 			</li>
-			<li aria-current={page.url.pathname.startsWith('/sverdle') ? 'page' : undefined}>
-				<a href="/sverdle">Sverdle</a>
+			<li aria-current={page.url.pathname === '/hazards/create' ? 'page' : undefined}>
+				<a href="/hazards/create">➕ Report</a>
+			</li>
+			<li aria-current={page.url.pathname === '/my-reports' ? 'page' : undefined}>
+				<a href="/my-reports">📋 My Reports</a>
+			</li>
+			<li aria-current={page.url.pathname === '/dashboard' ? 'page' : undefined}>
+				<a href="/dashboard">📊 Dashboard</a>
 			</li>
 		</ul>
-		<svg viewBox="0 0 2 3" aria-hidden="true">
-			<path d="M0,0 L0,3 C0.5,3 0.5,3 1,2 L2,0 Z" />
-		</svg>
 	</nav>
 
-	<div class="corner">
-		<a href="https://github.com/sveltejs/kit">
-			<img src={github} alt="GitHub" />
-		</a>
+	<div class="user-menu">
+		<a href="/auth/log-in" class="btn btn-outline">Log In</a>
 	</div>
 </header>
 
@@ -42,88 +39,110 @@
 	header {
 		display: flex;
 		justify-content: space-between;
+		align-items: center;
+		padding: 1rem 2rem;
+		background: white;
+		border-bottom: 1px solid #e2e8f0;
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 	}
 
-	.corner {
-		width: 3em;
-		height: 3em;
-	}
-
-	.corner a {
+	.logo a {
 		display: flex;
 		align-items: center;
-		justify-content: center;
-		width: 100%;
-		height: 100%;
+		gap: 0.5rem;
+		text-decoration: none;
+		color: #1976d2;
+		font-weight: bold;
+		font-size: 1.5rem;
 	}
 
-	.corner img {
-		width: 2em;
-		height: 2em;
-		object-fit: contain;
+	.logo-icon {
+		font-size: 1.8rem;
 	}
 
-	nav {
+	.logo-text {
+		color: #333;
+	}
+
+	nav ul {
 		display: flex;
-		justify-content: center;
-		--background: rgba(255, 255, 255, 0.7);
-	}
-
-	svg {
-		width: 2em;
-		height: 3em;
-		display: block;
-	}
-
-	path {
-		fill: var(--background);
-	}
-
-	ul {
-		position: relative;
-		padding: 0;
-		margin: 0;
-		height: 3em;
-		display: flex;
-		justify-content: center;
-		align-items: center;
 		list-style: none;
-		background: var(--background);
-		background-size: contain;
+		margin: 0;
+		padding: 0;
+		gap: 0.5rem;
 	}
 
-	li {
+	nav li {
 		position: relative;
-		height: 100%;
-	}
-
-	li[aria-current='page']::before {
-		--size: 6px;
-		content: '';
-		width: 0;
-		height: 0;
-		position: absolute;
-		top: 0;
-		left: calc(50% - var(--size));
-		border: var(--size) solid transparent;
-		border-top: var(--size) solid var(--color-theme-1);
 	}
 
 	nav a {
-		display: flex;
-		height: 100%;
-		align-items: center;
-		padding: 0 0.5rem;
-		color: var(--color-text);
-		font-weight: 700;
-		font-size: 0.8rem;
-		text-transform: uppercase;
-		letter-spacing: 0.1em;
+		display: block;
+		padding: 0.5rem 1rem;
 		text-decoration: none;
-		transition: color 0.2s linear;
+		color: #64748b;
+		font-weight: 500;
+		border-radius: 6px;
+		transition: all 0.2s;
 	}
 
-	a:hover {
-		color: var(--color-theme-1);
+	nav a:hover {
+		background: #f1f5f9;
+		color: #1976d2;
+	}
+
+	li[aria-current='page'] a {
+		background: #e3f2fd;
+		color: #1976d2;
+	}
+
+	.user-menu {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.btn {
+		padding: 0.5rem 1rem;
+		border-radius: 6px;
+		text-decoration: none;
+		font-weight: 500;
+		transition: all 0.2s;
+	}
+
+	.btn-outline {
+		background: transparent;
+		color: #1976d2;
+		border: 1px solid #1976d2;
+	}
+
+	.btn-outline:hover {
+		background: #1976d2;
+		color: white;
+	}
+
+	/* Mobile responsive */
+	@media (max-width: 768px) {
+		header {
+			padding: 0.75rem 1rem;
+		}
+
+		.logo a {
+			font-size: 1.25rem;
+		}
+
+		nav ul {
+			gap: 0.25rem;
+		}
+
+		nav a {
+			padding: 0.375rem 0.75rem;
+			font-size: 0.9rem;
+		}
+
+		.btn {
+			padding: 0.375rem 0.75rem;
+			font-size: 0.9rem;
+		}
 	}
 </style>
