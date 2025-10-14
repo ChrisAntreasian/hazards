@@ -17,13 +17,15 @@
     },
     {
       title: "Image Upload Test",
-      description: "Test complete image upload pipeline: drag-drop upload, WebP conversion, thumbnails, voting, and gallery display",
+      description:
+        "Test complete image upload pipeline: drag-drop upload, WebP conversion, thumbnails, voting, and gallery display",
       href: "/dev/test/images",
       icon: "📸",
     },
     {
       title: "Interactive Map",
-      description: "Test the map functionality with marker clustering, GPS location, and hazard display",
+      description:
+        "Test the map functionality with marker clustering, GPS location, and hazard display",
       href: "/map",
       icon: "🗺️",
     },

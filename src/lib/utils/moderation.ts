@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from '$lib/supabase.js';
+import { logger } from '$lib/utils/logger.js';
 import type { ModerationItem, ModerationAction, ModerationStats, AutoModerationResult } from '$lib/types/moderation.js';
 
 /**
@@ -87,7 +88,9 @@ export class ModerationQueue {
       return await this.transformToModerationItem(data);
 
     } catch (error) {
-      console.error('Error getting next moderation item:', error);
+      logger.dbError('get_next_moderation_item', error as Error, { 
+        metadata: { moderatorId } 
+      });
       throw error;
     }
   }
@@ -138,7 +141,9 @@ export class ModerationQueue {
       return await this.transformToModerationItem(data);
 
     } catch (error) {
-      console.error('Error getting specific moderation item:', error);
+      logger.dbError('get_specific_moderation_item', error as Error, { 
+        metadata: { itemId, moderatorId } 
+      });
       throw error;
     }
   }
@@ -180,7 +185,9 @@ export class ModerationQueue {
 
       if (error) throw error;
     } catch (error) {
-      console.error('Error adding to moderation queue:', error);
+      logger.dbError('add_to_moderation_queue', error as Error, { 
+        metadata: { content_id: item.content_id, type: item.type } 
+      });
       throw error;
     }
   }
@@ -270,7 +277,9 @@ export class ModerationQueue {
       }
 
     } catch (error) {
-      console.error('Error processing moderation action:', error);
+      logger.dbError('process_moderation_action', error as Error, { 
+        metadata: { action: action.type, item_id: itemId } 
+      });
       throw error;
     }
   }
@@ -312,7 +321,7 @@ export class ModerationQueue {
 
       return Math.round(totalMinutes / resolvedItems.length);
     } catch (error) {
-      console.error('Error calculating average review time:', error);
+      logger.dbError('calculate_average_review_time', error as Error);
       return 0;
     }
   }
@@ -525,7 +534,9 @@ export class ModerationQueue {
           })) : []
         };
       } else {
-        console.warn('No hazard data found for content_id:', data.content_id);
+        logger.warn('No hazard data found for content_id', { 
+          metadata: { content_id: data.content_id } 
+        });
         contentPreview = {
           title: 'Unknown Hazard',
           description: 'Data not available',

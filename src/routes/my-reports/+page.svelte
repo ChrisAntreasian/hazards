@@ -1,6 +1,6 @@
 ﻿<script lang="ts">
   import type { PageData } from "./$types";
-  import { page } from '$app/stores';
+  import { page } from "$app/stores";
 
   interface Props {
     data: PageData;
@@ -11,60 +11,65 @@
   // Use server-provided user data
   const user = data.user;
   const userHazards = data.userHazards || [];
-  const hazardStats = data.hazardStats || { total: 0, pending: 0, approved: 0, rejected: 0 };
+  const hazardStats = data.hazardStats || {
+    total: 0,
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+  };
 
   // Check for success message from URL
-  let successMessage = $derived($page.url.searchParams.get('success'));
+  let successMessage = $derived($page.url.searchParams.get("success"));
 
   function formatDate(dateString: string) {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
     });
   }
 
   function getStatusColor(status: string) {
     switch (status) {
-      case 'approved':
-        return 'status-approved';
-      case 'rejected':
-        return 'status-rejected';
-      case 'pending':
-        return 'status-pending';
+      case "approved":
+        return "status-approved";
+      case "rejected":
+        return "status-rejected";
+      case "pending":
+        return "status-pending";
       default:
-        return 'status-unknown';
+        return "status-unknown";
     }
   }
 
   function getSeverityColor(level: number) {
-    if (level >= 4) return 'severity-high';
-    if (level === 3) return 'severity-medium';
-    return 'severity-low';
+    if (level >= 4) return "severity-high";
+    if (level === 3) return "severity-medium";
+    return "severity-low";
   }
 
   // Filter functions for different views
-  let selectedFilter = $state('all');
+  let selectedFilter = $state("all");
   let filteredHazards = $derived(
-    selectedFilter === 'all' 
-      ? userHazards 
-      : userHazards.filter(h => h.status === selectedFilter)
+    selectedFilter === "all"
+      ? userHazards
+      : userHazards.filter((h) => h.status === selectedFilter)
   );
 
   // Sorting options
-  let sortBy = $state('created_at');
-  let sortOrder = $state('desc');
+  let sortBy = $state("created_at");
+  let sortOrder = $state("desc");
   let sortedHazards = $derived(
     [...filteredHazards].sort((a, b) => {
       let aVal = a[sortBy];
       let bVal = b[sortBy];
-      
-      if (sortBy === 'created_at' || sortBy === 'reported_active_date') {
+
+      if (sortBy === "created_at" || sortBy === "reported_active_date") {
         aVal = new Date(aVal).getTime();
         bVal = new Date(bVal).getTime();
       }
-      
-      if (sortOrder === 'asc') {
+
+      if (sortOrder === "asc") {
         return aVal > bVal ? 1 : -1;
       } else {
         return aVal < bVal ? 1 : -1;
@@ -82,15 +87,18 @@
     <header class="page-header">
       <div class="header-content">
         <h1>📊 My Hazard Reports</h1>
-        <p class="subtitle">View and manage all your submitted hazard reports</p>
+        <p class="subtitle">
+          View and manage all your submitted hazard reports
+        </p>
       </div>
       <a href="/hazards/create" class="btn btn-primary">+ Report New Hazard</a>
     </header>
 
     <!-- Success Message -->
-    {#if successMessage === 'hazard-created'}
+    {#if successMessage === "hazard-created"}
       <div class="alert alert-success">
-        ✅ Hazard reported successfully! It will be reviewed before being published.
+        ✅ Hazard reported successfully! It will be reviewed before being
+        published.
       </div>
     {/if}
 
@@ -103,7 +111,7 @@
           <div class="stat-label">Total Reports</div>
         </div>
       </div>
-      
+
       <div class="stat-card">
         <div class="stat-icon">⏳</div>
         <div class="stat-content">
@@ -111,7 +119,7 @@
           <div class="stat-label">Pending Review</div>
         </div>
       </div>
-      
+
       <div class="stat-card">
         <div class="stat-icon">✅</div>
         <div class="stat-content">
@@ -119,7 +127,7 @@
           <div class="stat-label">Approved</div>
         </div>
       </div>
-      
+
       <div class="stat-card">
         <div class="stat-icon">❌</div>
         <div class="stat-content">
@@ -140,7 +148,7 @@
           <option value="rejected">Rejected ({hazardStats.rejected})</option>
         </select>
       </div>
-      
+
       <div class="sorting">
         <label for="sort">Sort by:</label>
         <select bind:value={sortBy} id="sort" class="sort-select">
@@ -149,13 +157,13 @@
           <option value="severity_level">Severity Level</option>
           <option value="status">Status</option>
         </select>
-        
-        <button 
-          class="sort-order-btn" 
-          onclick={() => sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'}
-          title={sortOrder === 'asc' ? 'Sort Descending' : 'Sort Ascending'}
+
+        <button
+          class="sort-order-btn"
+          onclick={() => (sortOrder = sortOrder === "asc" ? "desc" : "asc")}
+          title={sortOrder === "asc" ? "Sort Descending" : "Sort Ascending"}
         >
-          {sortOrder === 'asc' ? '⬆️' : '⬇️'}
+          {sortOrder === "asc" ? "⬆️" : "⬇️"}
         </button>
       </div>
     </div>
@@ -172,7 +180,11 @@
                   <span class="status-badge {getStatusColor(hazard.status)}">
                     {hazard.status}
                   </span>
-                  <span class="severity-badge {getSeverityColor(hazard.severity_level)}">
+                  <span
+                    class="severity-badge {getSeverityColor(
+                      hazard.severity_level
+                    )}"
+                  >
                     Level {hazard.severity_level}
                   </span>
                 </div>
@@ -181,8 +193,12 @@
               <div class="hazard-info">
                 {#if hazard.hazard_categories}
                   <div class="category">
-                    <span class="category-icon">{hazard.hazard_categories.icon}</span>
-                    <span class="category-name">{hazard.hazard_categories.name}</span>
+                    <span class="category-icon"
+                      >{hazard.hazard_categories.icon}</span
+                    >
+                    <span class="category-name"
+                      >{hazard.hazard_categories.name}</span
+                    >
                   </div>
                 {/if}
 
@@ -191,17 +207,25 @@
                 <div class="hazard-meta">
                   <div class="meta-item">
                     <span class="meta-label">Reported:</span>
-                    <span class="meta-value">{formatDate(hazard.created_at)}</span>
+                    <span class="meta-value"
+                      >{formatDate(hazard.created_at)}</span
+                    >
                   </div>
                   {#if hazard.reported_active_date}
                     <div class="meta-item">
                       <span class="meta-label">Active Date:</span>
-                      <span class="meta-value">{formatDate(hazard.reported_active_date)}</span>
+                      <span class="meta-value"
+                        >{formatDate(hazard.reported_active_date)}</span
+                      >
                     </div>
                   {/if}
                   <div class="meta-item">
                     <span class="meta-label">Location:</span>
-                    <span class="meta-value">{hazard.latitude?.toFixed(4)}, {hazard.longitude?.toFixed(4)}</span>
+                    <span class="meta-value"
+                      >{hazard.latitude?.toFixed(4)}, {hazard.longitude?.toFixed(
+                        4
+                      )}</span
+                    >
                   </div>
                   {#if hazard.is_seasonal}
                     <div class="meta-item">
@@ -212,8 +236,9 @@
               </div>
 
               <div class="hazard-actions">
-                <button class="btn btn-small btn-secondary">View Details</button>
-                {#if hazard.status === 'pending'}
+                <button class="btn btn-small btn-secondary">View Details</button
+                >
+                {#if hazard.status === "pending"}
                   <button class="btn btn-small btn-secondary">Edit</button>
                 {/if}
                 <button class="btn btn-small btn-outline">View on Map</button>
@@ -221,28 +246,34 @@
             </div>
           {/each}
         </div>
-      {:else if selectedFilter === 'all'}
+      {:else if selectedFilter === "all"}
         <div class="empty-state">
           <div class="empty-icon">📍</div>
           <h3>No Hazards Reported Yet</h3>
-          <p>You haven't reported any hazards yet. Help keep the community safe by reporting outdoor hazards you encounter.</p>
-          <a href="/hazards/create" class="btn btn-primary">Report Your First Hazard</a>
+          <p>
+            You haven't reported any hazards yet. Help keep the community safe
+            by reporting outdoor hazards you encounter.
+          </p>
+          <a href="/hazards/create" class="btn btn-primary"
+            >Report Your First Hazard</a
+          >
         </div>
       {:else}
         <div class="empty-state">
           <div class="empty-icon">🔍</div>
           <h3>No {selectedFilter} Reports</h3>
           <p>You don't have any {selectedFilter} hazard reports.</p>
-          <button onclick={() => selectedFilter = 'all'} class="btn btn-secondary">View All Reports</button>
+          <button
+            onclick={() => (selectedFilter = "all")}
+            class="btn btn-secondary">View All Reports</button
+          >
         </div>
       {/if}
     </div>
 
     <!-- Back to Dashboard -->
     <div class="navigation">
-      <a href="/dashboard" class="btn btn-secondary">
-        ← Back to Dashboard
-      </a>
+      <a href="/dashboard" class="btn btn-secondary"> ← Back to Dashboard </a>
     </div>
   </div>
 </div>
@@ -264,13 +295,13 @@
 
   .header-content h1 {
     margin: 0 0 0.5rem 0;
-    color: #1a365d;
+    color: var(--color-text-primary);
     font-size: 2.5rem;
     font-weight: 700;
   }
 
   .subtitle {
-    color: #64748b;
+    color: var(--color-text-secondary);
     font-size: 1.1rem;
     margin: 0;
   }
@@ -283,7 +314,7 @@
   }
 
   .stat-card {
-    background: white;
+    background: var(--color-bg-card);
     border-radius: 12px;
     padding: 1.5rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -301,12 +332,12 @@
   .stat-number {
     font-size: 2rem;
     font-weight: 700;
-    color: #3b82f6;
+    color: var(--color-primary);
     margin-bottom: 0.25rem;
   }
 
   .stat-label {
-    color: #64748b;
+    color: var(--color-text-secondary);
     font-size: 0.875rem;
     font-weight: 500;
   }
@@ -320,19 +351,22 @@
     flex-wrap: wrap;
   }
 
-  .filters, .sorting {
+  .filters,
+  .sorting {
     display: flex;
     align-items: center;
     gap: 0.75rem;
   }
 
-  .filters label, .sorting label {
+  .filters label,
+  .sorting label {
     font-weight: 600;
     color: #475569;
     font-size: 0.875rem;
   }
 
-  .filter-select, .sort-select {
+  .filter-select,
+  .sort-select {
     padding: 0.5rem 1rem;
     border: 1px solid #d1d5db;
     border-radius: 8px;
@@ -425,7 +459,9 @@
     padding: 1.5rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     border: 1px solid #e2e8f0;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition:
+      transform 0.2s,
+      box-shadow 0.2s;
   }
 
   .hazard-card:hover {
@@ -455,7 +491,9 @@
     flex-shrink: 0;
   }
 
-  .status-badge, .severity-badge, .seasonal-badge {
+  .status-badge,
+  .severity-badge,
+  .seasonal-badge {
     padding: 0.25rem 0.75rem;
     border-radius: 20px;
     font-size: 0.75rem;
@@ -608,7 +646,8 @@
       align-items: stretch;
     }
 
-    .filters, .sorting {
+    .filters,
+    .sorting {
       justify-content: space-between;
     }
 

@@ -3,6 +3,7 @@ import { type Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+import { logger } from '$lib/utils/logger.js';
 
 const supabase: Handle = async ({ event, resolve }) => {
   /**
@@ -10,6 +11,22 @@ const supabase: Handle = async ({ event, resolve }) => {
    *
    * The Supabase client gets the Auth token from the request cookies.
    */
+  
+  // Check if Supabase is configured
+  if (!PUBLIC_SUPABASE_URL || !PUBLIC_SUPABASE_ANON_KEY) {
+    logger.warn('Supabase not configured - server routes will have limited functionality', {
+      component: 'hooks.server',
+      metadata: { 
+        hasUrl: !!PUBLIC_SUPABASE_URL, 
+        hasKey: !!PUBLIC_SUPABASE_ANON_KEY 
+      }
+    });
+    // Set null client so pages can handle gracefully
+    event.locals.supabase = null as any;
+    event.locals.getSession = async () => null;
+    return resolve(event);
+  }
+
   event.locals.supabase = createServerClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
     cookies: {
       getAll: () => event.cookies.getAll(),

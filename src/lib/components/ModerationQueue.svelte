@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { logger } from '$lib/utils/logger.js';
   import type {
     ModerationItem,
     ModerationAction,
@@ -23,13 +24,14 @@
   let selectedAction: "approve" | "reject" | "flag" | null = $state(null);
   let actionNotes = $state("");
   let selectedReason = $state("");
-  let currentView: "pending" | "approved" | "rejected" | "urgent" = $state("pending");
+  let currentView: "pending" | "approved" | "rejected" | "urgent" =
+    $state("pending");
   let filteredItems: ModerationItem[] = $state([]);
 
   // Load initial data
   onMount(async () => {
     await Promise.all([loadStats(), loadQueueOverview()]);
-    
+
     // Auto-select the first item if any exist in the default pending view
     if (filteredItems.length > 0) {
       await selectQueueItem(filteredItems[0]);
@@ -57,7 +59,10 @@
     } catch (err) {
       error =
         err instanceof Error ? err.message : "Failed to load moderation item";
-      console.error("Error loading next item:", err);
+      logger.componentError('ModerationQueue', err as Error, { 
+        action: 'load_next_item',
+        metadata: { userId }
+      });
     } finally {
       loading = false;
     }
@@ -71,34 +76,42 @@
       const data = await response.json();
       stats = data.stats;
     } catch (err) {
-      console.error("Error loading stats:", err);
+      logger.componentError('ModerationQueue', err as Error, { 
+        action: 'load_stats',
+        metadata: { userId }
+      });
     }
   }
 
   async function loadQueueOverview() {
     try {
       const response = await fetch(
-        "/api/moderation/queue?limit=20&status=" + (currentView === "urgent" ? "pending" : currentView)
+        "/api/moderation/queue?limit=20&status=" +
+          (currentView === "urgent" ? "pending" : currentView)
       );
       if (!response.ok) throw new Error("Failed to load queue");
 
       const data = await response.json();
       queueItems = data.items;
-      
+
       // Filter for urgent items if needed
       if (currentView === "urgent") {
-        filteredItems = queueItems.filter(item => item.priority === "urgent");
+        filteredItems = queueItems.filter((item) => item.priority === "urgent");
       } else {
         filteredItems = queueItems;
       }
-      
     } catch (err) {
-      console.error("Error loading queue overview:", err);
+      logger.componentError('ModerationQueue', err as Error, { 
+        action: 'load_queue_overview',
+        metadata: { userId, currentView }
+      });
     }
   }
 
   // Function to change view and load appropriate data
-  async function changeView(newView: "pending" | "approved" | "rejected" | "urgent") {
+  async function changeView(
+    newView: "pending" | "approved" | "rejected" | "urgent"
+  ) {
     // Show loading state during transition
     loading = true;
     currentView = newView;
@@ -106,16 +119,16 @@
     selectedAction = null;
     actionNotes = "";
     selectedReason = "";
-    
+
     try {
       await loadQueueOverview();
-      
+
       // Auto-select the most recent item if any exist
       if (filteredItems.length > 0) {
         await selectQueueItem(filteredItems[0]);
       }
     } catch (err) {
-      console.error('Error changing view:', err);
+      console.error("Error changing view:", err);
       error = `Failed to load ${newView} items`;
     } finally {
       loading = false;
@@ -128,18 +141,18 @@
     selectedAction = null;
     actionNotes = "";
     selectedReason = "";
-    
+
     // Update the item's assignment
     try {
       const response = await fetch("/api/moderation/next", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           moderatorId: userId,
-          specificItemId: item.id 
+          specificItemId: item.id,
         }),
       });
-      
+
       if (response.ok) {
         await loadQueueOverview(); // Refresh queue
       }
@@ -232,36 +245,44 @@
   <!-- Stats Overview -->
   {#if stats}
     <div class="stats-grid">
-      <button 
-        class="stat-card clickable {currentView === 'pending' ? 'active' : ''} {loading && currentView === 'pending' ? 'loading' : ''}"
-        onclick={() => changeView('pending')}
+      <button
+        class="stat-card clickable {currentView === 'pending'
+          ? 'active'
+          : ''} {loading && currentView === 'pending' ? 'loading' : ''}"
+        onclick={() => changeView("pending")}
         type="button"
         disabled={loading}
       >
         <div class="stat-number">{stats.pending_count}</div>
         <div class="stat-label">Pending Review</div>
       </button>
-      <button 
-        class="stat-card clickable {currentView === 'approved' ? 'active' : ''} {loading && currentView === 'approved' ? 'loading' : ''}"
-        onclick={() => changeView('approved')}
+      <button
+        class="stat-card clickable {currentView === 'approved'
+          ? 'active'
+          : ''} {loading && currentView === 'approved' ? 'loading' : ''}"
+        onclick={() => changeView("approved")}
         type="button"
         disabled={loading}
       >
         <div class="stat-number">{stats.approved_today}</div>
         <div class="stat-label">Approved Today</div>
       </button>
-      <button 
-        class="stat-card clickable {currentView === 'rejected' ? 'active' : ''} {loading && currentView === 'rejected' ? 'loading' : ''}"
-        onclick={() => changeView('rejected')}
+      <button
+        class="stat-card clickable {currentView === 'rejected'
+          ? 'active'
+          : ''} {loading && currentView === 'rejected' ? 'loading' : ''}"
+        onclick={() => changeView("rejected")}
         type="button"
         disabled={loading}
       >
         <div class="stat-number">{stats.rejected_today}</div>
         <div class="stat-label">Rejected Today</div>
       </button>
-      <button 
-        class="stat-card clickable {currentView === 'urgent' ? 'active' : ''} {loading && currentView === 'urgent' ? 'loading' : ''}"
-        onclick={() => changeView('urgent')}
+      <button
+        class="stat-card clickable {currentView === 'urgent'
+          ? 'active'
+          : ''} {loading && currentView === 'urgent' ? 'loading' : ''}"
+        onclick={() => changeView("urgent")}
         type="button"
         disabled={loading}
       >
@@ -295,7 +316,10 @@
                 >{currentItem.type}</span
               >
               {#if currentItem.flagged_reasons.length > 0}
-                <span class="flag-indicator large" title="This item has been flagged for review">🚩</span>
+                <span
+                  class="flag-indicator large"
+                  title="This item has been flagged for review">🚩</span
+                >
               {/if}
               <span
                 class="priority-badge {getPriorityColor(currentItem.priority)}"
@@ -321,9 +345,13 @@
                   <h4>Category:</h4>
                   <div class="category-info">
                     {#if currentItem.content_preview.category.icon}
-                      <span class="category-icon">{currentItem.content_preview.category.icon}</span>
+                      <span class="category-icon"
+                        >{currentItem.content_preview.category.icon}</span
+                      >
                     {/if}
-                    <span class="category-name">{currentItem.content_preview.category.name}</span>
+                    <span class="category-name"
+                      >{currentItem.content_preview.category.name}</span
+                    >
                   </div>
                 </div>
               {/if}
@@ -362,29 +390,41 @@
               {#if currentItem.content_preview.reported_active_date}
                 <div class="active-date">
                   <h4>Reported Active Date:</h4>
-                  <p>{formatDate(currentItem.content_preview.reported_active_date)}</p>
+                  <p>
+                    {formatDate(
+                      currentItem.content_preview.reported_active_date
+                    )}
+                  </p>
                 </div>
               {/if}
 
               {#if currentItem.content_preview.is_seasonal !== undefined}
                 <div class="seasonal">
                   <h4>Seasonal Hazard:</h4>
-                  <span class="seasonal-badge {currentItem.content_preview.is_seasonal ? 'yes' : 'no'}">
-                    {currentItem.content_preview.is_seasonal ? 'Yes' : 'No'}
+                  <span
+                    class="seasonal-badge {currentItem.content_preview
+                      .is_seasonal
+                      ? 'yes'
+                      : 'no'}"
+                  >
+                    {currentItem.content_preview.is_seasonal ? "Yes" : "No"}
                   </span>
                 </div>
               {/if}
 
               {#if currentItem.content_preview.images && currentItem.content_preview.images.length > 0}
                 <div class="images-preview">
-                  <h4>Attached Images ({currentItem.content_preview.images.length}):</h4>
+                  <h4>
+                    Attached Images ({currentItem.content_preview.images
+                      .length}):
+                  </h4>
                   <div class="images-grid">
                     {#each currentItem.content_preview.images as image}
                       <div class="image-item">
                         <button
                           type="button"
                           class="image-button"
-                          onclick={() => window.open(image.image_url, '_blank')}
+                          onclick={() => window.open(image.image_url, "_blank")}
                           title="Click to view full size"
                         >
                           <img
@@ -397,9 +437,15 @@
                           {#if image.metadata?.alt_text}
                             <p class="alt-text">{image.metadata.alt_text}</p>
                           {/if}
-                          <p class="upload-date">Uploaded: {formatDate(image.uploaded_at)}</p>
+                          <p class="upload-date">
+                            Uploaded: {formatDate(image.uploaded_at)}
+                          </p>
                           {#if image.metadata?.file_size}
-                            <p class="file-size">Size: {(image.metadata.file_size / 1024).toFixed(1)} KB</p>
+                            <p class="file-size">
+                              Size: {(image.metadata.file_size / 1024).toFixed(
+                                1
+                              )} KB
+                            </p>
                           {/if}
                           {#if image.vote_score !== undefined}
                             <p class="vote-score">Score: {image.vote_score}</p>
@@ -436,7 +482,7 @@
           {/if}
 
           <!-- Action Buttons - Only show for pending items -->
-          {#if currentItem.status === 'pending'}
+          {#if currentItem.status === "pending"}
             {#if !selectedAction}
               <div class="action-buttons">
                 <button
@@ -475,8 +521,10 @@
 
                 {#if selectedAction === "flag"}
                   <p class="flag-explanation">
-                    Flagging this item will keep it in pending status but mark it as needing attention from a senior moderator. 
-                    Use this when content requires additional expertise or policy clarification.
+                    Flagging this item will keep it in pending status but mark
+                    it as needing attention from a senior moderator. Use this
+                    when content requires additional expertise or policy
+                    clarification.
                   </p>
                 {/if}
 
@@ -530,7 +578,7 @@
             <div class="status-display">
               <div class="status-info {currentItem.status}">
                 <span class="status-icon">
-                  {currentItem.status === 'approved' ? '✅' : '❌'}
+                  {currentItem.status === "approved" ? "✅" : "❌"}
                 </span>
                 <span class="status-text">
                   This item has been {currentItem.status}
@@ -564,27 +612,35 @@
     <!-- Queue Overview -->
     <div class="queue-overview">
       <h3>
-        {currentView === 'pending' ? 'Pending Queue' : 
-         currentView === 'approved' ? 'Recently Approved' :
-         currentView === 'rejected' ? 'Recently Rejected' :
-         'Urgent Items'}
+        {currentView === "pending"
+          ? "Pending Queue"
+          : currentView === "approved"
+            ? "Recently Approved"
+            : currentView === "rejected"
+              ? "Recently Rejected"
+              : "Urgent Items"}
         <span class="view-count">({filteredItems.length})</span>
       </h3>
 
       {#if filteredItems.length > 0}
         <div class="queue-list">
           {#each filteredItems as item}
-            <div 
-              class="queue-item {currentItem?.id === item.id ? 'selected' : ''} {item.status}"
+            <div
+              class="queue-item {currentItem?.id === item.id
+                ? 'selected'
+                : ''} {item.status}"
               onclick={() => selectQueueItem(item)}
               role="button"
               tabindex="0"
-              onkeydown={(e) => e.key === 'Enter' && selectQueueItem(item)}
+              onkeydown={(e) => e.key === "Enter" && selectQueueItem(item)}
             >
               <div class="item-info">
                 <span class="type-badge {item.type}">{item.type}</span>
                 {#if item.flagged_reasons.length > 0}
-                  <span class="flag-indicator" title="This item has been flagged for review">🚩</span>
+                  <span
+                    class="flag-indicator"
+                    title="This item has been flagged for review">🚩</span
+                  >
                 {/if}
                 <span class="title"
                   >{item.content_preview?.title || "Untitled"}</span
@@ -602,18 +658,24 @@
         </div>
       {:else}
         <p class="empty-queue">
-          {#if currentView === 'pending'}
-            🎉 No items pending review!<br>
+          {#if currentView === "pending"}
+            🎉 No items pending review!<br />
             <span class="empty-subtitle">All caught up with moderation.</span>
-          {:else if currentView === 'approved'}
-            📋 No items approved today.<br>
-            <span class="empty-subtitle">Check back after reviewing some content.</span>
-          {:else if currentView === 'rejected'}
-            📋 No items rejected today.<br>
-            <span class="empty-subtitle">Check back after reviewing some content.</span>
+          {:else if currentView === "approved"}
+            📋 No items approved today.<br />
+            <span class="empty-subtitle"
+              >Check back after reviewing some content.</span
+            >
+          {:else if currentView === "rejected"}
+            📋 No items rejected today.<br />
+            <span class="empty-subtitle"
+              >Check back after reviewing some content.</span
+            >
           {:else}
-            🚨 No urgent items.<br>
-            <span class="empty-subtitle">No high-priority hazards need immediate attention.</span>
+            🚨 No urgent items.<br />
+            <span class="empty-subtitle"
+              >No high-priority hazards need immediate attention.</span
+            >
           {/if}
         </p>
       {/if}
@@ -635,12 +697,12 @@
 
   .dashboard-header h1 {
     font-size: 2rem;
-    color: #1e293b;
+    color: var(--color-text-primary);
     margin-bottom: 0.5rem;
   }
 
   .subtitle {
-    color: #64748b;
+    color: var(--color-text-secondary);
     font-size: 1.1rem;
   }
 
@@ -652,10 +714,10 @@
   }
 
   .stat-card {
-    background: white;
+    background: var(--color-bg-card);
     padding: 1.5rem;
     border-radius: 8px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--color-border);
     text-align: center;
   }
 
@@ -689,7 +751,7 @@
   }
 
   .stat-card.clickable.loading::after {
-    content: '';
+    content: "";
     position: absolute;
     top: 50%;
     left: 50%;
@@ -770,7 +832,7 @@
 
   .retry-button,
   .refresh-btn {
-    background: #2563eb;
+    background: var(--color-primary-hover);
     color: white;
     border: none;
     padding: 0.5rem 1rem;
@@ -806,18 +868,18 @@
   }
 
   .type-badge.hazard {
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--warning-100);
+    color: var(--warning-800);
   }
 
   .type-badge.image {
-    background: #ddd6fe;
-    color: #5b21b6;
+    background: var(--primary-100);
+    color: var(--primary-700);
   }
 
   .type-badge.template {
-    background: #dcfce7;
-    color: #166534;
+    background: var(--success-100);
+    color: var(--success-800);
   }
 
   .priority-badge {
@@ -948,7 +1010,9 @@
     font-weight: 500;
   }
 
-  .upload-date, .file-size, .vote-score {
+  .upload-date,
+  .file-size,
+  .vote-score {
     font-family: monospace;
   }
 
@@ -1108,12 +1172,13 @@
   }
 
   @keyframes flagPulse {
-    0%, 100% { 
-      opacity: 1; 
+    0%,
+    100% {
+      opacity: 1;
       transform: scale(1);
     }
-    50% { 
-      opacity: 0.7; 
+    50% {
+      opacity: 0.7;
       transform: scale(1.1);
     }
   }

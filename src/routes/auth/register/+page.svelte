@@ -65,18 +65,24 @@
     >
       {#if form?.success}
         <MessageDisplay type="success" message={form.message} />
-        
+
         <!-- Hide form after successful submission and show additional info -->
-        <div style="text-align: center; margin-top: 1.5rem; padding: 1rem; background: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0;">
+        <div
+          style="text-align: center; margin-top: 1.5rem; padding: 1rem; background: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0;"
+        >
           <p style="margin: 0 0 1rem 0; color: #166534;">
             📧 <strong>Email sent successfully!</strong>
           </p>
           <p style="margin: 0 0 1rem 0; color: #374151; font-size: 0.9rem;">
-            Please check your email inbox (and spam folder) for a confirmation link from Hazards App.
+            Please check your email inbox (and spam folder) for a confirmation
+            link from Hazards App.
           </p>
           <p style="margin: 0; color: #6b7280; font-size: 0.85rem;">
-            Already confirmed your email? 
-            <a href="/auth/log-in" style="color: #2563eb; text-decoration: none; font-weight: 500;">
+            Already confirmed your email?
+            <a
+              href="/auth/log-in"
+              style="color: #2563eb; text-decoration: none; font-weight: 500;"
+            >
               Sign in here
             </a>
           </p>

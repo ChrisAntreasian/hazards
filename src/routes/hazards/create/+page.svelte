@@ -4,8 +4,8 @@
   import ImageUpload from "$lib/components/ImageUpload.svelte";
   import type { PageData } from "./$types";
   import type { ImageUploadResult } from "$lib/types/images.js";
-  import { enhance } from '$app/forms';
-  import { page } from '$app/stores';
+  import { enhance } from "$app/forms";
+  import { page } from "$app/stores";
 
   interface Props {
     data: PageData;
@@ -32,12 +32,12 @@
     severity_level: 3,
     latitude: "",
     longitude: "",
-    reported_active_date: new Date().toISOString().split('T')[0],
-    is_seasonal: false
+    reported_active_date: new Date().toISOString().split("T")[0],
+    is_seasonal: false,
   });
 
   // UI state
-  let currentLocation = $state<{lat: number, lng: number} | null>(null);
+  let currentLocation = $state<{ lat: number; lng: number } | null>(null);
   let uploadedImages = $state<string[]>([]);
   let loading = $state(false);
   let error = $state("");
@@ -55,28 +55,32 @@
     error = "";
 
     try {
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(
-          resolve,
-          reject,
-          { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
-        );
-      });
+      const position = await new Promise<GeolocationPosition>(
+        (resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 300000,
+          });
+        }
+      );
 
       currentLocation = {
         lat: position.coords.latitude,
-        lng: position.coords.longitude
+        lng: position.coords.longitude,
       };
 
       formData.latitude = position.coords.latitude.toString();
       formData.longitude = position.coords.longitude.toString();
 
       success = "Location acquired successfully!";
-      setTimeout(() => { success = ""; }, 3000);
+      setTimeout(() => {
+        success = "";
+      }, 3000);
     } catch (err: any) {
-      console.error('Geolocation error:', err);
-      error = `Failed to get location: ${err.message || 'Unknown error'}`;
-      
+      console.error("Geolocation error:", err);
+      error = `Failed to get location: ${err.message || "Unknown error"}`;
+
       // Default to Boston area as fallback
       currentLocation = { lat: 42.3601, lng: -71.0589 };
       formData.latitude = "42.3601";
@@ -107,13 +111,18 @@
 
 <svelte:head>
   <title>Report Hazard - Hazards App</title>
-  <meta name="description" content="Report a new outdoor hazard to help keep the community safe" />
+  <meta
+    name="description"
+    content="Report a new outdoor hazard to help keep the community safe"
+  />
 </svelte:head>
 
 <div class="container">
   <header class="page-header">
     <h1>🚨 Report a Hazard</h1>
-    <p>Help keep the outdoor community safe by reporting hazards you encounter</p>
+    <p>
+      Help keep the outdoor community safe by reporting hazards you encounter
+    </p>
   </header>
 
   {#if !isAuthenticated}
@@ -123,50 +132,60 @@
       <a href="/auth/log-in" class="btn btn-primary">Log In</a>
     </div>
   {:else}
-    <form class="hazard-form" method="POST" action="?/createHazard" use:enhance={() => {
-      loading = true;
-      error = "";
-      success = "";
-      
-      return async ({ result, update }: { result: any; update: any }) => {
-        loading = false;
-        
-        if (result.type === 'failure') {
-          const errorData = result.data as any;
-          error = errorData?.error || 'Failed to submit hazard';
-          console.error('Form submission failed:', errorData);
-        } else if (result.type === 'redirect') {
-          success = "Hazard reported successfully! Redirecting to dashboard...";
-          
-          // Reset form on success
-          formData = {
-            title: "",
-            description: "",
-            category_id: "",
-            severity_level: 3,
-            latitude: "",
-            longitude: "",
-            reported_active_date: new Date().toISOString().split('T')[0],
-            is_seasonal: false
-          };
-          uploadedImages = [];
-          currentLocation = null;
-          
-          // Let SvelteKit handle the redirect
-          await update();
-        } else {
-          // Update the page with any changes
-          await update();
-        }
-      };
-    }}>
+    <form
+      class="hazard-form"
+      method="POST"
+      action="?/createHazard"
+      use:enhance={() => {
+        loading = true;
+        error = "";
+        success = "";
+
+        return async ({ result, update }: { result: any; update: any }) => {
+          loading = false;
+
+          if (result.type === "failure") {
+            const errorData = result.data as any;
+            error = errorData?.error || "Failed to submit hazard";
+            console.error("Form submission failed:", errorData);
+          } else if (result.type === "redirect") {
+            success =
+              "Hazard reported successfully! Redirecting to dashboard...";
+
+            // Reset form on success
+            formData = {
+              title: "",
+              description: "",
+              category_id: "",
+              severity_level: 3,
+              latitude: "",
+              longitude: "",
+              reported_active_date: new Date().toISOString().split("T")[0],
+              is_seasonal: false,
+            };
+            uploadedImages = [];
+            currentLocation = null;
+
+            // Let SvelteKit handle the redirect
+            await update();
+          } else {
+            // Update the page with any changes
+            await update();
+          }
+        };
+      }}
+    >
       <!-- Hidden field for uploaded images -->
-      <input type="hidden" name="uploaded_images" value={uploadedImages.join(',')} />
-      
+      <input
+        type="hidden"
+        name="uploaded_images"
+        value={uploadedImages.join(",")}
+      />
+
       <!-- Basic Information -->
       <section class="form-section">
         <h2>Basic Information</h2>
-        
+
         <div class="form-group">
           <label for="title">Hazard Title *</label>
           <input
@@ -193,17 +212,30 @@
 
         <div class="form-group">
           <label for="category">Category *</label>
-          <select id="category" name="category_id" bind:value={formData.category_id} required>
-            <option value="">Select a category... ({categories.length} available)</option>
+          <select
+            id="category"
+            name="category_id"
+            bind:value={formData.category_id}
+            required
+          >
+            <option value=""
+              >Select a category... ({categories.length} available)</option
+            >
             <!-- Level 0 categories (main categories) -->
-            {#each categories.filter(cat => cat.level === 0) as mainCategory}
-              <option value={mainCategory.id}>{mainCategory.icon} {mainCategory.name}</option>
+            {#each categories.filter((cat) => cat.level === 0) as mainCategory}
+              <option value={mainCategory.id}
+                >{mainCategory.icon} {mainCategory.name}</option
+              >
               <!-- Level 1 subcategories -->
-              {#each categories.filter(cat => cat.level === 1 && cat.path.startsWith(mainCategory.path + '/')) as subCategory}
-                <option value={subCategory.id}>  ↳ {subCategory.icon} {subCategory.name}</option>
+              {#each categories.filter((cat) => cat.level === 1 && cat.path.startsWith(mainCategory.path + "/")) as subCategory}
+                <option value={subCategory.id}>
+                  ↳ {subCategory.icon} {subCategory.name}</option
+                >
                 <!-- Level 2 sub-subcategories -->
-                {#each categories.filter(cat => cat.level === 2 && cat.path.startsWith(subCategory.path + '/')) as subSubCategory}
-                  <option value={subSubCategory.id}>    ↳ {subSubCategory.icon} {subSubCategory.name}</option>
+                {#each categories.filter((cat) => cat.level === 2 && cat.path.startsWith(subCategory.path + "/")) as subSubCategory}
+                  <option value={subSubCategory.id}>
+                    ↳ {subSubCategory.icon} {subSubCategory.name}</option
+                  >
                 {/each}
               {/each}
             {/each}
@@ -229,7 +261,16 @@
               <span>5 - Extreme</span>
             </div>
             <div class="severity-display">
-              Current: <strong>{formData.severity_level} - {['', 'Low', 'Moderate', 'Significant', 'High', 'Extreme'][formData.severity_level]}</strong>
+              Current: <strong
+                >{formData.severity_level} - {[
+                  "",
+                  "Low",
+                  "Moderate",
+                  "Significant",
+                  "High",
+                  "Extreme",
+                ][formData.severity_level]}</strong
+              >
             </div>
           </div>
         </div>
@@ -238,13 +279,24 @@
       <!-- Location -->
       <section class="form-section">
         <h2>Location</h2>
-        
+
         <div class="location-controls">
-          <button type="button" class="btn btn-secondary" onclick={getCurrentLocation} disabled={locationLoading}>
-            {locationLoading ? 'Getting Location...' : '📍 Get Current Location'}
+          <button
+            type="button"
+            class="btn btn-secondary"
+            onclick={getCurrentLocation}
+            disabled={locationLoading}
+          >
+            {locationLoading
+              ? "Getting Location..."
+              : "📍 Get Current Location"}
           </button>
           {#if currentLocation}
-            <span class="location-status">✅ Location acquired: {currentLocation.lat.toFixed(4)}, {currentLocation.lng.toFixed(4)}</span>
+            <span class="location-status"
+              >✅ Location acquired: {currentLocation.lat.toFixed(4)}, {currentLocation.lng.toFixed(
+                4
+              )}</span
+            >
           {/if}
         </div>
 
@@ -279,7 +331,7 @@
       <!-- Additional Details -->
       <section class="form-section">
         <h2>Additional Details</h2>
-        
+
         <div class="form-group">
           <label for="date">Date Observed</label>
           <input
@@ -306,7 +358,7 @@
       <section class="form-section">
         <h2>Photos</h2>
         <p>Upload photos to help others identify and understand the hazard</p>
-        
+
         <ImageUpload
           hazardId={undefined}
           userId={user?.id || ""}
@@ -319,10 +371,14 @@
           on:upload={handleImageUpload}
           on:error={handleUploadError}
         />
-        
+
         {#if uploadedImages.length > 0}
           <div class="uploaded-images-status">
-            <p>✅ {uploadedImages.length} image{uploadedImages.length !== 1 ? 's' : ''} uploaded and will be attached to this report</p>
+            <p>
+              ✅ {uploadedImages.length} image{uploadedImages.length !== 1
+                ? "s"
+                : ""} uploaded and will be attached to this report
+            </p>
           </div>
         {/if}
       </section>
@@ -332,17 +388,21 @@
         {#if error}
           <div class="alert alert-error">{error}</div>
         {/if}
-        
+
         {#if success}
           <div class="alert alert-success">{success}</div>
         {/if}
 
         <div class="form-actions">
-          <button type="button" class="btn btn-secondary" onclick={() => goto('/dashboard')}>
+          <button
+            type="button"
+            class="btn btn-secondary"
+            onclick={() => goto("/dashboard")}
+          >
             Cancel
           </button>
           <button type="submit" class="btn btn-primary" disabled={loading}>
-            {loading ? 'Submitting...' : 'Submit Hazard Report'}
+            {loading ? "Submitting..." : "Submit Hazard Report"}
           </button>
         </div>
       </section>
@@ -390,7 +450,7 @@
 
   .form-section {
     padding: 2rem;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid var(--color-bg-muted);
   }
 
   .form-section:last-child {
@@ -399,7 +459,7 @@
 
   .form-section h2 {
     font-size: 1.5rem;
-    color: #1e293b;
+    color: var(--color-text-primary);
     margin-bottom: 1.5rem;
     font-weight: 600;
   }
@@ -417,22 +477,26 @@
   label {
     display: block;
     font-weight: 500;
-    color: #374151;
+    color: var(--color-text-primary);
     margin-bottom: 0.5rem;
   }
 
-  input, select, textarea {
+  input,
+  select,
+  textarea {
     width: 100%;
     padding: 0.75rem;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--color-border);
     border-radius: 6px;
     font-size: 1rem;
     transition: border-color 0.2s;
   }
 
-  input:focus, select:focus, textarea:focus {
+  input:focus,
+  select:focus,
+  textarea:focus {
     outline: none;
-    border-color: #3b82f6;
+    border-color: var(--color-primary);
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
   }
 
@@ -446,7 +510,7 @@
     display: flex;
     justify-content: space-between;
     font-size: 0.8rem;
-    color: #6b7280;
+    color: var(--color-text-muted);
   }
 
   .severity-display {
@@ -464,7 +528,7 @@
   }
 
   .location-status {
-    color: #059669;
+    color: var(--color-success);
     font-size: 0.9rem;
     font-weight: 500;
   }
@@ -485,10 +549,10 @@
   .uploaded-images-status {
     margin-top: 1rem;
     padding: 1rem;
-    background: #f0fdf4;
-    border: 1px solid #bbf7d0;
+    background: var(--success-50);
+    border: 1px solid var(--success-200);
     border-radius: 6px;
-    color: #16a34a;
+    color: var(--color-success);
   }
 
   .form-actions {
@@ -516,21 +580,21 @@
   }
 
   .btn-primary {
-    background: #3b82f6;
+    background: var(--color-primary);
     color: white;
   }
 
   .btn-primary:hover:not(:disabled) {
-    background: #2563eb;
+    background: var(--color-primary-hover);
   }
 
   .btn-secondary {
-    background: #6b7280;
+    background: var(--gray-500);
     color: white;
   }
 
   .btn-secondary:hover:not(:disabled) {
-    background: #4b5563;
+    background: var(--gray-600);
   }
 
   .alert {
@@ -540,15 +604,15 @@
   }
 
   .alert-error {
-    background: #fef2f2;
-    color: #dc2626;
-    border: 1px solid #fecaca;
+    background: var(--error-50);
+    color: var(--color-error);
+    border: 1px solid var(--error-200);
   }
 
   .alert-success {
-    background: #f0fdf4;
-    color: #16a34a;
-    border: 1px solid #bbf7d0;
+    background: var(--success-50);
+    color: var(--color-success);
+    border: 1px solid var(--success-200);
   }
 
   @media (max-width: 768px) {

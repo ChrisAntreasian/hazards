@@ -1,25 +1,12 @@
 <script lang="ts">
 	import type { Map as LeafletMap, Marker, TileLayer } from 'leaflet';
+	import { logger } from '$lib/utils/logger.js';
 	// import type { HazardWithDetails } from '$lib/types/database.js';
 
 	interface Props {
 		hazards?: any[];
-		height?: 		// Add new markers for hazards
-		let addedMarkers = 0;
-		hazards.forEach((hazard, index) => {
-			try {
-				if (hazard?.latitude && hazard?.longitude) {
-				const categoryColor = categoryColors[hazard?.category_name || 'Other'] || categoryColors['Other'];
-				
-				const marker = L.marker([parseFloat(hazard.latitude), parseFloat(hazard.longitude)], {
-					icon: L.divIcon({
-						className: 'hazard-marker',
-						html: `<div style="background: ${categoryColor}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: bold;">${getMarkerIcon(hazard.category_name)}</div>`,
-						iconSize: [24, 24],
-						iconAnchor: [12, 12]
-					})
-				});
-				addedMarkers++;ter?: [number, number];
+		height?: string;
+		center?: [number, number];
 		zoom?: number;
 		showUserLocation?: boolean;
 	}
@@ -86,7 +73,7 @@
 				try {
 					await import('leaflet.markercluster');
 				} catch (error) {
-					console.error('Failed to load MarkerCluster plugin:', error);
+					logger.componentError('Map', error as Error, { action: 'load_marker_cluster_plugin' });
 				}
 			
 			// Import Leaflet and MarkerCluster CSS
@@ -119,7 +106,6 @@
 			// Initialize MarkerClusterGroup with better configuration
 			if (L.markerClusterGroup) {
 				try {
-					console.log('Initializing MarkerClusterGroup...');
 					markerClusterGroup = L.markerClusterGroup({
 						// More aggressive clustering settings
 						maxClusterRadius: 60, // Reduced from 80 for tighter clustering
@@ -158,13 +144,12 @@
 					});
 
 					map?.addLayer(markerClusterGroup);
-					console.log('MarkerClusterGroup initialized successfully');
 				} catch (error) {
-					console.error('Failed to initialize marker clustering:', error);
+					logger.componentError('Map', error as Error, { action: 'initialize_marker_clustering' });
 					markerClusterGroup = null;
 				}
 			} else {
-				console.warn('L.markerClusterGroup not available, using regular markers');
+				logger.warn('MarkerCluster plugin not available, using regular markers', { component: 'Map' });
 				markerClusterGroup = null;
 			}
 
@@ -189,7 +174,10 @@
 						map?.setView([userLat, userLng], 12);
 					},
 					(error) => {
-						console.warn('Could not get user location:', error);
+						logger.warn('Could not get user location', { 
+							component: 'Map', 
+							metadata: { errorCode: error.code, errorMessage: error.message } 
+						});
 					}
 				);
 			}
@@ -197,8 +185,7 @@
 			// Add hazard markers
 			updateHazardMarkers();
 			} catch (error) {
-				console.error('Failed to initialize map:', error);
-				// You could also dispatch an error event here for the parent to handle
+				logger.componentError('Map', error as Error, { action: 'initialize_map' });
 			}
 		})();
 
@@ -214,8 +201,6 @@
 		if (!map || !L) {
 			return;
 		}
-
-		console.log(`Updating hazard markers: ${hazards.length} hazards, clustering: ${!!markerClusterGroup}`);
 
 		// Clear existing markers
 		if (markerClusterGroup) {
@@ -271,11 +256,12 @@
 				markers.push(marker);
 				}
 			} catch (error) {
-				console.error(`Error creating marker for hazard at index ${index}:`, error, hazard);
+				logger.componentError('Map', error as Error, { 
+					action: 'create_marker', 
+					metadata: { hazardIndex: index, hazardId: hazard?.id } 
+				});
 			}
 		});
-		
-		console.log(`Successfully added ${addedMarkers} markers to ${markerClusterGroup ? 'cluster group' : 'map directly'}`);
 		
 		// Force refresh of cluster groups
 		if (markerClusterGroup) {
@@ -329,98 +315,102 @@
 	});
 </script>
 
-<div bind:this={mapElement} style="height: {height}; width: 100%;" class="map-container"></div>
+<div
+  bind:this={mapElement}
+  style="height: {height}; width: 100%;"
+  class="map-container"
+></div>
 
 <style>
-	.map-container {
-		border-radius: 8px;
-		overflow: hidden;
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-	}
+  .map-container {
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
 
-	:global(.hazard-popup-container .leaflet-popup-content-wrapper) {
-		border-radius: 8px;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-	}
+  :global(.hazard-popup-container .leaflet-popup-content-wrapper) {
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
 
-	:global(.hazard-popup-container .leaflet-popup-tip) {
-		background: white;
-		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-	}
+  :global(.hazard-popup-container .leaflet-popup-tip) {
+    background: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
 
-	:global(.user-location-marker) {
-		background: transparent !important;
-		border: none !important;
-	}
+  :global(.user-location-marker) {
+    background: transparent !important;
+    border: none !important;
+  }
 
-	:global(.hazard-marker) {
-		background: transparent !important;
-		border: none !important;
-	}
+  :global(.hazard-marker) {
+    background: transparent !important;
+    border: none !important;
+  }
 
-	/* Enhanced marker cluster styling */
-	:global(.marker-cluster) {
-		border-radius: 50%;
-		text-align: center;
-		color: white;
-		font-weight: bold;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-		border: 3px solid rgba(255, 255, 255, 0.9);
-		cursor: pointer;
-		transition: all 0.2s ease;
-	}
+  /* Enhanced marker cluster styling */
+  :global(.marker-cluster) {
+    border-radius: 50%;
+    text-align: center;
+    color: white;
+    font-weight: bold;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    border: 3px solid rgba(255, 255, 255, 0.9);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
 
-	:global(.marker-cluster:hover) {
-		transform: scale(1.1);
-		box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
-	}
+  :global(.marker-cluster:hover) {
+    transform: scale(1.1);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+  }
 
-	:global(.marker-cluster div) {
-		border-radius: 50%;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 100%;
-		height: 100%;
-		font-size: 12px;
-		font-weight: 700;
-	}
+  :global(.marker-cluster div) {
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    font-size: 12px;
+    font-weight: 700;
+  }
 
-	:global(.marker-cluster-small) {
-		background: linear-gradient(135deg, #4CAF50, #45a049);
-		width: 30px;
-		height: 30px;
-	}
+  :global(.marker-cluster-small) {
+    background: linear-gradient(135deg, #4caf50, #45a049);
+    width: 30px;
+    height: 30px;
+  }
 
-	:global(.marker-cluster-medium) {
-		background: linear-gradient(135deg, #FF9800, #F57C00);
-		width: 40px;
-		height: 40px;
-	}
-	
-	:global(.marker-cluster-medium div) {
-		font-size: 14px;
-	}
+  :global(.marker-cluster-medium) {
+    background: linear-gradient(135deg, #ff9800, #f57c00);
+    width: 40px;
+    height: 40px;
+  }
 
-	:global(.marker-cluster-large) {
-		background: linear-gradient(135deg, #F44336, #D32F2F);
-		width: 50px;
-		height: 50px;
-	}
-	
-	:global(.marker-cluster-large div) {
-		font-size: 16px;
-		margin-top: 5px;
-		text-align: center;
-		border: 1px solid white;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 12px;
-		font-weight: bold;
-	}
+  :global(.marker-cluster-medium div) {
+    font-size: 14px;
+  }
 
-	:global(.marker-cluster span) {
-		line-height: 30px;
-	}
+  :global(.marker-cluster-large) {
+    background: linear-gradient(135deg, #f44336, #d32f2f);
+    width: 50px;
+    height: 50px;
+  }
+
+  :global(.marker-cluster-large div) {
+    font-size: 16px;
+    margin-top: 5px;
+    text-align: center;
+    border: 1px solid white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+  }
+
+  :global(.marker-cluster span) {
+    line-height: 30px;
+  }
 </style>

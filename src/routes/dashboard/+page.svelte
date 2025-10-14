@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageData } from "./$types";
-  import { page } from '$app/stores';
+  import { page } from "$app/stores";
 
   interface Props {
     data: PageData;
@@ -11,37 +11,42 @@
   // Use server-provided user data
   const user = data.user;
   const userHazards = data.userHazards || [];
-  const hazardStats = data.hazardStats || { total: 0, pending: 0, approved: 0, rejected: 0 };
+  const hazardStats = data.hazardStats || {
+    total: 0,
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+  };
   const recentActivity = data.recentActivity || [];
 
   // Check for success message from URL
-  let successMessage = $derived($page.url.searchParams.get('success'));
+  let successMessage = $derived($page.url.searchParams.get("success"));
 
   function formatDate(dateString: string) {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
     });
   }
 
   function getStatusColor(status: string) {
     switch (status) {
-      case 'approved':
-        return 'status-approved';
-      case 'rejected':
-        return 'status-rejected';
-      case 'pending':
-        return 'status-pending';
+      case "approved":
+        return "status-approved";
+      case "rejected":
+        return "status-rejected";
+      case "pending":
+        return "status-pending";
       default:
-        return 'status-unknown';
+        return "status-unknown";
     }
   }
 
   function getSeverityColor(level: number) {
-    if (level >= 4) return 'severity-high';
-    if (level === 3) return 'severity-medium';
-    return 'severity-low';
+    if (level >= 4) return "severity-high";
+    if (level === 3) return "severity-medium";
+    return "severity-low";
   }
 </script>
 
@@ -59,9 +64,10 @@
     </header>
 
     <!-- Success Message -->
-    {#if successMessage === 'hazard-created'}
+    {#if successMessage === "hazard-created"}
       <div class="alert alert-success">
-        ✅ Hazard reported successfully! It will be reviewed before being published.
+        ✅ Hazard reported successfully! It will be reviewed before being
+        published.
       </div>
     {/if}
 
@@ -95,7 +101,8 @@
       <div class="dashboard-card">
         <div class="card-icon">⭐</div>
         <h3>Trust Score</h3>
-        <p>Your community trust score: <strong>{user?.trustScore || 0}</strong> 
+        <p>
+          Your community trust score: <strong>{user?.trustScore || 0}</strong>
           {#if (user?.trustScore || 0) === 0}
             (New User)
           {:else if (user?.trustScore || 0) < 100}
@@ -112,7 +119,9 @@
       <div class="dashboard-card">
         <div class="card-icon">🗺️</div>
         <h3>Interactive Map</h3>
-        <p>View reported hazards on an interactive map and explore your area.</p>
+        <p>
+          View reported hazards on an interactive map and explore your area.
+        </p>
         <a href="/map" class="btn btn-secondary">Explore Map</a>
       </div>
 
@@ -132,11 +141,11 @@
           {#each recentActivity.slice(0, 5) as activity}
             <div class="activity-item">
               <div class="activity-icon">
-                {#if activity.status === 'approved'}
+                {#if activity.status === "approved"}
                   ✅
-                {:else if activity.status === 'rejected'}
+                {:else if activity.status === "rejected"}
                   ❌
-                {:else if activity.status === 'pending'}
+                {:else if activity.status === "pending"}
                   ⏳
                 {:else}
                   📍
@@ -144,28 +153,36 @@
               </div>
               <div class="activity-content">
                 <div class="activity-title">
-                  {#if activity.status === 'approved'}
+                  {#if activity.status === "approved"}
                     Hazard report approved
-                  {:else if activity.status === 'rejected'}
+                  {:else if activity.status === "rejected"}
                     Hazard report rejected
-                  {:else if activity.status === 'pending'}
+                  {:else if activity.status === "pending"}
                     Hazard report submitted for review
                   {:else}
                     Hazard report created
                   {/if}
                 </div>
                 <div class="activity-description">
-                  <strong>{activity.hazards?.title || 'Unknown hazard'}</strong>
+                  <strong>{activity.hazards?.title || "Unknown hazard"}</strong>
                   {#if activity.moderator_notes}
                     - {activity.moderator_notes}
                   {/if}
                 </div>
                 <div class="activity-time">
-                  {activity.resolved_at ? formatDate(activity.resolved_at) : formatDate(activity.created_at)}
+                  {activity.resolved_at
+                    ? formatDate(activity.resolved_at)
+                    : formatDate(activity.created_at)}
                 </div>
               </div>
               <div class="activity-status">
-                <span class="status-badge {activity.status === 'approved' ? 'status-approved' : activity.status === 'rejected' ? 'status-rejected' : 'status-pending'}">
+                <span
+                  class="status-badge {activity.status === 'approved'
+                    ? 'status-approved'
+                    : activity.status === 'rejected'
+                      ? 'status-rejected'
+                      : 'status-pending'}"
+                >
                   {activity.status}
                 </span>
               </div>
@@ -175,11 +192,11 @@
           {#each userHazards.slice(0, 5) as hazard}
             <div class="activity-item">
               <div class="activity-icon">
-                {#if hazard.status === 'approved'}
+                {#if hazard.status === "approved"}
                   ✅
-                {:else if hazard.status === 'rejected'}
+                {:else if hazard.status === "rejected"}
                   ❌
-                {:else if hazard.status === 'pending'}
+                {:else if hazard.status === "pending"}
                   ⏳
                 {:else}
                   📍
@@ -187,18 +204,19 @@
               </div>
               <div class="activity-content">
                 <div class="activity-title">
-                  {#if hazard.status === 'approved'}
+                  {#if hazard.status === "approved"}
                     Hazard report approved
-                  {:else if hazard.status === 'rejected'}
+                  {:else if hazard.status === "rejected"}
                     Hazard report needs revision
-                  {:else if hazard.status === 'pending'}
+                  {:else if hazard.status === "pending"}
                     Hazard report submitted for review
                   {:else}
                     Hazard report created
                   {/if}
                 </div>
                 <div class="activity-description">
-                  <strong>{hazard.title}</strong> - {hazard.hazard_categories?.name || 'Uncategorized'}
+                  <strong>{hazard.title}</strong> - {hazard.hazard_categories
+                    ?.name || "Uncategorized"}
                 </div>
                 <div class="activity-time">{formatDate(hazard.created_at)}</div>
               </div>
@@ -214,7 +232,10 @@
             <div class="activity-icon">🎯</div>
             <div class="activity-content">
               <div class="activity-title">Welcome to Hazards App!</div>
-              <div class="activity-description">Start by reporting your first outdoor hazard to help keep the community safe.</div>
+              <div class="activity-description">
+                Start by reporting your first outdoor hazard to help keep the
+                community safe.
+              </div>
               <div class="activity-time">Get started today</div>
             </div>
           </div>
@@ -263,13 +284,13 @@
 
   .dashboard-header h1 {
     margin: 0 0 0.5rem 0;
-    color: #1a365d;
+    color: var(--color-text-primary);
     font-size: 2.5rem;
     font-weight: 700;
   }
 
   .subtitle {
-    color: #64748b;
+    color: var(--color-text-secondary);
     font-size: 1.1rem;
     margin: 0;
   }
@@ -282,12 +303,14 @@
   }
 
   .dashboard-card {
-    background: white;
+    background: var(--color-bg-card);
     border-radius: 12px;
     padding: 2rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    border: 1px solid #e2e8f0;
-    transition: transform 0.2s, box-shadow 0.2s;
+    border: 1px solid var(--color-border);
+    transition:
+      transform 0.2s,
+      box-shadow 0.2s;
   }
 
   .dashboard-card:hover {
@@ -303,13 +326,13 @@
 
   .dashboard-card h3 {
     margin: 0 0 0.5rem 0;
-    color: #1a365d;
+    color: var(--color-text-primary);
     font-size: 1.25rem;
     font-weight: 600;
   }
 
   .dashboard-card p {
-    color: #64748b;
+    color: var(--color-text-secondary);
     margin-bottom: 1.5rem;
     line-height: 1.5;
   }

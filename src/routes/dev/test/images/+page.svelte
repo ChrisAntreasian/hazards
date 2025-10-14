@@ -67,15 +67,15 @@
     try {
       // Always load real images from database, using the current user's ID
       const currentUserId = user?.id || mockUserId;
-      console.log('🔍 Loading images for user:', currentUserId);
-      console.log('🔍 User object:', user);
-      console.log('🔍 ImageStorage instance:', imageStorage);
-      
+      console.log("🔍 Loading images for user:", currentUserId);
+      console.log("🔍 User object:", user);
+      console.log("🔍 ImageStorage instance:", imageStorage);
+
       const userImages = await imageStorage.getUserImages(currentUserId);
-      console.log('📸 Loaded images from database:', userImages);
-      console.log('📸 Number of images found:', userImages.length);
-      
-      images = userImages.map(img => ({
+      console.log("📸 Loaded images from database:", userImages);
+      console.log("📸 Number of images found:", userImages.length);
+
+      images = userImages.map((img) => ({
         id: img.id,
         hazard_id: img.hazard_id || mockHazardId,
         user_id: img.user_id,
@@ -86,16 +86,16 @@
         metadata: img.metadata || {
           timestamp: img.uploaded_at,
           fileSize: img.metadata?.fileSize || 0,
-          dimensions: img.metadata?.dimensions || { width: 0, height: 0 }
+          dimensions: img.metadata?.dimensions || { width: 0, height: 0 },
         },
-        user_vote: null // Will be populated if we implement voting
+        user_vote: null, // Will be populated if we implement voting
       }));
-      
+
       // If no images found, show helpful message
       if (images.length === 0) {
-        console.log('❌ No images found for current user');
+        console.log("❌ No images found for current user");
       } else {
-        console.log('✅ Successfully loaded', images.length, 'images');
+        console.log("✅ Successfully loaded", images.length, "images");
       }
     } catch (err) {
       console.error("Failed to load images:", err);
@@ -115,7 +115,7 @@
     // Add new image to gallery (at the beginning)
     const newImage: HazardImage = {
       id: result.id,
-      hazard_id: mockHazardId || 'test-hazard-id',
+      hazard_id: mockHazardId || "test-hazard-id",
       user_id: mockUserId,
       original_url: result.originalUrl,
       thumbnail_url: result.thumbnailUrl,
@@ -125,7 +125,7 @@
     };
 
     images = [newImage, ...images];
-    
+
     // Reset to page 1 to show the new image
     currentPage = 1;
 
@@ -199,7 +199,7 @@
 
       // Remove from local state
       images = images.filter((img) => img.id !== imageId);
-      
+
       // Reset to page 1 if current page would be empty
       const newTotalPages = Math.ceil(images.length / imagesPerPage);
       if (currentPage > newTotalPages && newTotalPages > 0) {
@@ -344,7 +344,8 @@
     <div class="gallery-header">
       <h2>Your Image Gallery ({images.length} images)</h2>
       <p class="section-description">
-        Browse, vote on, and manage your uploaded images. Images are displayed in a 4×3 grid with pagination.
+        Browse, vote on, and manage your uploaded images. Images are displayed
+        in a 4×3 grid with pagination.
       </p>
     </div>
 
@@ -365,22 +366,25 @@
         <button
           class="pagination-btn"
           disabled={currentPage === 1}
-          onclick={() => currentPage = Math.max(1, currentPage - 1)}
+          onclick={() => (currentPage = Math.max(1, currentPage - 1))}
         >
           ← Previous
         </button>
-        
+
         <div class="pagination-info">
           <span>Page {currentPage} of {totalPages}</span>
           <span class="pagination-details">
-            Showing {((currentPage - 1) * imagesPerPage) + 1}-{Math.min(currentPage * imagesPerPage, images.length)} of {images.length} images
+            Showing {(currentPage - 1) * imagesPerPage + 1}-{Math.min(
+              currentPage * imagesPerPage,
+              images.length
+            )} of {images.length} images
           </span>
         </div>
-        
+
         <button
           class="pagination-btn"
           disabled={currentPage === totalPages}
-          onclick={() => currentPage = Math.min(totalPages, currentPage + 1)}
+          onclick={() => (currentPage = Math.min(totalPages, currentPage + 1))}
         >
           Next →
         </button>

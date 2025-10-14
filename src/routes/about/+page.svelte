@@ -4,23 +4,32 @@
 </svelte:head>
 
 <div class="text-column">
-	<h1>About this app</h1>
+	<h1>About Hazard Tracker</h1>
 
 	<p>
-		This is a <a href="https://svelte.dev/docs/kit">SvelteKit</a> app. You can make your own by typing
-		the following into your command line and following the prompts:
+		Hazard Tracker is a community-driven platform for reporting and managing environmental and safety hazards.
+		Built with <a href="https://svelte.dev/docs/kit">SvelteKit</a> and <a href="https://supabase.com">Supabase</a>,
+		it provides real-time hazard reporting, moderation workflows, and interactive mapping.
 	</p>
 
-	<pre>npx sv create</pre>
+	<h2>Key Features</h2>
+	<ul>
+		<li><strong>Interactive Mapping:</strong> View hazards on an interactive map with clustering</li>
+		<li><strong>User Reports:</strong> Submit hazard reports with images and location data</li>
+		<li><strong>Moderation System:</strong> Community content review and approval workflows</li>
+		<li><strong>Real-time Updates:</strong> Live notifications and status updates</li>
+		<li><strong>Mobile Responsive:</strong> Works seamlessly on desktop and mobile devices</li>
+	</ul>
 
+	<h2>Technology Stack</h2>
 	<p>
-		The page you're looking at is purely static HTML, with no client-side interactivity needed.
-		Because of that, we don't need to load any JavaScript. Try viewing the page's source, or opening
-		the devtools network panel and reloading.
+		This application leverages modern web technologies for optimal performance and user experience:
+		SvelteKit for the frontend, Supabase for backend services, TypeScript for type safety, 
+		and Leaflet for interactive maps.
 	</p>
 
 	<p>
-		The <a href="/sverdle">Sverdle</a> page illustrates SvelteKit's data loading and form handling. Try
-		using it with JavaScript disabled!
+		Explore the <a href="/map">interactive map</a> to see reported hazards or 
+		<a href="/hazards/create">submit a new report</a> to help keep our community safe.
 	</p>
 </div>

@@ -10,13 +10,17 @@
     validateOnInput?: boolean;
     debounceMs?: number;
     disabled?: boolean;
-    children?: import('svelte').Snippet<[{
-      isValidating: boolean;
-      isValid: boolean;
-      hasError: boolean;
-      validationError: ValidationError | null;
-      handleBlur: () => void;
-    }]>;
+    children?: import("svelte").Snippet<
+      [
+        {
+          isValidating: boolean;
+          isValid: boolean;
+          hasError: boolean;
+          validationError: ValidationError | null;
+          handleBlur: () => void;
+        },
+      ]
+    >;
   }
 
   let {
@@ -27,7 +31,7 @@
     validateOnInput = true,
     debounceMs = 500,
     disabled = false,
-    children
+    children,
   }: Props = $props();
 
   let validationError = $state<ValidationError | null>(null);
@@ -132,7 +136,13 @@
   class:valid={isValid}
   class:error={hasError}
 >
-  {@render children?.({ isValidating, isValid, hasError, validationError, handleBlur })}
+  {@render children?.({
+    isValidating,
+    isValid,
+    hasError,
+    validationError,
+    handleBlur,
+  })}
 
   {#if isValidating}
     <div class="validation-indicator validating">

@@ -147,7 +147,7 @@
         await loadUsers();
         closeModals();
         // Invalidate dashboard and other pages that show trust score
-        await invalidate('trust-score-data');
+        await invalidate("trust-score-data");
       } else {
         error = result.error || "Failed to update user";
       }

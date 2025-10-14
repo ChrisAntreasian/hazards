@@ -11,7 +11,7 @@
   let {
     errors = [],
     warnings = [],
-    showDetails = $bindable(false)
+    showDetails = $bindable(false),
   }: Props = $props();
 
   const dispatch = createEventDispatcher<{
