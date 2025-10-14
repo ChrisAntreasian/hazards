@@ -67,10 +67,11 @@ import { createSupabaseServerClient } from '$lib/supabase';
  * - 401: User authentication required or invalid session
  * - 500: Server error during validation pipeline or database operations
  */
-export const POST: RequestHandler = async ({ request, cookies, locals }) => {
+export const POST: RequestHandler = async (event) => {
+  const { request, cookies, locals } = event;
   try {
     // Get user session
-    const supabase = createSupabaseServerClient({ cookies });
+    const supabase = createSupabaseServerClient(event);
     if (!supabase) {
       return json({
         success: false,
@@ -143,7 +144,7 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
 
     // 5. If requires moderation, add to queue
     if (requiresModeration) {
-      const moderationQueue = new ModerationQueue({ cookies });
+      const moderationQueue = new ModerationQueue(event);
       
       // Create a temporary hazard record for moderation
       const { data: tempHazard, error: hazardError } = await supabase

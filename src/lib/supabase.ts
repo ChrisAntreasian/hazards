@@ -1,5 +1,6 @@
 import { createBrowserClient, createServerClient, isBrowser } from '@supabase/ssr';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+import type { RequestEvent } from '@sveltejs/kit';
 import type { Database } from './types/database.js';
 
 // Check if environment variables are set
@@ -64,7 +65,7 @@ export const fixAuthStateMismatch = async (supabase: ReturnType<typeof createSup
 };
 
 // Create server client with enhanced cookie handling
-export function createSupabaseServerClient(event: any) {
+export function createSupabaseServerClient(event: RequestEvent) {
   if (!isSupabaseConfigured()) {
     return null;
   }

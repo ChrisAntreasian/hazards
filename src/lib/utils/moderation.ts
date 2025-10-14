@@ -1,6 +1,9 @@
 import { createSupabaseServerClient } from '$lib/supabase';
 import { logger } from '$lib/utils/logger';
-import type { ModerationItem, ModerationAction, ModerationStats, AutoModerationResult } from '$lib/types/moderation';
+import type { ModerationItem, ModerationAction, ModerationStats, AutoModerationResult, ContentPreview } from '$lib/types/moderation';
+import type { RequestEvent } from '@sveltejs/kit';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '$lib/types/database';
 
 /**
  * Core moderation queue management class for handling content review workflows.
@@ -27,15 +30,20 @@ export class ModerationQueue {
    * Creates a new ModerationQueue instance with SvelteKit event context.
    * @param event - SvelteKit RequestEvent containing cookies and request context
    */
-  constructor(private event: any) {}
+  constructor(private event: RequestEvent) {}
 
   /**
    * Gets authenticated Supabase client from the current request context.
    * @private
    * @returns Supabase client configured with user session
+   * @throws {Error} When Supabase client cannot be created
    */
-  private get supabase() {
-    return createSupabaseServerClient(this.event);
+  private get supabase(): SupabaseClient<Database> {
+    const client = createSupabaseServerClient(this.event);
+    if (!client) {
+      throw new Error('Failed to create Supabase client - invalid request context');
+    }
+    return client;
   }
 
   /**
@@ -228,7 +236,13 @@ export class ModerationQueue {
 
     try {
       // Update moderation queue item
-      const updateData: any = {
+      const updateData: {
+        assigned_moderator: string;
+        moderator_notes?: string;
+        status?: 'approved' | 'rejected' | 'pending' | 'needs_review';
+        resolved_at?: string;
+        flagged_reasons?: string[];
+      } = {
         assigned_moderator: moderatorId,
         moderator_notes: action.notes,
       };
@@ -298,7 +312,7 @@ export class ModerationQueue {
    * const avgTime = await this.calculateAverageReviewTime(supabase);
    * // Result: 23 (minutes average review time)
    */
-  private async calculateAverageReviewTime(supabase: any): Promise<number> {
+  private async calculateAverageReviewTime(supabase: SupabaseClient<Database>): Promise<number> {
     try {
       const { data: resolvedItems } = await supabase
         .from('moderation_queue')
@@ -312,7 +326,7 @@ export class ModerationQueue {
         return 0;
       }
 
-      const totalMinutes = resolvedItems.reduce((sum: number, item: any) => {
+      const totalMinutes = resolvedItems.reduce((sum: number, item: { created_at: string; resolved_at: string }) => {
         const created = new Date(item.created_at);
         const resolved = new Date(item.resolved_at);
         const diffMinutes = (resolved.getTime() - created.getTime()) / (1000 * 60);
@@ -482,9 +496,23 @@ export class ModerationQueue {
    * const moderationItem = await this.transformToModerationItem(rawRecord);
    * // Result includes content_preview with hazard details and images
    */
-  private async transformToModerationItem(data: any): Promise<ModerationItem> {
+  private async transformToModerationItem(data: {
+    id: string;
+    type: 'hazard' | 'image' | 'template' | 'user_report';
+    content_id: string;
+    submitted_by: string;
+    flagged_reasons: string[];
+    priority: 'low' | 'medium' | 'high' | 'urgent';
+    status: 'pending' | 'approved' | 'rejected' | 'needs_review';
+    assigned_moderator?: string;
+    moderator_notes?: string;
+    created_at: string;
+    resolved_at?: string;
+  }): Promise<ModerationItem> {
     const supabase = this.supabase;
-    let contentPreview: any = {};
+    let contentPreview: ContentPreview = {
+      title: '',  // Will be set based on content type
+    };
     let submitterEmail = '';
 
     // Fetch submitter email
@@ -523,8 +551,17 @@ export class ModerationQueue {
           },
           reported_active_date: hazard.reported_active_date,
           is_seasonal: hazard.is_seasonal,
-          created_at: hazard.created_at,
-          images: imageData ? imageData.map((img: any) => ({
+          additional_data: {
+            created_at: hazard.created_at
+          },
+          images: imageData ? imageData.map((img: {
+            id: string;
+            original_url: string;
+            thumbnail_url?: string;
+            uploaded_at: string;
+            vote_score?: number;
+            metadata?: { alt_text?: string; file_size?: number };
+          }) => ({
             id: img.id,
             image_url: img.original_url,
             thumbnail_url: img.thumbnail_url,
@@ -605,7 +642,10 @@ export class ModerationQueue {
    * await this.updateContentStatus(moderationItem, 'approve');
    * // Updates hazards.status = 'approved' for public visibility
    */
-  private async updateContentStatus(item: any, action: 'approve' | 'reject'): Promise<void> {
+  private async updateContentStatus(item: {
+    type: 'hazard' | 'image' | 'template' | 'user_report';
+    content_id: string;
+  }, action: 'approve' | 'reject'): Promise<void> {
     const supabase = this.supabase;
     if (!supabase) return;
 
@@ -670,7 +710,16 @@ export class ModerationQueue {
  * ```
  */
 export async function runAutomatedModeration(
-  content: any,
+  content: {
+    title?: string;
+    description?: string;
+    latitude?: number;
+    longitude?: number;
+    severity_level?: number;
+    image_url?: string;
+    file_size?: number;
+    [key: string]: any;
+  },
   contentType: 'hazard' | 'image' | 'template'
 ): Promise<AutoModerationResult> {
   // Basic automated screening - can be enhanced with AI services later
@@ -688,7 +737,12 @@ export async function runAutomatedModeration(
       result.details.text_analysis = textScore;
 
       // Location validation
-      const locationScore = await analyzeLocation(content.latitude, content.longitude);
+      let locationScore;
+      if (typeof content.latitude === 'number' && typeof content.longitude === 'number') {
+        locationScore = await analyzeLocation(content.latitude, content.longitude);
+      } else {
+        locationScore = { valid_location: false, in_supported_region: false, duplicate_nearby: false };
+      }
       result.details.location_analysis = locationScore;
 
       // Determine action based on analysis
@@ -783,7 +837,7 @@ function analyzeText(text: string) {
  * // Returns: { valid_location: true, in_supported_region: false, duplicate_nearby: false }
  * ```
  */
-async function analyzeLocation(lat: number, lng: number, supabase?: any) {
+async function analyzeLocation(lat: number, lng: number, supabase?: SupabaseClient<Database>) {
   // Check if coordinates are valid
   const validLat = lat >= -90 && lat <= 90;
   const validLng = lng >= -180 && lng <= 180;
@@ -803,7 +857,7 @@ async function analyzeLocation(lat: number, lng: number, supabase?: any) {
           radius_meters: 100 
         });
       
-      duplicateNearby = nearbyHazards && nearbyHazards.length > 0;
+      duplicateNearby = Boolean(nearbyHazards && nearbyHazards.length > 0);
     } catch (error) {
       // If RPC function doesn't exist, fall back to basic coordinate comparison
       const tolerance = 0.001; // Roughly 100 meters at Boston latitude
@@ -816,7 +870,7 @@ async function analyzeLocation(lat: number, lng: number, supabase?: any) {
         .lte('longitude', lng + tolerance)
         .limit(1);
       
-      duplicateNearby = similarHazards && similarHazards.length > 0;
+      duplicateNearby = Boolean(similarHazards && similarHazards.length > 0);
     }
   }
   

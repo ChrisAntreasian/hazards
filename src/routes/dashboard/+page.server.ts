@@ -1,5 +1,7 @@
 import { protectRoute } from '$lib/utils/routeProtection';
+import { redirect } from '@sveltejs/kit';
 import { createSupabaseServerClient } from '$lib/supabase';
+import type { Database } from '$lib/types/database';
 import type { PageServerLoad } from './$types';
 import type { UserHazardRpcResult } from '$lib/types/database';
 
@@ -22,7 +24,7 @@ export const load: PageServerLoad = async (event) => {
     // Create Supabase client to fetch user's hazards
     const supabase = createSupabaseServerClient(event);
     
-    let userHazards: any[] = [];
+    let userHazards: Database['public']['Tables']['hazards']['Row'][] = [];
     let hazardStats = {
       total: 0,
       pending: 0,
@@ -30,7 +32,18 @@ export const load: PageServerLoad = async (event) => {
       rejected: 0
     };
     let userTrustScore = 0;
-    let recentActivity: any[] = [];
+    let recentActivity: Array<{
+      id: any;
+      status: any;
+      resolved_at: any;
+      created_at: any;
+      moderator_notes: any;
+      hazards: {
+        id: any;
+        title: any;
+        status: any;
+      }[];
+    }> = [];
 
     if (supabase) {
       try {
@@ -67,7 +80,7 @@ export const load: PageServerLoad = async (event) => {
           hazardStats.total = userHazards.length;
           hazardStats.pending = userHazards.filter(h => h.status === 'pending').length;
           hazardStats.approved = userHazards.filter(h => h.status === 'approved').length;
-          hazardStats.rejected = userHazards.filter(h => h.status === 'rejected').length;
+          hazardStats.rejected = userHazards.filter(h => h.status === 'removed').length;
         }
 
         // Fetch recent activity (including moderation decisions)

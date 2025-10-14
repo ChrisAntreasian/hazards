@@ -241,7 +241,7 @@ export const HazardRatingSchema = z.object({
 });
 
 // Validation result types
-export interface ValidationResult<T = any> {
+export interface ValidationResult<T = unknown> {
   success: boolean;
   data?: T;
   errors?: ValidationError[];
@@ -313,7 +313,7 @@ export function validateHazardSubmission(data: unknown): ValidationResult<z.infe
     
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const errors: ValidationError[] = error.issues.map((err: any) => ({
+      const errors: ValidationError[] = error.issues.map((err: z.ZodIssue) => ({
         field: err.path.join('.'),
         message: err.message,
         code: err.code
@@ -362,7 +362,7 @@ export function validateHazardSubmission(data: unknown): ValidationResult<z.infe
  * });
  * ```
  */
-export function validateField(fieldName: string, value: any): ValidationError | null {
+export function validateField(fieldName: string, value: unknown): ValidationError | null {
   try {
     switch (fieldName) {
       case 'title':

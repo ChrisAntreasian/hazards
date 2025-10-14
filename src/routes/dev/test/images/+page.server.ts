@@ -2,8 +2,9 @@ import { redirect } from '@sveltejs/kit';
 import { createSupabaseServerClient } from '$lib/supabase';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ url, locals, cookies }) => {
-  const supabase = createSupabaseServerClient({ url, cookies });
+export const load: PageServerLoad = async (event) => {
+  const { url, locals, cookies } = event;
+  const supabase = createSupabaseServerClient(event);
   
   if (!supabase) {
     return {

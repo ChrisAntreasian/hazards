@@ -53,7 +53,7 @@
   let filteredHazards = $derived(
     selectedFilter === "all"
       ? userHazards
-      : userHazards.filter((h: any) => h.status === selectedFilter)
+      : userHazards.filter((h) => h.status === selectedFilter)
   );
 
   // Sorting options
@@ -61,8 +61,31 @@
   let sortOrder = $state("desc");
   let sortedHazards = $derived(
     [...filteredHazards].sort((a, b) => {
-      let aVal = a[sortBy];
-      let bVal = b[sortBy];
+      let aVal: any;
+      let bVal: any;
+      
+      // Safe property access
+      switch (sortBy) {
+        case 'created_at':
+          aVal = a.created_at;
+          bVal = b.created_at;
+          break;
+        case 'reported_active_date':
+          aVal = a.reported_active_date;
+          bVal = b.reported_active_date;
+          break;
+        case 'title':
+          aVal = a.title;
+          bVal = b.title;
+          break;
+        case 'severity_level':
+          aVal = a.severity_level;
+          bVal = b.severity_level;
+          break;
+        default:
+          aVal = a.created_at;
+          bVal = b.created_at;
+      }
 
       if (sortBy === "created_at" || sortBy === "reported_active_date") {
         aVal = new Date(aVal).getTime();
@@ -190,19 +213,7 @@
                 </div>
               </div>
 
-              <div class="hazard-info">
-                {#if hazard.hazard_categories}
-                  <div class="category">
-                    <span class="category-icon"
-                      >{hazard.hazard_categories.icon}</span
-                    >
-                    <span class="category-name"
-                      >{hazard.hazard_categories.name}</span
-                    >
-                  </div>
-                {/if}
-
-                <p class="hazard-description">{hazard.description}</p>
+        <div class="hazard-info">                <p class="hazard-description">{hazard.description}</p>
 
                 <div class="hazard-meta">
                   <div class="meta-item">

@@ -2,7 +2,8 @@ import { json } from '@sveltejs/kit';
 import { createSupabaseServerClient } from '$lib/supabase';
 import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({ request, cookies }) => {
+export const POST: RequestHandler = async (event) => {
+  const { request, cookies } = event;
   try {
     const { email } = await request.json();
 
@@ -10,7 +11,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
       return json({ error: 'Email is required' }, { status: 400 });
     }
 
-    const supabase = createSupabaseServerClient(cookies);
+    const supabase = createSupabaseServerClient(event);
 
     if (!supabase) {
       return json({ error: 'Supabase not configured' }, { status: 500 });

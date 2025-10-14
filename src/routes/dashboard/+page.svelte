@@ -143,7 +143,7 @@
               <div class="activity-icon">
                 {#if activity.status === "approved"}
                   ✅
-                {:else if activity.status === "rejected"}
+                {:else if activity.status === "removed"}
                   ❌
                 {:else if activity.status === "pending"}
                   ⏳
@@ -155,7 +155,7 @@
                 <div class="activity-title">
                   {#if activity.status === "approved"}
                     Hazard report approved
-                  {:else if activity.status === "rejected"}
+                  {:else if activity.status === "removed"}
                     Hazard report rejected
                   {:else if activity.status === "pending"}
                     Hazard report submitted for review
@@ -164,7 +164,7 @@
                   {/if}
                 </div>
                 <div class="activity-description">
-                  <strong>{activity.hazards?.title || "Unknown hazard"}</strong>
+                  <strong>{activity.hazards?.[0]?.title || "Unknown hazard"}</strong>
                   {#if activity.moderator_notes}
                     - {activity.moderator_notes}
                   {/if}
@@ -179,7 +179,7 @@
                 <span
                   class="status-badge {activity.status === 'approved'
                     ? 'status-approved'
-                    : activity.status === 'rejected'
+                    : activity.status === 'removed'
                       ? 'status-rejected'
                       : 'status-pending'}"
                 >
@@ -194,7 +194,7 @@
               <div class="activity-icon">
                 {#if hazard.status === "approved"}
                   ✅
-                {:else if hazard.status === "rejected"}
+                {:else if hazard.status === "removed"}
                   ❌
                 {:else if hazard.status === "pending"}
                   ⏳
@@ -206,7 +206,7 @@
                 <div class="activity-title">
                   {#if hazard.status === "approved"}
                     Hazard report approved
-                  {:else if hazard.status === "rejected"}
+                  {:else if hazard.status === "removed"}
                     Hazard report needs revision
                   {:else if hazard.status === "pending"}
                     Hazard report submitted for review
@@ -215,8 +215,7 @@
                   {/if}
                 </div>
                 <div class="activity-description">
-                  <strong>{hazard.title}</strong> - {hazard.hazard_categories
-                    ?.name || "Uncategorized"}
+                  <strong>{hazard.title}</strong>
                 </div>
                 <div class="activity-time">{formatDate(hazard.created_at)}</div>
               </div>

@@ -1,4 +1,5 @@
-import { validateHazardSubmission } from './hazard-validation.js';
+import { validateHazardSubmission, HazardSubmissionSchema } from '$lib/validation/hazard-validation';
+import type { z } from 'zod';
 
 /**
  * Automated content pre-screening service
@@ -41,7 +42,7 @@ export class ContentPreScreening {
    * Main pre-screening function for hazard submissions
    */
   async screenHazardSubmission(
-    submission: any,
+    submission: unknown,
     userTrustScore: number = 0
   ): Promise<ScreeningResult> {
     
@@ -335,7 +336,7 @@ export class ContentPreScreening {
   /**
    * Check for potential duplicate submissions
    */
-  private async checkDuplicates(data: any): Promise<{
+  private async checkDuplicates(data: z.infer<typeof HazardSubmissionSchema>): Promise<{
     risk_score: number;
     confidence: number;
     flags: string[];

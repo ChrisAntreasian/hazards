@@ -139,10 +139,12 @@ export function safeJsonParse<T>(json: string, fallback: T): T {
  * // Custom error -> "Invalid hazard coordinates"
  * ```
  */
-export function formatErrorMessage(error: any): string {
+export function formatErrorMessage(error: unknown): string {
   if (typeof error === 'string') return error;
-  if (error?.message) return error.message;
-  if (error?.error_description) return error.error_description;
+  if (error && typeof error === 'object') {
+    if ('message' in error && typeof error.message === 'string') return error.message;
+    if ('error_description' in error && typeof error.error_description === 'string') return error.error_description;
+  }
   return 'An unexpected error occurred';
 }
 

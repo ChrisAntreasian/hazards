@@ -3,6 +3,7 @@ import { goto } from '$app/navigation';
 import { createSupabaseLoadClient, signOut as supabaseSignOut } from '$lib/supabase';
 import { authStore, user, session, loading, initialized } from '$lib/stores/auth';
 import type { UseAuthReturn, RouteGuardOptions } from '$lib/types/auth';
+import type { User, Session } from '@supabase/supabase-js';
 
 /**
  * Auth hook for managing authentication state
@@ -71,7 +72,7 @@ export const useRouteGuard = (options: RouteGuardOptions = {}) => {
     allowedRoles = []
   } = options;
 
-  const checkAccess = (currentUser: any, currentSession: any) => {
+  const checkAccess = (currentUser: User | null, currentSession: Session | null) => {
     if (requireAuth && !currentSession) {
       goto(`${redirectTo}?returnUrl=${encodeURIComponent(window.location.pathname)}`);
       return false;
@@ -94,6 +95,6 @@ export const useRouteGuard = (options: RouteGuardOptions = {}) => {
 /**
  * Initialize auth state from server data
  */
-export const initializeAuth = (serverSession: any, serverUser: any = null) => {
+export const initializeAuth = (serverSession: Session | null, serverUser: User | null = null) => {
   authStore.initialize(serverUser, serverSession);
 };
