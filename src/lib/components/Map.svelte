@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Map as LeafletMap, Marker, TileLayer } from 'leaflet';
-	import { logger } from '$lib/utils/logger.js';
-	// import type { HazardWithDetails } from '$lib/types/database.js';
+	import { logger } from '$lib/utils/logger';
+	// import type { HazardWithDetails } from '$lib/types/database';
 
 	interface Props {
 		hazards?: any[];

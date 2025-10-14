@@ -1,8 +1,8 @@
 import { get } from 'svelte/store';
 import { goto } from '$app/navigation';
-import { createSupabaseLoadClient, signOut as supabaseSignOut } from '$lib/supabase.js';
-import { authStore, user, session, loading, initialized } from '$lib/stores/auth.js';
-import type { UseAuthReturn, RouteGuardOptions } from '$lib/types/auth.js';
+import { createSupabaseLoadClient, signOut as supabaseSignOut } from '$lib/supabase';
+import { authStore, user, session, loading, initialized } from '$lib/stores/auth';
+import type { UseAuthReturn, RouteGuardOptions } from '$lib/types/auth';
 
 /**
  * Auth hook for managing authentication state

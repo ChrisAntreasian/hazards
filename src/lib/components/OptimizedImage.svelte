@@ -8,8 +8,6 @@
 -->
 
 <script lang="ts">
-	import { onMount } from 'svelte';
-
 	interface Props {
 		src: string;
 		alt: string;
@@ -35,8 +33,8 @@
 	let error = $state(false);
 	let observer = $state<IntersectionObserver | null>(null);
 
-	onMount(() => {
-		if (loading === 'lazy' && 'IntersectionObserver' in window) {
+	$effect(() => {
+		if (loading === 'lazy' && 'IntersectionObserver' in window && imageElement) {
 			observer = new IntersectionObserver((entries) => {
 				entries.forEach((entry) => {
 					if (entry.isIntersecting && imageElement) {
@@ -46,9 +44,7 @@
 				});
 			}, { rootMargin: '50px' });
 
-			if (imageElement) {
-				observer.observe(imageElement);
-			}
+			observer.observe(imageElement);
 
 			return () => {
 				observer?.disconnect();
@@ -74,8 +70,8 @@
 		{height}
 		class:loaded
 		class:error
-		on:load={handleLoad}
-		on:error={handleError}
+		onload={handleLoad}
+		onerror={handleError}
 		loading={loading}
 	/>
 	

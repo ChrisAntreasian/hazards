@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { createSupabaseLoadClient } from "$lib/supabase.js";
+  import { logger } from "$lib/utils/logger.js";
   import ImageUpload from "$lib/components/ImageUpload.svelte";
   import type { PageData } from "./$types";
   import type { ImageUploadResult } from "$lib/types/images.js";
@@ -78,7 +79,7 @@
         success = "";
       }, 3000);
     } catch (err: any) {
-      console.error("Geolocation error:", err);
+      logger.warn("Geolocation failed", { metadata: { errorMessage: err.message } });
       error = `Failed to get location: ${err.message || "Unknown error"}`;
 
       // Default to Boston area as fallback
@@ -147,7 +148,7 @@
           if (result.type === "failure") {
             const errorData = result.data as any;
             error = errorData?.error || "Failed to submit hazard";
-            console.error("Form submission failed:", errorData);
+            logger.error("Form submission failed", new Error(errorData?.error || "Unknown form error"));
           } else if (result.type === "redirect") {
             success =
               "Hazard reported successfully! Redirecting to dashboard...";

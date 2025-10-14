@@ -1,8 +1,8 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
-import { validateHazardSubmission, validateField } from '$lib/validation/hazard-validation.js';
-import { ContentPreScreening } from '$lib/validation/content-prescreening.js';
-import { createSupabaseServerClient } from '$lib/supabase.js';
+import { validateHazardSubmission, validateField } from '$lib/validation/hazard-validation';
+import { ContentPreScreening } from '$lib/validation/content-prescreening';
+import { createSupabaseServerClient } from '$lib/supabase';
 
 /**
  * API endpoint for real-time field validation

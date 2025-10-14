@@ -1,6 +1,6 @@
 import { writable, derived } from 'svelte/store';
 import type { Session, User } from '@supabase/supabase-js';
-import type { AuthState, AuthAction } from '$lib/types/auth.js';
+import type { AuthState, AuthAction } from '$lib/types/auth';
 
 const createAuthStore = () => {
   const initialState: AuthState = {

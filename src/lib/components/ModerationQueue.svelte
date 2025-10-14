@@ -1,12 +1,11 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { logger } from '$lib/utils/logger.js';
+  import { logger } from '$lib/utils/logger';
   import type {
     ModerationItem,
     ModerationAction,
     ModerationStats,
-  } from "$lib/types/moderation.js";
-  import { FLAGGING_REASONS } from "$lib/types/moderation.js";
+  } from "$lib/types/moderation";
+  import { FLAGGING_REASONS } from "$lib/types/moderation";
 
   interface Props {
     userId: string;
@@ -29,16 +28,20 @@
   let filteredItems: ModerationItem[] = $state([]);
 
   // Load initial data
-  onMount(async () => {
-    await Promise.all([loadStats(), loadQueueOverview()]);
+  $effect(() => {
+    async function loadInitialData() {
+      await Promise.all([loadStats(), loadQueueOverview()]);
 
-    // Auto-select the first item if any exist in the default pending view
-    if (filteredItems.length > 0) {
-      await selectQueueItem(filteredItems[0]);
-    } else {
-      // If no pending items, try to load the next available item
-      await loadNextItem();
+      // Auto-select the first item if any exist in the default pending view
+      if (filteredItems.length > 0) {
+        await selectQueueItem(filteredItems[0]);
+      } else {
+        // If no pending items, try to load the next available item
+        await loadNextItem();
+      }
     }
+    
+    loadInitialData();
   });
 
   async function loadNextItem() {

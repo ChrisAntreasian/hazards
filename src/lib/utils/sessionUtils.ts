@@ -1,4 +1,4 @@
-import { authStore, session as sessionStore } from '$lib/stores/auth.js';
+import { authStore, session as sessionStore } from '$lib/stores/auth';
 import { get } from 'svelte/store';
 
 /**

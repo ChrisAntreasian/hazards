@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { ModerationQueue } from '$lib/utils/moderation.js';
+import { ModerationQueue } from '$lib/utils/moderation';
 
 export const POST: RequestHandler = async (event) => {
   try {

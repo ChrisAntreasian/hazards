@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import { createSupabaseServerClient } from '$lib/supabase';
 import type { RequestHandler } from '@sveltejs/kit';
-import type { AdminCategoryData, CategoryTreeNode, AdminApiResponse } from '$lib/types/admin.js';
+import type { AdminCategoryData, CategoryTreeNode, AdminApiResponse } from '$lib/types/admin';
 
 // GET - Fetch all categories in tree structure
 export const GET: RequestHandler = async (event) => {

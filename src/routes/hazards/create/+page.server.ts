@@ -1,5 +1,6 @@
-import { createSupabaseServerClient } from '$lib/supabase.js';
+import { createSupabaseServerClient } from '$lib/supabase';
 import { fail, redirect } from '@sveltejs/kit';
+import { logger } from '$lib/utils/logger';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async (event) => {
@@ -19,7 +20,7 @@ export const load: PageServerLoad = async (event) => {
     .order('name', { ascending: true });
 
   if (categoryError) {
-    console.error('Failed to load categories:', categoryError);
+    logger.dbError('load categories', new Error(categoryError.message || 'Failed to load categories'));
     return {
       categories: []
     };
@@ -95,7 +96,7 @@ export const actions: Actions = {
       });
 
       if (hazardError || !createResult?.success) {
-        console.error('Hazard creation error:', hazardError || createResult);
+        logger.dbError('create hazard', new Error(hazardError?.message || createResult?.error_message || 'Failed to create hazard'));
         return fail(500, { 
           error: `Failed to create hazard: ${hazardError?.message || createResult?.error_message || 'Unknown error'}`,
           code: hazardError?.code || createResult?.error_code || 'UNKNOWN'
@@ -115,17 +116,17 @@ export const actions: Actions = {
               .in('id', imageIds);
 
             if (updateError) {
-              console.error('Failed to link images to hazard:', updateError);
+              logger.warn('Failed to link images to hazard', { metadata: { hazardId, imageIds: imageIds.length } });
               // Don't fail the whole operation for this
             }
           }
         } catch (imgError) {
-          console.error('Error linking images:', imgError);
+          logger.warn('Error linking images', { metadata: { hazardId } });
         }
       }
 
     } catch (err) {
-      console.error('Failed to submit hazard:', err);
+      logger.error('Failed to submit hazard', err instanceof Error ? err : new Error(String(err)));
       return fail(500, { 
         error: `Failed to submit hazard: ${err instanceof Error ? err.message : 'Unknown error'}`,
         code: err instanceof Error ? (err as any).code : 'UNKNOWN'

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from "svelte";
   import type {
     SystemConfiguration,
     ModerationConfig,
@@ -9,17 +8,17 @@
     FeatureFlags,
   } from "$lib/types/admin.js";
 
-  let config: SystemConfiguration | null = null;
-  let isLoading = false;
-  let error: string | null = null;
-  let activeSection = "moderation";
-  let hasChanges = false;
+  let config = $state<SystemConfiguration | null>(null);
+  let isLoading = $state(false);
+  let error = $state<string | null>(null);
+  let activeSection = $state("moderation");
+  let hasChanges = $state(false);
 
   // Track changes for each section
-  let moderationChanges: Partial<ModerationConfig> = {};
-  let validationChanges: Partial<ValidationConfig> = {};
-  let notificationChanges: Partial<NotificationConfig> = {};
-  let featureChanges: Partial<FeatureFlags> = {};
+  let moderationChanges = $state<Partial<ModerationConfig>>({});
+  let validationChanges = $state<Partial<ValidationConfig>>({});
+  let notificationChanges = $state<Partial<NotificationConfig>>({});
+  let featureChanges = $state<Partial<FeatureFlags>>({});
 
   const sections = [
     { id: "moderation", label: "Moderation", icon: "⚖️" },
@@ -28,8 +27,8 @@
     { id: "features", label: "Features", icon: "🚀" },
   ];
 
-  onMount(async () => {
-    await loadConfig();
+  $effect(() => {
+    loadConfig();
   });
 
   async function loadConfig() {

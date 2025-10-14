@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import { createSupabaseServerClient } from '$lib/supabase';
 import type { RequestHandler } from '@sveltejs/kit';
-import type { SystemConfiguration, AdminApiResponse } from '$lib/types/admin.js';
+import type { SystemConfiguration, AdminApiResponse } from '$lib/types/admin';
 
 // Default system configuration
 const defaultConfig: SystemConfiguration = {

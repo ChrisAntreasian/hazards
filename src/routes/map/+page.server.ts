@@ -1,6 +1,6 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
-import { logger } from '$lib/utils/logger.js';
+import { logger } from '$lib/utils/logger';
 
 export const load: PageServerLoad = async ({ locals: { supabase } }) => {
 	try {

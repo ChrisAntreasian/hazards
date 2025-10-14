@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { BOSTON_REGION } from '$lib/config.js';
+	import { BOSTON_REGION } from '$lib/config';
 </script>
 
 <svelte:head>

@@ -1,5 +1,5 @@
 import { redirect } from '@sveltejs/kit';
-import { createSupabaseServerClient } from '$lib/supabase.js';
+import { createSupabaseServerClient } from '$lib/supabase';
 import type { RequestEvent } from '@sveltejs/kit';
 
 export interface RouteProtectionOptions {

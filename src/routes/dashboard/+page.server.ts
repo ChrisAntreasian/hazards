@@ -1,5 +1,5 @@
-import { protectRoute } from '$lib/utils/routeProtection.js';
-import { createSupabaseServerClient } from '$lib/supabase.js';
+import { protectRoute } from '$lib/utils/routeProtection';
+import { createSupabaseServerClient } from '$lib/supabase';
 import type { PageServerLoad } from './$types';
 import type { UserHazardRpcResult } from '$lib/types/database';
 

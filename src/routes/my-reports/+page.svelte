@@ -53,7 +53,7 @@
   let filteredHazards = $derived(
     selectedFilter === "all"
       ? userHazards
-      : userHazards.filter((h) => h.status === selectedFilter)
+      : userHazards.filter((h: any) => h.status === selectedFilter)
   );
 
   // Sorting options

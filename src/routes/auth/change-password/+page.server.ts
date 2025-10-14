@@ -1,6 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import { createSupabaseServerClient } from '$lib/supabase';
-import { protectRoute } from '$lib/utils/routeProtection.js';
+import { protectRoute } from '$lib/utils/routeProtection';
 import type { PageServerLoad, Actions } from './$types';
 
 export const load: PageServerLoad = async (event) => {

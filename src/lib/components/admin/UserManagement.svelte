@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from "svelte";
   import { invalidate } from "$app/navigation";
   import { formatRelativeTime, formatTrustScore } from "$lib/utils/helpers.js";
   import type {
@@ -8,32 +7,32 @@
     PaginatedResponse,
   } from "$lib/types/admin.js";
 
-  let users: AdminUserData[] = [];
-  let isLoading = false;
-  let error: string | null = null;
-  let selectedUser: AdminUserData | null = null;
-  let showEditModal = false;
-  let showBanModal = false;
+  let users = $state<AdminUserData[]>([]);
+  let isLoading = $state(false);
+  let error = $state<string | null>(null);
+  let selectedUser = $state<AdminUserData | null>(null);
+  let showEditModal = $state(false);
+  let showBanModal = $state(false);
 
   // Pagination and filtering
-  let currentPage = 1;
-  let totalPages = 1;
-  let totalUsers = 0;
-  let pageSize = 25;
-  let searchQuery = "";
-  let roleFilter: UserRole | "all" = "all";
-  let sortBy = "created_at";
-  let sortOrder: "asc" | "desc" = "desc";
+  let currentPage = $state(1);
+  let totalPages = $state(1);
+  let totalUsers = $state(0);
+  let pageSize = $state(25);
+  let searchQuery = $state("");
+  let roleFilter = $state<UserRole | "all">("all");
+  let sortBy = $state("created_at");
+  let sortOrder = $state<"asc" | "desc">("desc");
 
   // Form data
-  let editForm = {
+  let editForm = $state({
     role: "user" as UserRole,
     trust_score: 0,
     is_active: true,
     reason: "",
-  };
+  });
 
-  let banReason = "";
+  let banReason = $state("");
 
   const roleOptions: {
     value: UserRole | "all";
@@ -50,8 +49,8 @@
     { value: "banned", label: "Banned", color: "#ef4444" },
   ];
 
-  onMount(async () => {
-    await loadUsers();
+  $effect(() => {
+    loadUsers();
   });
 
   async function loadUsers() {

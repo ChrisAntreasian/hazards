@@ -1,4 +1,4 @@
-import { createSupabaseLoadClient } from '$lib/supabase.js';
+import { createSupabaseLoadClient } from '$lib/supabase';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ProcessedImage, ImageUploadResult } from '$lib/types/images';
 import { v4 as uuidv4 } from 'uuid';

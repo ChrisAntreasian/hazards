@@ -4,7 +4,7 @@ import { createSupabaseServerClient } from '$lib/supabase';
 import { env } from '$env/dynamic/private';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import type { RequestHandler } from '@sveltejs/kit';
-import type { AdminUserData, UserRole, AdminApiResponse } from '$lib/types/admin.js';
+import type { AdminUserData, UserRole, AdminApiResponse } from '$lib/types/admin';
 
 // Create admin supabase client that bypasses RLS
 function createAdminSupabaseClient() {

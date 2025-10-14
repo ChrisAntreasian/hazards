@@ -1,6 +1,6 @@
-import { createSupabaseServerClient } from '$lib/supabase.js';
-import { logger } from '$lib/utils/logger.js';
-import type { ModerationItem, ModerationAction, ModerationStats, AutoModerationResult } from '$lib/types/moderation.js';
+import { createSupabaseServerClient } from '$lib/supabase';
+import { logger } from '$lib/utils/logger';
+import type { ModerationItem, ModerationAction, ModerationStats, AutoModerationResult } from '$lib/types/moderation';
 
 /**
  * Core moderation queue management class for handling content review workflows.

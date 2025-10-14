@@ -8,8 +8,6 @@
 -->
 
 <script lang="ts">
-	import { onMount } from 'svelte';
-
 	interface Props {
 		/** Function that returns a promise of the component to load */
 		loader: () => Promise<any>;
@@ -32,16 +30,19 @@
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 
-	onMount(async () => {
-		try {
-			const module = await loader();
-			Component = module.default || module;
-			loading = false;
-		} catch (err) {
-			console.error('Lazy load error:', err);
-			error = errorText;
-			loading = false;
+	$effect(() => {
+		async function loadComponent() {
+			try {
+				const module = await loader();
+				Component = module.default || module;
+				loading = false;
+			} catch (err) {
+				error = errorText;
+				loading = false;
+			}
 		}
+		
+		loadComponent();
 	});
 </script>
 
