@@ -1,3 +1,91 @@
+<!--
+  @component ModerationQueue
+  
+  **Complete moderation interface for content review workflows and queue management.**
+  
+  Provides a comprehensive moderation dashboard for reviewing user-submitted content
+  including hazards, images, and templates. Features real-time queue management,
+  statistics tracking, and streamlined decision workflows for moderators and admins.
+  
+  ## Features
+  - **Queue Management**: Real-time pending/approved/rejected item filtering
+  - **Quick Actions**: Approve, reject, or flag content with contextual reasons
+  - **Statistics Dashboard**: Live moderation metrics and performance tracking  
+  - **Content Preview**: Rich preview of all content types with metadata
+  - **Batch Operations**: Efficient processing of multiple items
+  - **Audit Trail**: Complete history of moderation decisions and notes
+  - **Role-based Access**: Different capabilities for moderators vs admins
+  
+  ## Usage Examples
+  
+  ### Basic moderator interface
+  ```svelte
+  <ModerationQueue 
+    userId="mod_123"
+    userRole="moderator"
+  />
+  ```
+  
+  ### Admin with elevated permissions
+  ```svelte
+  <ModerationQueue 
+    userId="admin_456" 
+    userRole="admin"
+  />
+  ```
+  
+  ## Component Architecture
+  
+  ### Queue Views
+  - **Pending**: Items awaiting review (default view)
+  - **Approved**: Recently approved content with moderator notes
+  - **Rejected**: Rejected content with reasons for transparency
+  - **Urgent**: High-priority items requiring immediate attention
+  
+  ### Action Types  
+  - **Approve**: Publish content to platform (with optional notes)
+  - **Reject**: Hide content from platform (with required reason)
+  - **Flag**: Mark for escalation or additional review
+  
+  ### Content Types Supported
+  - **Hazard Reports**: Location-based safety submissions
+  - **Image Uploads**: Photos attached to hazard reports
+  - **Template Submissions**: User-created hazard templates
+  - **User Reports**: Community-flagged content
+  
+  ## Props
+  - `userId` (string): Unique identifier of current moderator/admin
+  - `userRole` (string): Role determining available actions ('moderator' | 'admin' | 'content_editor')
+  
+  ## State Management
+  - Real-time queue updates via API polling
+  - Optimistic UI updates for immediate feedback
+  - Error recovery with retry mechanisms
+  - Loading states for all async operations
+  
+  ## API Integration
+  - `GET /api/moderation/queue` - Fetch moderation items by status
+  - `POST /api/moderation/action` - Submit moderation decisions
+  - `GET /api/moderation/stats` - Retrieve queue statistics
+  - `GET /api/moderation/next` - Get next item for review
+  
+  ## Keyboard Shortcuts
+  - `A` - Approve current item
+  - `R` - Reject current item  
+  - `F` - Flag current item
+  - `N` - Next item in queue
+  - `Esc` - Cancel current action
+  
+  ## Accessibility
+  - Full keyboard navigation support
+  - Screen reader optimized with ARIA labels
+  - High contrast mode compatible
+  - Focus management for modal dialogs
+  
+  @requires Authentication with moderator role or higher
+  @since 1.0.0
+  @author HazardTracker Development Team
+-->
 <script lang="ts">
   import { logger } from '$lib/utils/logger';
   import type {

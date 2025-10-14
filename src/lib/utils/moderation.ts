@@ -119,6 +119,27 @@ export class ModerationQueue {
    * const item = await moderationQueue.getSpecificItem('mod-item-456', 'moderator-123');
    * ```
    */
+
+  /**
+   * Retrieves a specific moderation item by ID and assigns it to a moderator.
+   * Useful for direct access to items from links, notifications, or escalations.
+   * 
+   * @param itemId - Unique identifier of the moderation item to retrieve
+   * @param moderatorId - ID of moderator requesting access to this specific item
+   * @returns Promise resolving to the ModerationItem or null if not found/accessible
+   * @throws {Error} When database error occurs or item is not in pending status
+   * 
+   * @example
+   * ```typescript
+   * // Access specific item from notification link
+   * const item = await moderationQueue.getSpecificItem('mod_123', 'moderator_456');
+   * if (item) {
+   *   console.log(`Assigned item: ${item.content_preview.title}`);
+   * } else {
+   *   console.log('Item not found or already processed');
+   * }
+   * ```
+   */
   async getSpecificItem(itemId: string, moderatorId: string): Promise<ModerationItem | null> {
     const supabase = this.supabase;
     if (!supabase) throw new Error('Supabase not configured');

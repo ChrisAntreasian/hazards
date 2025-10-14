@@ -39,7 +39,33 @@ export class ContentPreScreening {
   ) {}
 
   /**
-   * Main pre-screening function for hazard submissions
+   * Comprehensive pre-screening analysis for hazard submissions before human moderation.
+   * Performs schema validation, content analysis, spam detection, and location verification
+   * to automatically approve safe content or flag problematic submissions for review.
+   * 
+   * @param submission - Raw submission data to analyze (will be validated against schema)
+   * @param userTrustScore - User's trust score from 0-100, affects approval thresholds
+   * @returns Promise resolving to ScreeningResult with automated decision and confidence
+   * 
+   * @example
+   * ```typescript
+   * const screening = new ContentPreScreening(config);
+   * const result = await screening.screenHazardSubmission({
+   *   title: 'Poison ivy near playground',
+   *   description: 'Large patch growing by swings',
+   *   location: { latitude: 42.3601, longitude: -71.0589 },
+   *   category_path: 'plants/poisonous/poison_ivy',
+   *   severity_level: 3
+   * }, 75);
+   * 
+   * if (result.decision === 'approve') {
+   *   // Auto-publish trusted content
+   * } else if (result.decision === 'reject') {
+   *   // Auto-reject spam/inappropriate content
+   * } else {
+   *   // Queue for human moderation
+   * }
+   * ```
    */
   async screenHazardSubmission(
     submission: unknown,

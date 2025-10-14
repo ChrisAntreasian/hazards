@@ -1,3 +1,99 @@
+<!--
+  @component FieldValidator
+  
+  **Real-time form field validation component with visual feedback and accessibility support.**
+  
+  Provides debounced validation for form inputs with server-side validation API integration,
+  visual validation states, and comprehensive error handling. Supports both blur and input
+  validation modes with configurable debouncing for optimal user experience.
+  
+  ## Features
+  - **Real-time validation**: Debounced input validation with configurable delay
+  - **Multiple trigger modes**: Validate on input, blur, or manual trigger
+  - **Visual feedback**: Loading, success, and error states with icons
+  - **Accessibility**: ARIA attributes and screen reader support
+  - **Server integration**: Calls `/api/validation/field` for server-side validation
+  - **Export functions**: Programmatic validation control for complex forms
+  
+  ## Usage Examples
+  
+  ### Basic text input validation
+  ```svelte
+  <FieldValidator field="email" bind:value={email} let:handleBlur let:hasError>
+    <input 
+      type="email" 
+      bind:value={email}
+      on:blur={handleBlur}
+      placeholder="Enter email"
+      class:error={hasError}
+    />
+  </FieldValidator>
+  ```
+  
+  ### Password validation with custom context
+  ```svelte
+  <FieldValidator 
+    field="password" 
+    bind:value={password}
+    context={{ minLength: 8, requireSpecial: true }}
+    debounceMs={750}
+    let:validationError
+    let:isValidating
+  >
+    <input 
+      type="password" 
+      bind:value={password}
+      placeholder="Password (8+ chars)"
+      disabled={isValidating}
+    />
+    
+    {#if validationError}
+      <p class="hint error">{validationError.message}</p>
+    {/if}
+  </FieldValidator>
+  ```
+  
+  ### Manual validation control
+  ```svelte
+  <FieldValidator bind:this={validator} field="title" bind:value={title}>
+    <input bind:value={title} placeholder="Hazard title" />
+  </FieldValidator>
+  
+  <button on:click={() => validator.validate()}>
+    Validate Now
+  </button>
+  ```
+  
+  ## Props
+  - `field` (string): Field name for validation API endpoint
+  - `value` (any, bindable): Field value to validate  
+  - `context` (any): Additional context data for validation rules
+  - `validateOnBlur` (boolean): Enable blur validation (default: true)
+  - `validateOnInput` (boolean): Enable input validation (default: true)  
+  - `debounceMs` (number): Validation delay in milliseconds (default: 500)
+  - `disabled` (boolean): Disable all validation (default: false)
+  
+  ## Slot Props
+  - `isValidating` (boolean): True when validation request is pending
+  - `isValid` (boolean): True when field has been validated successfully
+  - `hasError` (boolean): True when validation error exists
+  - `validationError` (ValidationError | null): Current validation error object
+  - `handleBlur` (function): Blur event handler for manual binding
+  
+  ## Export Functions
+  - `getValidationStatus()`: Returns complete validation state object
+  - `validate()`: Triggers immediate validation and returns Promise
+  - `clear()`: Clears validation state and errors
+  
+  ## Accessibility
+  - Uses `role="alert"` for error messages
+  - Provides screen reader text for validation states
+  - Supports keyboard navigation and focus management
+  - Visual indicators complement textual error messages
+  
+  @since 1.0.0
+  @author HazardTracker Development Team
+-->
 <script lang="ts">
   import { debounce } from "$lib/utils/helpers.js";
   import type { ValidationError } from "$lib/validation/hazard-validation.js";

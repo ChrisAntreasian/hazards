@@ -1,3 +1,78 @@
+<!--
+  @component ValidationFeedback
+  
+  **Comprehensive validation feedback component for displaying errors and warnings with user-friendly messaging.**
+  
+  Transforms technical validation errors into readable, actionable feedback for users.
+  Provides expandable details, retry mechanisms, and accessible error presentation
+  with proper ARIA attributes and semantic HTML structure.
+  
+  ## Features
+  - **Error transformation**: Converts field paths to human-readable labels
+  - **Expandable details**: Toggle between summary and detailed error views
+  - **Action buttons**: Retry and dismiss functionality for error recovery
+  - **Accessibility**: Proper ARIA roles, live regions, and focus management
+  - **Visual hierarchy**: Distinct styling for errors vs warnings
+  - **Event integration**: Dispatches events for parent component handling
+  
+  ## Usage Examples
+  
+  ### Basic error display
+  ```svelte
+  <ValidationFeedback 
+    errors={validationResult.errors}
+    warnings={validationResult.warnings}
+  />
+  ```
+  
+  ### With action handlers
+  ```svelte
+  <ValidationFeedback 
+    {errors} 
+    {warnings}
+    bind:showDetails
+    on:retry={handleRetryValidation}
+    on:dismiss={clearValidationState}
+  />
+  ```
+  
+  ### Form submission feedback
+  ```svelte
+  {#if submissionResult.errors}
+    <ValidationFeedback 
+      errors={submissionResult.errors}
+      warnings={submissionResult.warnings}
+      showDetails={true}
+      on:retry={() => submitForm()}
+    />
+  {/if}
+  ```
+  
+  ## Props
+  - `errors` (ValidationError[]): Array of validation errors to display
+  - `warnings` (string[]): Array of warning messages to display  
+  - `showDetails` (boolean, bindable): Whether to show expanded error details
+  
+  ## Events
+  - `retry`: Dispatched when user clicks retry button (for retryable operations)
+  - `dismiss`: Dispatched when user clicks dismiss button (for clearable errors)
+  
+  ## Field Label Mapping
+  Automatically converts technical field paths to user-friendly labels:
+  - `location.latitude` → "Latitude"
+  - `category_path` → "Category"
+  - `severity_level` → "Severity Level"
+  - And more comprehensive mappings for all form fields
+  
+  ## Accessibility Features
+  - Uses `role="alert"` for error regions
+  - Provides `aria-live="polite"` for dynamic content
+  - Keyboard navigation support for action buttons
+  - Screen reader friendly error descriptions
+  
+  @since 1.0.0
+  @author HazardTracker Development Team
+-->
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
   import type { ValidationError } from "$lib/validation/hazard-validation.js";

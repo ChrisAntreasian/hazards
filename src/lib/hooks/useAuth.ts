@@ -6,7 +6,27 @@ import type { UseAuthReturn, RouteGuardOptions } from '$lib/types/auth';
 import type { User, Session } from '@supabase/supabase-js';
 
 /**
- * Auth hook for managing authentication state
+ * Comprehensive authentication hook providing sign out functionality and auth state management.
+ * Handles Supabase authentication with safe client operations and proper error handling.
+ * 
+ * @returns UseAuthReturn object containing authentication methods and state
+ * 
+ * @example
+ * ```typescript
+ * // In a Svelte component
+ * import { useAuth } from '$lib/hooks/useAuth';
+ * 
+ * const auth = useAuth();
+ * 
+ * // Sign out user safely
+ * const handleSignOut = async () => {
+ *   await auth.signOut();
+ *   console.log('User signed out');
+ * };
+ * ```
+ * 
+ * @see {@link initializeAuth} For server-side auth initialization
+ * @see {@link createRouteGuard} For route protection utilities
  */
 export const useAuth = (): UseAuthReturn => {
   const supabase = createSupabaseLoadClient();
@@ -63,7 +83,34 @@ export const useAuth = (): UseAuthReturn => {
 };
 
 /**
- * Route guard hook for protecting pages
+ * Route protection hook for implementing authentication and role-based access control.
+ * Provides client-side route guards with configurable authentication requirements
+ * and role-based permissions for sensitive pages.
+ * 
+ * @param options - Configuration object for route protection requirements
+ * @param options.requireAuth - Whether authentication is required (default: true)
+ * @param options.redirectTo - URL to redirect unauthenticated users (default: '/auth/log-in')
+ * @param options.allowedRoles - Array of roles permitted to access the route (default: all roles)
+ * @returns Object containing access control functions
+ * 
+ * @example
+ * ```typescript
+ * // Protect admin-only page
+ * const guard = useRouteGuard({
+ *   requireAuth: true,
+ *   allowedRoles: ['admin', 'moderator'],
+ *   redirectTo: '/auth/log-in'
+ * });
+ * 
+ * // Check access in page component
+ * onMount(() => {
+ *   if (!guard.checkAccess($user, $session)) {
+ *     console.log('Access denied - redirecting');
+ *   }
+ * });
+ * ```
+ * 
+ * @see {@link RouteGuardOptions} For complete configuration options
  */
 export const useRouteGuard = (options: RouteGuardOptions = {}) => {
   const {
@@ -93,7 +140,34 @@ export const useRouteGuard = (options: RouteGuardOptions = {}) => {
 };
 
 /**
- * Initialize auth state from server data
+ * Initializes client-side authentication state with data from server-side rendering.
+ * Must be called in the root layout to establish auth state before page components mount.
+ * Prevents auth state mismatches between server and client during hydration.
+ * 
+ * @param serverSession - Session object from server-side auth check (may be null)
+ * @param serverUser - User object from server-side auth check (may be null)
+ * 
+ * @example
+ * ```typescript
+ * // In +layout.server.ts
+ * export const load = async ({ locals }) => {
+ *   return {
+ *     session: locals.session,
+ *     user: locals.user
+ *   };
+ * };
+ * 
+ * // In +layout.svelte
+ * import { initializeAuth } from '$lib/hooks/useAuth';
+ * 
+ * export let data;
+ * 
+ * onMount(() => {
+ *   initializeAuth(data.session, data.user);
+ * });
+ * ```
+ * 
+ * @see {@link useAuth} For client-side auth operations after initialization
  */
 export const initializeAuth = (serverSession: Session | null, serverUser: User | null = null) => {
   authStore.initialize(serverUser, serverSession);
