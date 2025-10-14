@@ -1,5 +1,8 @@
-import { validateHazardSubmission, HazardSubmissionSchema } from '$lib/validation/hazard-validation';
+// External library imports
 import type { z } from 'zod';
+
+// Internal utility imports
+import { validateHazardSubmission, HazardSubmissionSchema } from '$lib/validation/hazard-validation';
 
 /**
  * Automated content pre-screening service

@@ -8,12 +8,15 @@
  * @ratelimit Inherits from global rate limiting middleware
  */
 
+// SvelteKit framework imports
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
+
+// Internal utility imports
+import { createSupabaseServerClient } from '$lib/supabase';
 import { validateHazardSubmission } from '$lib/validation/hazard-validation';
 import { ContentPreScreening } from '$lib/validation/content-prescreening';
 import { ModerationQueue } from '$lib/utils/moderation';
-import { createSupabaseServerClient } from '$lib/supabase';
 
 /**
  * Comprehensive hazard submission validation and automated pre-screening endpoint.

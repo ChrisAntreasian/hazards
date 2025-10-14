@@ -1,9 +1,16 @@
+// External library imports
+import type { SupabaseClient } from '@supabase/supabase-js';
+
+// SvelteKit framework imports
+import type { RequestEvent } from '@sveltejs/kit';
+
+// Internal utility imports
 import { createSupabaseServerClient } from '$lib/supabase';
 import { logger } from '$lib/utils/logger';
-import type { ModerationItem, ModerationAction, ModerationStats, AutoModerationResult, ContentPreview } from '$lib/types/moderation';
-import type { RequestEvent } from '@sveltejs/kit';
-import type { SupabaseClient } from '@supabase/supabase-js';
+
+// Type-only imports
 import type { Database } from '$lib/types/database';
+import type { ModerationItem, ModerationAction, ModerationStats, AutoModerationResult, ContentPreview } from '$lib/types/moderation';
 
 /**
  * Core moderation queue management class for handling content review workflows.
@@ -95,7 +102,7 @@ export class ModerationQueue {
       // Transform to ModerationItem format
       return await this.transformToModerationItem(data);
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.dbError('get_next_moderation_item', error as Error, { 
         metadata: { moderatorId } 
       });
@@ -169,7 +176,7 @@ export class ModerationQueue {
       // Transform to ModerationItem format
       return await this.transformToModerationItem(data);
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.dbError('get_specific_moderation_item', error as Error, { 
         metadata: { itemId, moderatorId } 
       });

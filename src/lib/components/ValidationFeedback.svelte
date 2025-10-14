@@ -74,7 +74,10 @@
   @author HazardTracker Development Team
 -->
 <script lang="ts">
+  // External library imports
   import { createEventDispatcher } from "svelte";
+
+  // Type-only imports
   import type { ValidationError } from "$lib/validation/hazard-validation.js";
 
   interface Props {

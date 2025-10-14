@@ -1,9 +1,13 @@
-import { protectRoute } from '$lib/utils/routeProtection';
+// SvelteKit framework imports
 import { redirect } from '@sveltejs/kit';
+
+// Internal utility imports
+import { protectRoute } from '$lib/utils/routeProtection';
 import { createSupabaseServerClient } from '$lib/supabase';
-import type { Database } from '$lib/types/database';
+
+// Type-only imports
+import type { Database, UserHazardRpcResult } from '$lib/types/database';
 import type { PageServerLoad } from './$types';
-import type { UserHazardRpcResult } from '$lib/types/database';
 
 export const load: PageServerLoad = async (event) => {
   // Add dependency for invalidation when trust scores change
@@ -131,9 +135,9 @@ export const load: PageServerLoad = async (event) => {
       recentActivity: recentActivity || []
     };
 
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof Response) {
-      throw error; // Re-throw redirects
+      throw error; // Re-throw redirects from protectRoute
     }
     
     console.error('Dashboard load error:', error);

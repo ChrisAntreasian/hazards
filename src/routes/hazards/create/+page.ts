@@ -30,8 +30,10 @@ export const load: PageLoad = async ({ parent }) => {
     } else {
       categories = categoryData || [];
     }
-  } catch (error) {
-    logger.error('Exception while loading categories', error instanceof Error ? error : new Error(String(error)));
+  } catch (error: unknown) {
+    logger.error('Exception while loading categories', error as Error, {
+      metadata: { context: 'hazard_creation_page_load' }
+    });
   }
   
   return {

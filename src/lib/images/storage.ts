@@ -1,7 +1,12 @@
-import { createSupabaseLoadClient } from '$lib/supabase';
-import type { SupabaseClient } from '@supabase/supabase-js';
-import type { ProcessedImage, ImageUploadResult } from '$lib/types/images';
+// External library imports
 import { v4 as uuidv4 } from 'uuid';
+import type { SupabaseClient } from '@supabase/supabase-js';
+
+// Internal utility imports
+import { createSupabaseLoadClient } from '$lib/supabase';
+
+// Type-only imports
+import type { ProcessedImage, ImageUploadResult } from '$lib/types/images';
 
 export class ImageStorage {
   private bucket = 'hazard-images';

@@ -1,9 +1,16 @@
+// External library imports
 import { get } from 'svelte/store';
+import type { User, Session } from '@supabase/supabase-js';
+
+// SvelteKit framework imports
 import { goto } from '$app/navigation';
+
+// Internal utility imports
 import { createSupabaseLoadClient, signOut as supabaseSignOut } from '$lib/supabase';
 import { authStore, user, session, loading, initialized } from '$lib/stores/auth';
+
+// Type-only imports
 import type { UseAuthReturn, RouteGuardOptions } from '$lib/types/auth';
-import type { User, Session } from '@supabase/supabase-js';
 
 /**
  * Comprehensive authentication hook providing sign out functionality and auth state management.

@@ -1,6 +1,11 @@
-import { createSupabaseServerClient } from '$lib/supabase';
+// SvelteKit framework imports
 import { fail, redirect } from '@sveltejs/kit';
+
+// Internal utility imports
+import { createSupabaseServerClient } from '$lib/supabase';
 import { logger } from '$lib/utils/logger';
+
+// Type-only imports
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async (event) => {
