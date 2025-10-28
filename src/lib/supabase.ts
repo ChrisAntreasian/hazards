@@ -100,54 +100,11 @@ export function createSupabaseServerClient(event: RequestEvent) {
   });
 }
 
-// Enhanced auth helpers with better error handling - DISABLED to prevent hanging
-export const getCurrentUser = async () => {
-  console.warn('getCurrentUser disabled - client auth methods hang. Use server-side auth instead.');
-  return null;
-  
-  /* DISABLED - Client auth methods hang
-  if (!supabase) return null;
-  
-  try {
-    const result = await Promise.race([
-      supabase.auth.getUser(),
-      new Promise<{ data: { user: null }, error: Error }>((_, reject) => 
-        setTimeout(() => reject(new Error('getUser timeout')), 5000)
-      )
-    ]);
-    
-    if (result.error) {
-      console.error('getCurrentUser error:', result.error);
-      return null;
-    }
-    return result.data.user;
-  } catch (error) {
-    console.error('getCurrentUser failed:', error);
-    return null;
-  }
-  */
-};
+// getCurrentUser removed - use server-side auth instead
 
-// Deep diagnostic function - DISABLED to prevent hanging
-export const diagnoseSupabaseIssues = async () => {
-  console.warn('diagnoseSupabaseIssues disabled - contains hanging client auth methods. Use server-side auth diagnostics instead.');
-  return;
-  
-  /* DISABLED - Contains hanging client auth method calls
-  Original function contained supabase.auth.getSession() calls that hang
-  */
-};
+// diagnoseSupabaseIssues removed - use server-side auth diagnostics instead
 
-// Manual session management - DISABLED to prevent hanging
-export const getSessionManually = async () => {
-  console.warn('getSessionManually disabled - manual session access can cause issues. Use server-side auth instead.');
-  return { session: null, user: null, error: 'Function disabled' };
-  
-  /* DISABLED - Manual localStorage access and direct API calls
-  Original function accessed localStorage directly and made API calls
-  that could hang or cause security issues
-  */
-};
+// getSessionManually removed - use server-side auth instead
 
 // Manual sign out since auth.signOut() hangs
 export const signOutManually = async () => {
@@ -239,51 +196,6 @@ async function fallbackLogout() {
   return { error: null };
 }
 
-// Enhanced session helpers - DISABLED to prevent hanging
-export const getSessionWithRetry = async () => {
-  console.warn('getSessionWithRetry disabled - client auth methods hang. Use server-side auth instead.');
-  return { session: null, user: null };
+// getSessionWithRetry removed - use server-side auth instead
 
-  /* DISABLED - Client auth methods hang
-  if (!supabase) return { session: null, user: null };
-
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
-      if (error) {
-        console.warn(`Session fetch attempt ${i + 1} failed:`, error);
-        if (i === maxRetries - 1) return { session: null, user: null };
-        await new Promise(resolve => setTimeout(resolve, delay));
-        continue;
-      }
-
-      const { data: { user } } = await supabase.auth.getUser();
-      return { session, user };
-    } catch (error) {
-      console.warn(`Session fetch attempt ${i + 1} error:`, error);
-      if (i === maxRetries - 1) return { session: null, user: null };
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-  }
-
-  return { session: null, user: null };
-  */
-};
-
-// Validate session integrity - DISABLED to prevent hanging
-export const validateSession = async () => {
-  console.warn('validateSession disabled - client auth methods hang. Use server-side auth instead.');
-  return false;
-
-  /* DISABLED - Client auth methods hang
-  if (!supabase) return false;
-
-  try {
-    const { data: { user }, error } = await supabase.auth.getUser();
-    return !error && !!user;
-  } catch {
-    return false;
-  }
-  */
-};
+// validateSession removed - use server-side auth instead

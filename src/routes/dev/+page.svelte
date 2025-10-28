@@ -29,6 +29,13 @@
       href: "/map",
       icon: "🗺️",
     },
+    {
+      title: "Map Location Picker",
+      description:
+        "Test interactive map location picker with pin repositioning and area drawing functionality",
+      href: "/dev/map-picker",
+      icon: "📍",
+    },
   ];
 </script>
 

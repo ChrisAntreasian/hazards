@@ -3,6 +3,7 @@
   import { createSupabaseLoadClient } from "$lib/supabase.js";
   import { logger } from "$lib/utils/logger.js";
   import ImageUpload from "$lib/components/ImageUpload.svelte";
+  import MapLocationPicker from "$lib/components/MapLocationPicker.svelte";
   import type { PageData } from "./$types";
   import type { ImageUploadResult } from "$lib/types/images.js";
   import { enhance } from "$app/forms";
@@ -37,13 +38,26 @@
     is_seasonal: false,
   });
 
-  // UI state
+  // Location and area state
   let currentLocation = $state<{ lat: number; lng: number } | null>(null);
+  let currentArea = $state<GeoJSON.Polygon | null>(null);
   let uploadedImages = $state<string[]>([]);
   let loading = $state(false);
   let error = $state("");
   let success = $state("");
   let locationLoading = $state(false);
+
+  // Handle location changes from MapLocationPicker
+  const handleLocationChange = (location: { lat: number; lng: number }) => {
+    currentLocation = location;
+    formData.latitude = location.lat.toString();
+    formData.longitude = location.lng.toString();
+  };
+
+  // Handle area changes from MapLocationPicker
+  const handleAreaChange = (area: GeoJSON.Polygon | null) => {
+    currentArea = area;
+  };
 
   // Get user's current location
   const getCurrentLocation = async () => {
@@ -79,7 +93,9 @@
         success = "";
       }, 3000);
     } catch (err: any) {
-      logger.warn("Geolocation failed", { metadata: { errorMessage: err.message } });
+      logger.warn("Geolocation failed", {
+        metadata: { errorMessage: err.message },
+      });
       error = `Failed to get location: ${err.message || "Unknown error"}`;
 
       // Default to Boston area as fallback
@@ -148,7 +164,10 @@
           if (result.type === "failure") {
             const errorData = result.data as any;
             error = errorData?.error || "Failed to submit hazard";
-            logger.error("Form submission failed", new Error(errorData?.error || "Unknown form error"));
+            logger.error(
+              "Form submission failed",
+              new Error(errorData?.error || "Unknown form error")
+            );
           } else if (result.type === "redirect") {
             success =
               "Hazard reported successfully! Redirecting to dashboard...";
@@ -279,54 +298,86 @@
 
       <!-- Location -->
       <section class="form-section">
-        <h2>Location</h2>
+        <h2>Location & Area</h2>
+        <p class="section-description">
+          Set the precise location where the hazard is located. Optionally, draw an area to show the affected region.
+        </p>
 
-        <div class="location-controls">
-          <button
-            type="button"
-            class="btn btn-secondary"
-            onclick={getCurrentLocation}
-            disabled={locationLoading}
-          >
-            {locationLoading
-              ? "Getting Location..."
-              : "📍 Get Current Location"}
-          </button>
+        <!-- Map Location Picker -->
+        <div class="map-container">
           {#if currentLocation}
-            <span class="location-status"
-              >✅ Location acquired: {currentLocation.lat.toFixed(4)}, {currentLocation.lng.toFixed(
-                4
-              )}</span
-            >
+            <MapLocationPicker 
+              initialLocation={currentLocation}
+              initialArea={currentArea}
+              onLocationChange={handleLocationChange}
+              onAreaChange={handleAreaChange}
+            />
+          {:else}
+            <div class="location-prompt">
+              <p>Please get your current location or enter coordinates manually to enable the map.</p>
+              <button
+                type="button"
+                class="btn btn-primary"
+                onclick={getCurrentLocation}
+                disabled={locationLoading}
+              >
+                {locationLoading ? "Getting Location..." : "📍 Get Current Location"}
+              </button>
+            </div>
           {/if}
         </div>
 
-        <div class="form-row">
-          <div class="form-group">
-            <label for="latitude">Latitude *</label>
-            <input
-              id="latitude"
-              name="latitude"
-              type="number"
-              step="any"
-              bind:value={formData.latitude}
-              placeholder="42.3601"
-              required
-            />
+        <!-- Manual coordinate entry (fallback) -->
+        <details class="manual-coordinates">
+          <summary>Or enter coordinates manually</summary>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="latitude">Latitude *</label>
+              <input
+                id="latitude"
+                name="latitude"
+                type="number"
+                step="any"
+                bind:value={formData.latitude}
+                placeholder="42.3601"
+                required
+                onchange={() => {
+                  const lat = parseFloat(formData.latitude);
+                  const lng = parseFloat(formData.longitude);
+                  if (!isNaN(lat) && !isNaN(lng)) {
+                    currentLocation = { lat, lng };
+                  }
+                }}
+              />
+            </div>
+            <div class="form-group">
+              <label for="longitude">Longitude *</label>
+              <input
+                id="longitude"
+                name="longitude"
+                type="number"
+                step="any"
+                bind:value={formData.longitude}
+                placeholder="-71.0589"
+                required
+                onchange={() => {
+                  const lat = parseFloat(formData.latitude);
+                  const lng = parseFloat(formData.longitude);
+                  if (!isNaN(lat) && !isNaN(lng)) {
+                    currentLocation = { lat, lng };
+                  }
+                }}
+              />
+            </div>
           </div>
-          <div class="form-group">
-            <label for="longitude">Longitude *</label>
-            <input
-              id="longitude"
-              name="longitude"
-              type="number"
-              step="any"
-              bind:value={formData.longitude}
-              placeholder="-71.0589"
-              required
-            />
-          </div>
-        </div>
+        </details>
+
+        <!-- Hidden inputs for form submission -->
+        <input type="hidden" name="latitude" bind:value={formData.latitude} />
+        <input type="hidden" name="longitude" bind:value={formData.longitude} />
+        {#if currentArea}
+          <input type="hidden" name="area" value={JSON.stringify(currentArea)} />
+        {/if}
       </section>
 
       <!-- Additional Details -->
@@ -648,5 +699,58 @@
       gap: 0.25rem;
       text-align: center;
     }
+  }
+
+  /* Map Location Picker Styles */
+  .map-container {
+    margin: 1.5rem 0;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .location-prompt {
+    padding: 3rem;
+    text-align: center;
+    background: var(--color-bg-muted);
+    color: var(--color-text-secondary);
+  }
+
+  .location-prompt p {
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+  }
+
+  .manual-coordinates {
+    margin-top: 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: 0;
+  }
+
+  .manual-coordinates summary {
+    padding: 1rem;
+    background: var(--color-bg-muted);
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+  }
+
+  .manual-coordinates summary:hover {
+    background: var(--color-bg-tertiary);
+  }
+
+  .manual-coordinates[open] summary {
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .manual-coordinates .form-row {
+    padding: 1rem;
+  }
+
+  .section-description {
+    color: var(--color-text-secondary);
+    margin-bottom: 1.5rem;
+    font-size: 0.95rem;
   }
 </style>

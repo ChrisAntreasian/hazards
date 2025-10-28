@@ -164,7 +164,9 @@
                   {/if}
                 </div>
                 <div class="activity-description">
-                  <strong>{activity.hazards?.[0]?.title || "Unknown hazard"}</strong>
+                  <strong
+                    >{activity.hazards?.[0]?.title || "Unknown hazard"}</strong
+                  >
                   {#if activity.moderator_notes}
                     - {activity.moderator_notes}
                   {/if}

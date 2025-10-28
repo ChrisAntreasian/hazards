@@ -8,89 +8,93 @@
 -->
 
 <script lang="ts">
-	interface Props {
-		/** Function that returns a promise of the component to load */
-		loader: () => Promise<any>;
-		/** Props to pass to the loaded component */
-		componentProps?: Record<string, any>;
-		/** Loading placeholder content */
-		loadingText?: string;
-		/** Error fallback content */
-		errorText?: string;
-	}
+  interface Props {
+    /** Function that returns a promise of the component to load */
+    loader: () => Promise<any>;
+    /** Props to pass to the loaded component */
+    componentProps?: Record<string, any>;
+    /** Loading placeholder content */
+    loadingText?: string;
+    /** Error fallback content */
+    errorText?: string;
+  }
 
-	let { 
-		loader, 
-		componentProps = {}, 
-		loadingText = 'Loading...', 
-		errorText = 'Failed to load component' 
-	}: Props = $props();
+  let {
+    loader,
+    componentProps = {},
+    loadingText = "Loading...",
+    errorText = "Failed to load component",
+  }: Props = $props();
 
-	let Component = $state<any>(null);
-	let loading = $state(true);
-	let error = $state<string | null>(null);
+  let Component = $state<any>(null);
+  let loading = $state(true);
+  let error = $state<string | null>(null);
 
-	$effect(() => {
-		async function loadComponent() {
-			try {
-				const module = await loader();
-				Component = module.default || module;
-				loading = false;
-			} catch (err) {
-				error = errorText;
-				loading = false;
-			}
-		}
-		
-		loadComponent();
-	});
+  $effect(() => {
+    async function loadComponent() {
+      try {
+        const module = await loader();
+        Component = module.default || module;
+        loading = false;
+      } catch (err) {
+        error = errorText;
+        loading = false;
+      }
+    }
+
+    loadComponent();
+  });
 </script>
 
 {#if loading}
-	<div class="lazy-loading">
-		<div class="loading-spinner"></div>
-		<p>{loadingText}</p>
-	</div>
+  <div class="lazy-loading">
+    <div class="loading-spinner"></div>
+    <p>{loadingText}</p>
+  </div>
 {:else if error}
-	<div class="lazy-error">
-		<p>{error}</p>
-	</div>
+  <div class="lazy-error">
+    <p>{error}</p>
+  </div>
 {:else if Component}
-	<Component {...componentProps} />
+  <Component {...componentProps} />
 {/if}
 
 <style>
-	.lazy-loading {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		padding: 2rem;
-		text-align: center;
-		color: var(--color-text-secondary);
-	}
+  .lazy-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    text-align: center;
+    color: var(--color-text-secondary);
+  }
 
-	.loading-spinner {
-		width: 32px;
-		height: 32px;
-		border: 3px solid var(--color-border);
-		border-top: 3px solid var(--color-primary);
-		border-radius: 50%;
-		animation: spin 1s linear infinite;
-		margin-bottom: 1rem;
-	}
+  .loading-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--color-border);
+    border-top: 3px solid var(--color-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 1rem;
+  }
 
-	@keyframes spin {
-		0% { transform: rotate(0deg); }
-		100% { transform: rotate(360deg); }
-	}
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
 
-	.lazy-error {
-		padding: 1rem;
-		background: var(--error-50);
-		border: 1px solid var(--error-200);
-		border-radius: 6px;
-		color: var(--color-error);
-		text-align: center;
-	}
+  .lazy-error {
+    padding: 1rem;
+    background: var(--error-50);
+    border: 1px solid var(--error-200);
+    border-radius: 6px;
+    color: var(--color-error);
+    text-align: center;
+  }
 </style>

@@ -132,6 +132,8 @@ export interface Hazard {
   latitude: number;
   /** GPS longitude coordinate for precise hazard positioning */
   longitude: number;
+  /** GeoJSON polygon representing the affected area (optional) */
+  area: GeoJSON.Polygon | null;
   /** Geographic cell identifier for efficient spatial queries and clustering */
   geo_cell: string;
   /** Geohash string enabling proximity searches and geographic indexing */
@@ -253,20 +255,24 @@ export interface UserHazardRpcResult {
   title: string;
   /** Detailed hazard description */
   description: string;
-  /** Formatted location string for display */
-  location: string;
+  /** Risk level from 1 (low) to 5 (extreme) affecting map display and filtering */
+  severity_level: 1 | 2 | 3 | 4 | 5;
   /** GPS latitude coordinate */
-  latitude: number;
+  latitude: string;
   /** GPS longitude coordinate */
-  longitude: number;
+  longitude: string;
+  /** User who submitted the hazard report */
+  user_id: string;
   /** Current moderation/approval status */
   status: 'pending' | 'approved' | 'rejected';
+  /** Hazard creation timestamp */
+  created_at: string;
+  /** When hazard was last observed active (null if status unknown) */
+  reported_active_date: string | null;
+  /** Whether hazard follows seasonal patterns requiring temporal filtering */
+  is_seasonal: boolean;
   /** Human-readable category name (e.g., "Poison Ivy") */
   category_name: string;
   /** Icon identifier for category display */
   category_icon: string;
-  /** Hazard creation timestamp */
-  created_at: string;
-  /** Last modification timestamp */
-  updated_at: string;
 }

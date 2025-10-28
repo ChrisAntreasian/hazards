@@ -69,6 +69,18 @@ export const actions: Actions = {
     const reported_active_date = formData.get('reported_active_date')?.toString();
     const is_seasonal = formData.get('is_seasonal') === 'on';
     const uploaded_images = formData.get('uploaded_images')?.toString();
+    const area_json = formData.get('area')?.toString();
+
+    // Parse area data if provided
+    let area: any = null;
+    if (area_json) {
+      try {
+        area = JSON.parse(area_json);
+      } catch (err) {
+        logger.warn('Invalid area JSON provided', { metadata: { area_json } });
+        // Don't fail the whole operation for invalid area data
+      }
+    }
 
     // Validation
     if (!title) {
@@ -97,7 +109,8 @@ export const actions: Actions = {
         p_longitude: longitude,
         p_severity_level: severity_level,
         p_reported_active_date: reported_active_date ? new Date(reported_active_date).toISOString() : null,
-        p_is_seasonal: is_seasonal
+        p_is_seasonal: is_seasonal,
+        p_area: area
       });
 
       if (hazardError || !createResult?.success) {

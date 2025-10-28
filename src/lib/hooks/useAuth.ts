@@ -55,28 +55,6 @@ export const useAuth = (): UseAuthReturn => {
   const refreshAuth = async () => {
     console.warn('refreshAuth disabled - client auth methods hang. Use server-side auth state instead.');
     return;
-    
-    /* DISABLED - Client auth methods hang
-    if (!supabase) return;
-    
-    authStore.setLoading(true);
-    try {
-      // Get fresh session and user data
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
-      if (sessionError || userError || !session || !user) {
-        authStore.clearAuthState();
-      } else {
-        authStore.dispatch({ 
-          type: 'REFRESH_SESSION', 
-          payload: { user, session } 
-        });
-      }
-    } catch (error) {
-      authStore.clearAuthState();
-    }
-    */
   };
 
   return {

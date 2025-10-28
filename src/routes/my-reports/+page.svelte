@@ -63,22 +63,22 @@
     [...filteredHazards].sort((a, b) => {
       let aVal: any;
       let bVal: any;
-      
+
       // Safe property access
       switch (sortBy) {
-        case 'created_at':
+        case "created_at":
           aVal = a.created_at;
           bVal = b.created_at;
           break;
-        case 'reported_active_date':
+        case "reported_active_date":
           aVal = a.reported_active_date;
           bVal = b.reported_active_date;
           break;
-        case 'title':
+        case "title":
           aVal = a.title;
           bVal = b.title;
           break;
-        case 'severity_level':
+        case "severity_level":
           aVal = a.severity_level;
           bVal = b.severity_level;
           break;
@@ -213,7 +213,8 @@
                 </div>
               </div>
 
-        <div class="hazard-info">                <p class="hazard-description">{hazard.description}</p>
+              <div class="hazard-info">
+                <p class="hazard-description">{hazard.description}</p>
 
                 <div class="hazard-meta">
                   <div class="meta-item">
@@ -233,9 +234,9 @@
                   <div class="meta-item">
                     <span class="meta-label">Location:</span>
                     <span class="meta-value"
-                      >{hazard.latitude?.toFixed(4)}, {hazard.longitude?.toFixed(
-                        4
-                      )}</span
+                      >{parseFloat(hazard.latitude).toFixed(4)}, {parseFloat(
+                        hazard.longitude
+                      ).toFixed(4)}</span
                     >
                   </div>
                   {#if hazard.is_seasonal}
@@ -247,12 +248,14 @@
               </div>
 
               <div class="hazard-actions">
-                <button class="btn btn-small btn-secondary">View Details</button
-                >
+                <a href="/hazards/{hazard.id}" class="btn btn-small btn-primary">
+                  View Details
+                </a>
                 {#if hazard.status === "pending"}
-                  <button class="btn btn-small btn-secondary">Edit</button>
+                  <a href="/hazards/edit/{hazard.id}" class="btn btn-small btn-secondary">
+                    Edit
+                  </a>
                 {/if}
-                <button class="btn btn-small btn-outline">View on Map</button>
               </div>
             </div>
           {/each}

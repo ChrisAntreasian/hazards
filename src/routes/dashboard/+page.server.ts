@@ -28,7 +28,7 @@ export const load: PageServerLoad = async (event) => {
     // Create Supabase client to fetch user's hazards
     const supabase = createSupabaseServerClient(event);
     
-    let userHazards: Database['public']['Tables']['hazards']['Row'][] = [];
+    let userHazards: UserHazardRpcResult[] = [];
     let hazardStats = {
       total: 0,
       pending: 0,
@@ -71,20 +71,14 @@ export const load: PageServerLoad = async (event) => {
         if (hazardsError) {
           console.error('❌ Error fetching user hazards:', hazardsError);
         } else {
-          // Transform the results to match expected structure
-          userHazards = (hazardResults || []).map((hazard: UserHazardRpcResult) => ({
-            ...hazard,
-            hazard_categories: {
-              name: hazard.category_name,
-              icon: hazard.category_icon
-            }
-          }));
+          // Use the hazard results directly - they already have the correct structure
+          userHazards = hazardResults || [];
           
           // Calculate stats
           hazardStats.total = userHazards.length;
           hazardStats.pending = userHazards.filter(h => h.status === 'pending').length;
           hazardStats.approved = userHazards.filter(h => h.status === 'approved').length;
-          hazardStats.rejected = userHazards.filter(h => h.status === 'removed').length;
+          hazardStats.rejected = userHazards.filter(h => h.status === 'rejected').length;
         }
 
         // Fetch recent activity (including moderation decisions)

@@ -87,7 +87,8 @@
   @author HazardTracker Development Team
 -->
 <script lang="ts">
-  import { logger } from '$lib/utils/logger';
+  import { logger } from "$lib/utils/logger";
+  import MapLocationPicker from "$lib/components/MapLocationPicker.svelte";
   import type {
     ModerationItem,
     ModerationAction,
@@ -128,7 +129,7 @@
         await loadNextItem();
       }
     }
-    
+
     loadInitialData();
   });
 
@@ -150,9 +151,9 @@
     } catch (err) {
       error =
         err instanceof Error ? err.message : "Failed to load moderation item";
-      logger.componentError('ModerationQueue', err as Error, { 
-        action: 'load_next_item',
-        metadata: { userId }
+      logger.componentError("ModerationQueue", err as Error, {
+        action: "load_next_item",
+        metadata: { userId },
       });
     } finally {
       loading = false;
@@ -167,9 +168,9 @@
       const data = await response.json();
       stats = data.stats;
     } catch (err) {
-      logger.componentError('ModerationQueue', err as Error, { 
-        action: 'load_stats',
-        metadata: { userId }
+      logger.componentError("ModerationQueue", err as Error, {
+        action: "load_stats",
+        metadata: { userId },
       });
     }
   }
@@ -192,9 +193,9 @@
         filteredItems = queueItems;
       }
     } catch (err) {
-      logger.componentError('ModerationQueue', err as Error, { 
-        action: 'load_queue_overview',
-        metadata: { userId, currentView }
+      logger.componentError("ModerationQueue", err as Error, {
+        action: "load_queue_overview",
+        metadata: { userId, currentView },
       });
     }
   }
@@ -463,6 +464,21 @@
                       currentItem.content_preview.location.longitude
                     )}
                   </p>
+                  
+                  <!-- Interactive Map Display -->
+                  <div class="moderation-map">
+                    {#key currentItem.content_id}
+                      <MapLocationPicker 
+                        initialLocation={{
+                          lat: currentItem.content_preview.location.latitude,
+                          lng: currentItem.content_preview.location.longitude
+                        }}
+                        initialArea={currentItem.content_preview.area}
+                        readonly={true}
+                        zoom={15}
+                      />
+                    {/key}
+                  </div>
                 </div>
               {/if}
 
@@ -504,42 +520,39 @@
               {/if}
 
               {#if currentItem.content_preview.images && currentItem.content_preview.images.length > 0}
-                <div class="images-preview">
+                <div class="images-section">
                   <h4>
-                    Attached Images ({currentItem.content_preview.images
-                      .length}):
+                    Attached Images ({currentItem.content_preview.images.length}):
                   </h4>
                   <div class="images-grid">
                     {#each currentItem.content_preview.images as image}
-                      <div class="image-item">
+                      <div class="image-card">
                         <button
                           type="button"
-                          class="image-button"
-                          onclick={() => window.open(image.image_url, "_blank")}
+                          class="image-preview-button"
+                          onclick={() => window.open(image.original_url || image.image_url, "_blank")}
                           title="Click to view full size"
                         >
                           <img
-                            src={image.thumbnail_url || image.image_url}
-                            alt={image.metadata?.alt_text || "Hazard image"}
+                            src={image.thumbnail_url || image.original_url || image.image_url}
+                            alt={image.metadata?.alt_text || "Hazard photo"}
                             loading="lazy"
                           />
+                          <div class="image-overlay">
+                            <span class="view-icon">🔍</span>
+                          </div>
                         </button>
-                        <div class="image-info">
+                        <div class="image-card-footer">
                           {#if image.metadata?.alt_text}
                             <p class="alt-text">{image.metadata.alt_text}</p>
                           {/if}
                           <p class="upload-date">
-                            Uploaded: {formatDate(image.uploaded_at)}
+                            📅 {formatDate(image.uploaded_at || image.upload_date)}
                           </p>
-                          {#if image.metadata?.file_size}
-                            <p class="file-size">
-                              Size: {(image.metadata.file_size / 1024).toFixed(
-                                1
-                              )} KB
+                          {#if image.vote_score !== undefined && image.vote_score !== 0}
+                            <p class="vote-score">
+                              {image.vote_score > 0 ? '👍' : '👎'} Score: {Math.abs(image.vote_score)}
                             </p>
-                          {/if}
-                          {#if image.vote_score !== undefined}
-                            <p class="vote-score">Score: {image.vote_score}</p>
                           {/if}
                         </div>
                       </div>
@@ -1052,63 +1065,113 @@
     margin: 1.5rem 0;
   }
 
+  .images-section {
+    margin-top: 1.5rem;
+  }
+
   .images-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1.5rem;
     margin-top: 1rem;
   }
 
-  .image-item {
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    overflow: hidden;
+  .image-card {
     background: white;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
   }
 
-  .image-button {
+  .image-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  }
+
+  .image-preview-button {
+    position: relative;
     width: 100%;
+    height: 200px;
     border: none;
-    background: none;
+    background: #f8fafc;
     padding: 0;
     cursor: pointer;
     display: block;
+    overflow: hidden;
   }
 
-  .image-button:hover {
-    opacity: 0.9;
-  }
-
-  .image-item img {
+  .image-preview-button img {
     width: 100%;
-    height: 200px;
+    height: 100%;
     object-fit: cover;
     display: block;
+    transition: transform 0.3s ease;
   }
 
-  .image-info {
-    padding: 0.75rem;
+  .image-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.3s ease;
   }
 
-  .image-info p {
-    margin: 0.25rem 0;
-    font-size: 0.8rem;
+  .image-preview-button:hover .image-overlay {
+    background: rgba(0, 0, 0, 0.4);
+  }
+
+  .view-icon {
+    font-size: 2rem;
+    opacity: 0;
+    transform: scale(0.8);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+
+  .image-preview-button:hover .view-icon {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .image-preview-button:hover img {
+    transform: scale(1.05);
+  }
+
+  .image-card-footer {
+    padding: 1rem;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+  }
+
+  .image-card-footer p {
+    margin: 0.5rem 0 0 0;
+    font-size: 0.85rem;
     color: #64748b;
+  }
+
+  .image-card-footer p:first-child {
+    margin-top: 0;
   }
 
   .alt-text {
     color: #1e293b !important;
     font-weight: 500;
+    margin-bottom: 0.5rem !important;
   }
 
-  .upload-date,
-  .file-size,
-  .vote-score {
-    font-family: monospace;
+  .upload-date {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
   }
 
   .vote-score {
-    font-weight: 500;
+    font-weight: 600;
     color: #059669 !important;
   }
 
@@ -1514,6 +1577,32 @@
     font-size: 0.9rem;
     color: #94a3b8;
     margin-top: 0.5rem;
+  }
+
+  /* Moderation Map Styles */
+  .moderation-map {
+    margin-top: 1rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+    background: white;
+  }
+
+  .moderation-map :global(.map-location-picker) {
+    border: none;
+  }
+
+  .moderation-map :global(.leaflet-container) {
+    height: 300px !important;
+    width: 100%;
+  }
+
+  /* Hide unnecessary elements in readonly mode */
+  .moderation-map :global(.mode-controls),
+  .moderation-map :global(.location-display),
+  .moderation-map :global(.area-stats),
+  .moderation-map :global(.clear-area-btn) {
+    display: none !important;
   }
 
   @media (max-width: 768px) {

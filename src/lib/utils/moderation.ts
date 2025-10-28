@@ -555,16 +555,40 @@ export class ModerationQueue {
 
     // Fetch content preview based on type
     if (data.type === 'hazard' && data.content_id) {
-      // Use the security definer function to bypass RLS for moderation
+      // Fetch hazard data directly including area
       const { data: hazardData, error: hazardError } = await supabase!
-        .rpc('get_hazard_for_moderation', { hazard_id: data.content_id });
+        .from('hazards')
+        .select(`
+          id,
+          title,
+          description,
+          latitude,
+          longitude,
+          area,
+          severity_level,
+          reported_active_date,
+          is_seasonal,
+          created_at,
+          hazard_categories (
+            name,
+            icon
+          )
+        `)
+        .eq('id', data.content_id)
+        .single();
       
       // Also fetch images for this hazard
       const { data: imageData, error: imageError } = await supabase!
-        .rpc('get_hazard_images_for_moderation_v2', { target_hazard_id: data.content_id });
+        .from('hazard_images')
+        .select('id, user_id, original_url, thumbnail_url, uploaded_at, vote_score, metadata')
+        .eq('hazard_id', data.content_id);
       
-      if (hazardData && hazardData.length > 0) {
-        const hazard = hazardData[0];
+      if (hazardData) {
+        const hazard = hazardData;
+        const category = Array.isArray(hazard.hazard_categories) 
+          ? hazard.hazard_categories[0] 
+          : hazard.hazard_categories;
+        
         contentPreview = {
           title: hazard.title,
           description: hazard.description,
@@ -573,23 +597,17 @@ export class ModerationQueue {
             latitude: hazard.latitude,
             longitude: hazard.longitude
           },
+          area: hazard.area || null,
           category: {
-            name: hazard.category_name,
-            icon: hazard.category_icon
+            name: category?.name || 'Unknown',
+            icon: category?.icon
           },
           reported_active_date: hazard.reported_active_date,
           is_seasonal: hazard.is_seasonal,
           additional_data: {
             created_at: hazard.created_at
           },
-          images: imageData ? imageData.map((img: {
-            id: string;
-            original_url: string;
-            thumbnail_url?: string;
-            uploaded_at: string;
-            vote_score?: number;
-            metadata?: { alt_text?: string; file_size?: number };
-          }) => ({
+          images: imageData ? imageData.map((img: any) => ({
             id: img.id,
             image_url: img.original_url,
             thumbnail_url: img.thumbnail_url,
@@ -600,7 +618,7 @@ export class ModerationQueue {
         };
       } else {
         logger.warn('No hazard data found for content_id', { 
-          metadata: { content_id: data.content_id } 
+          metadata: { content_id: data.content_id, error: hazardError?.message } 
         });
         contentPreview = {
           title: 'Unknown Hazard',

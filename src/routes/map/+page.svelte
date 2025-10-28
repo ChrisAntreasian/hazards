@@ -86,8 +86,8 @@
   </div>
 
   <div class="map-container">
-    <LazyLoad 
-      loader={loadMap} 
+    <LazyLoad
+      loader={loadMap}
       componentProps={{ hazards, height: "600px", showUserLocation: true }}
       loadingText="Loading interactive map..."
     />
