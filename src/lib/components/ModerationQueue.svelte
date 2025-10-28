@@ -530,12 +530,12 @@
                         <button
                           type="button"
                           class="image-preview-button"
-                          onclick={() => window.open(image.original_url || image.image_url, "_blank")}
+                          onclick={() => window.open(image.image_url, "_blank")}
                           title="Click to view full size"
                         >
                           <img
-                            src={image.thumbnail_url || image.original_url || image.image_url}
-                            alt={image.metadata?.alt_text || "Hazard photo"}
+                            src={image.thumbnail_url || image.image_url}
+                            alt={image.metadata?.alt_text || "Hazard scene"}
                             loading="lazy"
                           />
                           <div class="image-overlay">
@@ -547,7 +547,7 @@
                             <p class="alt-text">{image.metadata.alt_text}</p>
                           {/if}
                           <p class="upload-date">
-                            📅 {formatDate(image.uploaded_at || image.upload_date)}
+                            📅 {formatDate(image.uploaded_at)}
                           </p>
                           {#if image.vote_score !== undefined && image.vote_score !== 0}
                             <p class="vote-score">

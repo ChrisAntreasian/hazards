@@ -181,7 +181,7 @@
                 <span
                   class="status-badge {activity.status === 'approved'
                     ? 'status-approved'
-                    : activity.status === 'removed'
+                    : activity.status === 'rejected'
                       ? 'status-rejected'
                       : 'status-pending'}"
                 >
@@ -196,7 +196,7 @@
               <div class="activity-icon">
                 {#if hazard.status === "approved"}
                   ✅
-                {:else if hazard.status === "removed"}
+                {:else if hazard.status === "rejected"}
                   ❌
                 {:else if hazard.status === "pending"}
                   ⏳
@@ -208,7 +208,7 @@
                 <div class="activity-title">
                   {#if hazard.status === "approved"}
                     Hazard report approved
-                  {:else if hazard.status === "removed"}
+                  {:else if hazard.status === "rejected"}
                     Hazard report needs revision
                   {:else if hazard.status === "pending"}
                     Hazard report submitted for review

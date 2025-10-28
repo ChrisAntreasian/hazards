@@ -66,20 +66,16 @@
   };
 
   // Handle successful image uploads
-  const handleImageUpload = (result: ImageUploadResult) => {
-    if (result.success && result.imageId) {
-      uploadedImages = [...uploadedImages, result.imageId];
-      success = "Image uploaded successfully!";
-      setTimeout(() => (success = ""), 3000);
-    } else {
-      error = result.error || "Failed to upload image";
-      setTimeout(() => (error = ""), 5000);
-    }
+  const handleImageUpload = (event: CustomEvent<ImageUploadResult>) => {
+    const result = event.detail;
+    uploadedImages = [...uploadedImages, result.id];
+    success = "Image uploaded successfully!";
+    setTimeout(() => (success = ""), 3000);
   };
 
   // Handle image upload errors
-  const handleImageError = (result: ImageUploadResult) => {
-    error = result.error || "Failed to upload image";
+  const handleImageError = (event: CustomEvent<{ message: string }>) => {
+    error = `Image upload failed: ${event.detail.message}`;
     setTimeout(() => (error = ""), 5000);
   };
 
@@ -130,7 +126,7 @@
   }
 
   function removeImage(imageId: string) {
-    const image = hazard.hazard_images?.find(img => img.id === imageId);
+    const image = hazard.hazard_images?.find((img: any) => img.id === imageId);
     if (image) {
       imageToDelete = {
         id: imageId,
@@ -143,7 +139,7 @@
   function handleDeleteConfirm(imageId: string) {
     // Remove the image from the hazard's image list locally
     if (hazard.hazard_images) {
-      hazard.hazard_images = hazard.hazard_images.filter(img => img.id !== imageId);
+      hazard.hazard_images = hazard.hazard_images.filter((img: any) => img.id !== imageId);
     }
     
     // Close modal
@@ -386,7 +382,7 @@
               <div class="image-preview-wrapper">
                 <img 
                   src={image.thumbnail_url || image.image_url} 
-                  alt="Hazard photo"
+                  alt="Hazard scene"
                   loading="lazy"
                 />
               </div>
@@ -413,8 +409,12 @@
 
       <ImageUpload
         hazardId={hazard.id}
-        onUpload={handleImageUpload}
-        onError={handleImageError}
+        userId={user?.id || ""}
+        hazardLocation={currentLocation || { lat: hazard.latitude, lng: hazard.longitude }}
+        supabaseClient={supabase}
+        currentUser={user}
+        on:upload={handleImageUpload}
+        on:error={handleImageError}
       />
 
       {#if uploadedImages.length > 0}

@@ -51,8 +51,19 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="modal-overlay" onclick={handleCancel} role="dialog" aria-modal="true" aria-labelledby="modal-title">
-  <div class="modal-content" onclick={(e) => e.stopPropagation()}>
+<!-- svelte-ignore a11y_click_events_have_key_events -->
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+<div
+  class="modal-overlay"
+  onclick={handleCancel}
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="modal-title"
+  tabindex="-1"
+>
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="modal-content" onclick={(e) => e.stopPropagation()} role="document">
     <div class="modal-header">
       <h3 id="modal-title">Delete Image</h3>
       <button type="button" class="close-btn" onclick={handleCancel} aria-label="Close modal">✕</button>
@@ -62,7 +73,7 @@
       <p>Are you sure you want to delete this image? This action cannot be undone.</p>
       
       <div class="image-preview">
-        <img src={imageSrc} alt="Image to delete" />
+        <img src={imageSrc} alt="Preview of selected item" />
       </div>
     </div>
     

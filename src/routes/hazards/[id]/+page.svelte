@@ -196,7 +196,7 @@
                 >
                   <img 
                     src={image.thumbnail_url || image.image_url} 
-                    alt="Hazard photo"
+                    alt="Hazard scene"
                     loading="lazy"
                   />
                   <div class="image-overlay">
