@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { logger } from '$lib/utils/logger';
+  import { logger } from "$lib/utils/logger";
 
   interface Props {
     imageSrc: string;
@@ -13,23 +13,26 @@
 
   async function handleConfirm() {
     if (isDeleting) return;
-    
+
     isDeleting = true;
-    
+
     try {
       const response = await fetch(`/api/images/${imageId}`, {
-        method: 'DELETE'
+        method: "DELETE",
       });
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Failed to delete image');
+        throw new Error(error.error || "Failed to delete image");
       }
 
       onConfirm(imageId);
     } catch (err) {
-      logger.error('Failed to delete image', err instanceof Error ? err : new Error(String(err)));
-      alert('Failed to delete image. Please try again.');
+      logger.error(
+        "Failed to delete image",
+        err instanceof Error ? err : new Error(String(err))
+      );
+      alert("Failed to delete image. Please try again.");
     } finally {
       isDeleting = false;
     }
@@ -43,7 +46,7 @@
 
   // Handle escape key
   function handleKeydown(event: KeyboardEvent) {
-    if (event.key === 'Escape' && !isDeleting) {
+    if (event.key === "Escape" && !isDeleting) {
       handleCancel();
     }
   }
@@ -63,26 +66,48 @@
 >
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="modal-content" onclick={(e) => e.stopPropagation()} role="document">
+  <div
+    class="modal-content"
+    onclick={(e) => e.stopPropagation()}
+    role="document"
+  >
     <div class="modal-header">
       <h3 id="modal-title">Delete Image</h3>
-      <button type="button" class="close-btn" onclick={handleCancel} aria-label="Close modal">✕</button>
+      <button
+        type="button"
+        class="close-btn"
+        onclick={handleCancel}
+        aria-label="Close modal">✕</button
+      >
     </div>
-    
+
     <div class="modal-body">
-      <p>Are you sure you want to delete this image? This action cannot be undone.</p>
-      
+      <p>
+        Are you sure you want to delete this image? This action cannot be
+        undone.
+      </p>
+
       <div class="image-preview">
         <img src={imageSrc} alt="Preview of selected item" />
       </div>
     </div>
-    
+
     <div class="modal-footer">
-      <button type="button" class="btn btn-secondary" onclick={handleCancel} disabled={isDeleting}>
+      <button
+        type="button"
+        class="btn btn-secondary"
+        onclick={handleCancel}
+        disabled={isDeleting}
+      >
         Cancel
       </button>
-      <button type="button" class="btn btn-danger" onclick={handleConfirm} disabled={isDeleting}>
-        {isDeleting ? 'Deleting...' : 'Delete Image'}
+      <button
+        type="button"
+        class="btn btn-danger"
+        onclick={handleConfirm}
+        disabled={isDeleting}
+      >
+        {isDeleting ? "Deleting..." : "Delete Image"}
       </button>
     </div>
   </div>
@@ -105,7 +130,9 @@
   .modal-content {
     background: white;
     border-radius: 12px;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    box-shadow:
+      0 20px 25px -5px rgba(0, 0, 0, 0.1),
+      0 10px 10px -5px rgba(0, 0, 0, 0.04);
     max-width: 500px;
     width: 90%;
     max-height: 90vh;
@@ -135,7 +162,9 @@
     cursor: pointer;
     padding: 0.25rem;
     border-radius: 4px;
-    transition: background-color 0.2s, color 0.2s;
+    transition:
+      background-color 0.2s,
+      color 0.2s;
   }
 
   .close-btn:hover {

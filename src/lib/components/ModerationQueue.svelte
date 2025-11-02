@@ -464,14 +464,14 @@
                       currentItem.content_preview.location.longitude
                     )}
                   </p>
-                  
+
                   <!-- Interactive Map Display -->
                   <div class="moderation-map">
                     {#key currentItem.content_id}
-                      <MapLocationPicker 
+                      <MapLocationPicker
                         initialLocation={{
                           lat: currentItem.content_preview.location.latitude,
-                          lng: currentItem.content_preview.location.longitude
+                          lng: currentItem.content_preview.location.longitude,
                         }}
                         initialArea={currentItem.content_preview.area}
                         readonly={true}
@@ -522,7 +522,8 @@
               {#if currentItem.content_preview.images && currentItem.content_preview.images.length > 0}
                 <div class="images-section">
                   <h4>
-                    Attached Images ({currentItem.content_preview.images.length}):
+                    Attached Images ({currentItem.content_preview.images
+                      .length}):
                   </h4>
                   <div class="images-grid">
                     {#each currentItem.content_preview.images as image}
@@ -551,7 +552,9 @@
                           </p>
                           {#if image.vote_score !== undefined && image.vote_score !== 0}
                             <p class="vote-score">
-                              {image.vote_score > 0 ? '👍' : '👎'} Score: {Math.abs(image.vote_score)}
+                              {image.vote_score > 0 ? "👍" : "👎"} Score: {Math.abs(
+                                image.vote_score
+                              )}
                             </p>
                           {/if}
                         </div>
@@ -1081,7 +1084,9 @@
     border-radius: 12px;
     border: 1px solid #e2e8f0;
     overflow: hidden;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition:
+      transform 0.2s,
+      box-shadow 0.2s;
   }
 
   .image-card:hover {
@@ -1130,7 +1135,9 @@
     font-size: 2rem;
     opacity: 0;
     transform: scale(0.8);
-    transition: opacity 0.3s ease, transform 0.3s ease;
+    transition:
+      opacity 0.3s ease,
+      transform 0.3s ease;
   }
 
   .image-preview-button:hover .view-icon {

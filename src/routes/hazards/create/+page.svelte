@@ -4,8 +4,10 @@
   import { logger } from "$lib/utils/logger.js";
   import ImageUpload from "$lib/components/ImageUpload.svelte";
   import MapLocationPicker from "$lib/components/MapLocationPicker.svelte";
+  import { MapLocationSearch } from "$lib/components/map";
   import type { PageData } from "./$types";
   import type { ImageUploadResult } from "$lib/types/images.js";
+  import type { Location } from "$lib/components/map/types";
   import { enhance } from "$app/forms";
   import { page } from "$app/stores";
 
@@ -41,11 +43,11 @@
   // Location and area state
   let currentLocation = $state<{ lat: number; lng: number } | null>(null);
   let currentArea = $state<GeoJSON.Polygon | null>(null);
+  let mapZoom = $state(13); // Track zoom level for map
   let uploadedImages = $state<string[]>([]);
   let loading = $state(false);
   let error = $state("");
   let success = $state("");
-  let locationLoading = $state(false);
 
   // Handle location changes from MapLocationPicker
   const handleLocationChange = (location: { lat: number; lng: number }) => {
@@ -54,57 +56,18 @@
     formData.longitude = location.lng.toString();
   };
 
+  // Handle location search results
+  const handleLocationSearch = (location: Location, zoom?: number) => {
+    currentLocation = location;
+    formData.latitude = location.lat.toString();
+    formData.longitude = location.lng.toString();
+    // Update zoom if provided, otherwise use reasonable default
+    mapZoom = zoom || 13;
+  };
+
   // Handle area changes from MapLocationPicker
   const handleAreaChange = (area: GeoJSON.Polygon | null) => {
     currentArea = area;
-  };
-
-  // Get user's current location
-  const getCurrentLocation = async () => {
-    if (!navigator.geolocation) {
-      error = "Geolocation is not supported by this browser";
-      return;
-    }
-
-    locationLoading = true;
-    error = "";
-
-    try {
-      const position = await new Promise<GeolocationPosition>(
-        (resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 300000,
-          });
-        }
-      );
-
-      currentLocation = {
-        lat: position.coords.latitude,
-        lng: position.coords.longitude,
-      };
-
-      formData.latitude = position.coords.latitude.toString();
-      formData.longitude = position.coords.longitude.toString();
-
-      success = "Location acquired successfully!";
-      setTimeout(() => {
-        success = "";
-      }, 3000);
-    } catch (err: any) {
-      logger.warn("Geolocation failed", {
-        metadata: { errorMessage: err.message },
-      });
-      error = `Failed to get location: ${err.message || "Unknown error"}`;
-
-      // Default to Boston area as fallback
-      currentLocation = { lat: 42.3601, lng: -71.0589 };
-      formData.latitude = "42.3601";
-      formData.longitude = "-71.0589";
-    } finally {
-      locationLoading = false;
-    }
   };
 
   // Handle image upload results
@@ -300,83 +263,49 @@
       <section class="form-section">
         <h2>Location & Area</h2>
         <p class="section-description">
-          Set the precise location where the hazard is located. Optionally, draw an area to show the affected region.
+          Set the precise location where the hazard is located. Optionally, draw
+          an area to show the affected region.
         </p>
 
         <!-- Map Location Picker -->
         <div class="map-container">
           {#if currentLocation}
-            <MapLocationPicker 
+            <MapLocationPicker
               initialLocation={currentLocation}
               initialArea={currentArea}
+              zoom={mapZoom}
               onLocationChange={handleLocationChange}
               onAreaChange={handleAreaChange}
             />
           {:else}
             <div class="location-prompt">
-              <p>Please get your current location or enter coordinates manually to enable the map.</p>
-              <button
-                type="button"
-                class="btn btn-primary"
-                onclick={getCurrentLocation}
-                disabled={locationLoading}
-              >
-                {locationLoading ? "Getting Location..." : "📍 Get Current Location"}
-              </button>
+              <p>
+                Please use the location search below to set a location and enable the map.
+              </p>
             </div>
           {/if}
         </div>
 
-        <!-- Manual coordinate entry (fallback) -->
-        <details class="manual-coordinates">
-          <summary>Or enter coordinates manually</summary>
-          <div class="form-row">
-            <div class="form-group">
-              <label for="latitude">Latitude *</label>
-              <input
-                id="latitude"
-                name="latitude"
-                type="number"
-                step="any"
-                bind:value={formData.latitude}
-                placeholder="42.3601"
-                required
-                onchange={() => {
-                  const lat = parseFloat(formData.latitude);
-                  const lng = parseFloat(formData.longitude);
-                  if (!isNaN(lat) && !isNaN(lng)) {
-                    currentLocation = { lat, lng };
-                  }
-                }}
-              />
-            </div>
-            <div class="form-group">
-              <label for="longitude">Longitude *</label>
-              <input
-                id="longitude"
-                name="longitude"
-                type="number"
-                step="any"
-                bind:value={formData.longitude}
-                placeholder="-71.0589"
-                required
-                onchange={() => {
-                  const lat = parseFloat(formData.latitude);
-                  const lng = parseFloat(formData.longitude);
-                  if (!isNaN(lat) && !isNaN(lng)) {
-                    currentLocation = { lat, lng };
-                  }
-                }}
-              />
-            </div>
-          </div>
-        </details>
+        <!-- Location Search -->
+        <div class="location-search-section">
+          <h3>Search for Location</h3>
+          <MapLocationSearch
+            onLocationFound={handleLocationSearch}
+            initialLocation={currentLocation || undefined}
+            showCurrentLocation={true}
+            placeholder="Search by address, city, zip code, or enter coordinates..."
+          />
+        </div>
 
         <!-- Hidden inputs for form submission -->
         <input type="hidden" name="latitude" bind:value={formData.latitude} />
         <input type="hidden" name="longitude" bind:value={formData.longitude} />
         {#if currentArea}
-          <input type="hidden" name="area" value={JSON.stringify(currentArea)} />
+          <input
+            type="hidden"
+            name="area"
+            value={JSON.stringify(currentArea)}
+          />
         {/if}
       </section>
 
@@ -721,31 +650,16 @@
     font-size: 1.1rem;
   }
 
-  .manual-coordinates {
+  .location-search-section {
     margin-top: 1rem;
-    border: 1px solid var(--color-border);
-    border-radius: 6px;
-    padding: 0;
+    margin-bottom: 1.5rem;
   }
 
-  .manual-coordinates summary {
-    padding: 1rem;
-    background: var(--color-bg-muted);
-    cursor: pointer;
-    font-weight: 500;
-    color: var(--color-text-secondary);
-  }
-
-  .manual-coordinates summary:hover {
-    background: var(--color-bg-tertiary);
-  }
-
-  .manual-coordinates[open] summary {
-    border-bottom: 1px solid var(--color-border);
-  }
-
-  .manual-coordinates .form-row {
-    padding: 1rem;
+  .location-search-section h3 {
+    font-size: 1.1rem;
+    color: var(--color-text);
+    margin-bottom: 0.75rem;
+    font-weight: 600;
   }
 
   .section-description {

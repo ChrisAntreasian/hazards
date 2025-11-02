@@ -74,12 +74,14 @@ export interface MapContext {
  * Marker data for MapMarkers component
  */
 export interface MarkerData {
-  id: string | number;
-  latitude: number;
-  longitude: number;
+  id?: string | number;
+  latitude?: string | number;
+  longitude?: string | number;
   category?: string;
+  category_name?: string;
   title?: string;
   description?: string;
+  created_at?: string;
   [key: string]: any;
 }
 

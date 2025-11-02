@@ -44,6 +44,23 @@
   let currentLayerId = $state(defaultLayer);
   let cleanupFunctions: (() => void)[] = [];
 
+  // Create map context immediately (before onMount)
+  // The map and leaflet values will be null initially, then populated in onMount
+  const context: MapContext = {
+    get map() {
+      return map;
+    },
+    get leaflet() {
+      return L;
+    },
+    addCleanup: (cleanup: () => void) => {
+      cleanupFunctions.push(cleanup);
+    },
+  };
+
+  // Set context during component initialization (not in onMount)
+  setMapContext(context);
+
   /**
    * Initialize the map
    */
@@ -98,17 +115,6 @@
         if (onZoomEnd) {
           map.on("zoomend", onZoomEnd);
         }
-
-        // Create map context for child components
-        const context: MapContext = {
-          map,
-          leaflet: L,
-          addCleanup: (cleanup: () => void) => {
-            cleanupFunctions.push(cleanup);
-          },
-        };
-
-        setMapContext(context);
 
         // Call onReady callback
         if (onReady && map) {

@@ -76,14 +76,15 @@
 
   // Default popup template
   const defaultPopupTemplate = (marker: MarkerData): string => {
+    const category = marker.category || marker.category_name;
     return `
       <div class="hazard-popup">
         <h3 style="margin: 0 0 8px 0; font-size: 16px; color: #333;">
           ${marker.title || "Untitled"}
         </h3>
-        ${marker.category ? `
+        ${category ? `
           <p style="margin: 0 0 4px 0; font-size: 12px; color: #666;">
-            <strong>Category:</strong> ${marker.category}
+            <strong>Category:</strong> ${category}
           </p>
         ` : ""}
         ${marker.description ? `
@@ -126,9 +127,17 @@
   function createMarker(markerData: MarkerData): any {
     if (!map || !L) return null;
 
-    const category = markerData.category || "Other";
+    const category = markerData.category || markerData.category_name || "Other";
     const color = getMarkerColor(category);
     const icon = getMarkerIcon(category);
+
+    // Normalize coordinates to numbers
+    const lat = typeof markerData.latitude === 'string' 
+      ? parseFloat(markerData.latitude) 
+      : markerData.latitude || 0;
+    const lng = typeof markerData.longitude === 'string'
+      ? parseFloat(markerData.longitude)
+      : markerData.longitude || 0;
 
     const markerIcon = createDivIcon(
       L,
@@ -137,7 +146,7 @@
       [24, 24]
     );
 
-    const marker = L.marker([markerData.latitude, markerData.longitude], {
+    const marker = L.marker([lat, lng], {
       icon: markerIcon,
     });
 
@@ -180,7 +189,18 @@
     markers.forEach((markerData, index) => {
       try {
         if (markerData.latitude && markerData.longitude) {
-          const marker = createMarker(markerData);
+          // Normalize lat/lng to numbers
+          const normalizedData = {
+            ...markerData,
+            latitude: typeof markerData.latitude === 'string' 
+              ? parseFloat(markerData.latitude) 
+              : markerData.latitude,
+            longitude: typeof markerData.longitude === 'string'
+              ? parseFloat(markerData.longitude)
+              : markerData.longitude,
+          };
+
+          const marker = createMarker(normalizedData);
 
           if (marker) {
             if (markerClusterGroup) {

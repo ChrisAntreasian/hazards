@@ -248,11 +248,17 @@
               </div>
 
               <div class="hazard-actions">
-                <a href="/hazards/{hazard.id}" class="btn btn-small btn-primary">
+                <a
+                  href="/hazards/{hazard.id}"
+                  class="btn btn-small btn-primary"
+                >
                   View Details
                 </a>
                 {#if hazard.status === "pending"}
-                  <a href="/hazards/edit/{hazard.id}" class="btn btn-small btn-secondary">
+                  <a
+                    href="/hazards/edit/{hazard.id}"
+                    class="btn btn-small btn-secondary"
+                  >
                     Edit
                   </a>
                 {/if}
