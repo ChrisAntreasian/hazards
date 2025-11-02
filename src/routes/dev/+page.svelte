@@ -36,6 +36,48 @@
       href: "/dev/map-picker",
       icon: "📍",
     },
+    {
+      title: "BaseMap Test",
+      description:
+        "Test the core BaseMap component with tile layers and basic functionality",
+      href: "/dev/basemap-test",
+      icon: "🗺️",
+    },
+    {
+      title: "Simple Map",
+      description:
+        "Minimal map implementation for testing basic Leaflet integration",
+      href: "/dev/simple-map",
+      icon: "🌍",
+    },
+    {
+      title: "Map Markers Test",
+      description:
+        "Test marker clustering and hazard display with various categories",
+      href: "/dev/mapmarkers-test",
+      icon: "📌",
+    },
+    {
+      title: "Layer Switcher Test",
+      description:
+        "Test map layer switching between satellite, street, and topo views",
+      href: "/dev/layer-switcher-test",
+      icon: "🔄",
+    },
+    {
+      title: "Drawing Tool Test",
+      description:
+        "Test polygon drawing functionality with auto-simplification",
+      href: "/dev/map-drawing-test",
+      icon: "✏️",
+    },
+    {
+      title: "Location Marker Test",
+      description:
+        "Test draggable location marker with reposition mode",
+      href: "/dev/map-location-marker-test",
+      icon: "🎯",
+    },
   ];
 </script>
 

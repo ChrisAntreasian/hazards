@@ -26,27 +26,44 @@
   // Supabase setup
   const supabase = createSupabaseLoadClient();
 
-  // Form state pre-populated with existing hazard data
+  // Form state - initialize empty, populate in effect
   let formData = $state({
-    title: hazard.title,
-    description: hazard.description,
-    category_id: hazard.category_id || "",
-    severity_level: hazard.severity_level,
-    latitude: hazard.latitude.toString(),
-    longitude: hazard.longitude.toString(),
-    reported_active_date: hazard.reported_active_date
-      ? new Date(hazard.reported_active_date).toISOString().split("T")[0]
-      : new Date().toISOString().split("T")[0],
-    is_seasonal: hazard.is_seasonal,
+    title: "",
+    description: "",
+    category_id: "",
+    severity_level: 1,
+    latitude: "",
+    longitude: "",
+    reported_active_date: new Date().toISOString().split("T")[0],
+    is_seasonal: false,
   });
 
   // Location and area state
-  let currentLocation = $state<{ lat: number; lng: number }>({
-    lat: hazard.latitude,
-    lng: hazard.longitude,
-  });
-  let currentArea = $state<GeoJSON.Polygon | null>(hazard.area);
+  let currentLocation = $state<{ lat: number; lng: number }>({ lat: 0, lng: 0 });
+  let currentArea = $state<GeoJSON.Polygon | null>(null);
   let mapZoom = $state(13); // Track zoom level for map
+  
+  // Initialize form data from hazard (runs once when hazard is available)
+  $effect(() => {
+    if (hazard) {
+      formData.title = hazard.title;
+      formData.description = hazard.description;
+      formData.category_id = hazard.category_id || "";
+      formData.severity_level = hazard.severity_level;
+      formData.latitude = hazard.latitude.toString();
+      formData.longitude = hazard.longitude.toString();
+      formData.reported_active_date = hazard.reported_active_date
+        ? new Date(hazard.reported_active_date).toISOString().split("T")[0]
+        : new Date().toISOString().split("T")[0];
+      formData.is_seasonal = hazard.is_seasonal;
+      
+      currentLocation = {
+        lat: hazard.latitude,
+        lng: hazard.longitude,
+      };
+      currentArea = hazard.area;
+    }
+  });
   let uploadedImages = $state<string[]>([]);
   let loading = $state(false);
   let error = $state("");

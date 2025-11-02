@@ -449,12 +449,6 @@
     margin-bottom: 1.5rem;
   }
 
-  .form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-  }
-
   label {
     display: block;
     font-weight: 500;
@@ -498,20 +492,6 @@
     text-align: center;
     font-size: 1rem;
     color: #374151;
-  }
-
-  .location-controls {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-    flex-wrap: wrap;
-  }
-
-  .location-status {
-    color: var(--color-success);
-    font-size: 0.9rem;
-    font-weight: 500;
   }
 
   .checkbox-label {
@@ -607,16 +587,6 @@
 
     .form-section {
       padding: 1.5rem;
-    }
-
-    .form-row {
-      grid-template-columns: 1fr;
-      gap: 0.75rem;
-    }
-
-    .location-controls {
-      flex-direction: column;
-      align-items: stretch;
     }
 
     .form-actions {
