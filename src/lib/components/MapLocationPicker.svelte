@@ -143,32 +143,32 @@
       map = L.map(mapElement, mapOptions).setView([currentLocation.lat, currentLocation.lng], zoom);
       
       // Add multiple tile layers with consistent max zoom
+      // Using same Esri satellite imagery as main map page for consistency
+      const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '© Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+        maxZoom: 19
+      });
+      
       const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors',
         maxZoom: 19
       });
       
-      // Use a different satellite provider that supports higher zoom
-      const satelliteLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
-        attribution: '© Google',
-        maxZoom: 19  // Match map maxZoom for consistency
+      // Terrain/topographic layer
+      const terrainLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenTopoMap contributors',
+        maxZoom: 19
       });
       
-      // Alternative high-resolution satellite layer
-      const hybridLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-        attribution: '© Google',
-        maxZoom: 19  // Match map maxZoom for consistency
-      });
-      
-      // Add default layer
+      // Add default layer (satellite/earth view)
       satelliteLayer.addTo(map);
       
       // Only add layer control if not readonly
       if (!readonly) {
         const baseLayers = {
-          "🛰️ Satellite": satelliteLayer,
-          "🗺️ Street Map": osmLayer,
-          "🔍 Hybrid": hybridLayer
+          "🛰️ Earth View": satelliteLayer,
+          "� Street View": osmLayer,
+          "⛰️ Terrain View": terrainLayer
         };
         
         L.control.layers(baseLayers).addTo(map);

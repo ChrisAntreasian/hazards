@@ -19,6 +19,7 @@
     center?: [number, number];
     zoom?: number;
     showUserLocation?: boolean;
+    onMapReady?: (mapInstance: LeafletMap) => void;
   }
 
   let {
@@ -27,6 +28,7 @@
     center = [42.3601, -71.0589], // Default to Boston area
     zoom = 10,
     showUserLocation = true,
+    onMapReady,
   }: Props = $props();
 
   let mapElement: HTMLDivElement;
@@ -35,6 +37,7 @@
   let userLocationMarker = $state<Marker | null>(null);
   let markerClusterGroup = $state<any>(null); // MarkerClusterGroup type from plugin
   let L = $state<typeof import("leaflet") & { markerClusterGroup?: any }>();
+  let currentTileLayer = $state<TileLayer | null>(null);
 
   // Hazard category colors for markers
   const categoryColors: Record<string, string> = {
@@ -108,17 +111,25 @@
           document.head.appendChild(clusterDefaultLink);
         }
 
-        // Initialize the map
-        map = L!.map(mapElement).setView(center, zoom);
+        // Initialize the map with zoom control
+        map = L!.map(mapElement, {
+          zoomControl: true,
+          scrollWheelZoom: true,
+        }).setView(center, zoom);
 
-        // Add OpenStreetMap tiles
-        L!
-          .tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        // Add default satellite/earth view tiles
+        currentTileLayer = L!
+          .tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
             attribution:
-              '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+              '© Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
             maxZoom: 19,
           })
           .addTo(map);
+        
+        // Call onMapReady callback if provided
+        if (onMapReady && map) {
+          onMapReady(map);
+        }
 
         // Initialize MarkerClusterGroup with better configuration
         if (L!.markerClusterGroup) {
@@ -275,9 +286,15 @@
 						<p style="margin: 0 0 8px 0; font-size: 14px; color: #444;">
 							${hazard?.description || "No description available"}
 						</p>
-						<p style="margin: 0; font-size: 11px; color: #888;">
+						<p style="margin: 0 0 12px 0; font-size: 11px; color: #888;">
 							Reported: ${hazard?.created_at ? new Date(hazard.created_at).toLocaleDateString() : "Unknown date"}
 						</p>
+						<a href="/hazards/${hazard?.id}" 
+						   style="display: inline-block; padding: 6px 12px; background: #1976d2; color: white; text-decoration: none; border-radius: 4px; font-size: 13px; font-weight: 500; text-align: center; transition: background 0.2s;"
+						   onmouseover="this.style.background='#1565c0'"
+						   onmouseout="this.style.background='#1976d2'">
+							📍 View Full Details
+						</a>
 					</div>
 				`;
 
@@ -375,6 +392,23 @@
   :global(.hazard-popup-container .leaflet-popup-tip) {
     background: white;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  :global(.hazard-popup-container .leaflet-popup-content) {
+    margin: 14px 16px;
+  }
+
+  :global(.hazard-popup a) {
+    box-shadow: 0 2px 4px rgba(25, 118, 210, 0.3);
+  }
+
+  :global(.hazard-popup a:hover) {
+    box-shadow: 0 4px 8px rgba(25, 118, 210, 0.4);
+    transform: translateY(-1px);
+  }
+
+  :global(.hazard-popup a:active) {
+    transform: translateY(0);
   }
 
   :global(.user-location-marker) {
