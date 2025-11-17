@@ -58,7 +58,7 @@ export interface BaseMapProps {
   onReady?: (map: LeafletMap) => void;
   onClick?: (event: any) => void;
   onMoveEnd?: () => void;
-  onZoomEnd?: () => void;
+  onZoomEnd?: (event: any) => void;
 }
 
 /**

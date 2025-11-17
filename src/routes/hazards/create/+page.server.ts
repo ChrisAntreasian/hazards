@@ -59,6 +59,13 @@ export const actions: Actions = {
 
     const formData = await event.request.formData();
     
+    // Log all form data keys for debugging
+    console.log('===== FORM DATA KEYS =====');
+    for (const [key, value] of formData.entries()) {
+      console.log(`  ${key}:`, typeof value === 'string' ? value.substring(0, 100) : value);
+    }
+    console.log('==========================');
+    
     // Extract form data
     const title = formData.get('title')?.toString()?.trim();
     const description = formData.get('description')?.toString()?.trim();
@@ -70,6 +77,15 @@ export const actions: Actions = {
     const is_seasonal = formData.get('is_seasonal') === 'on';
     const uploaded_images = formData.get('uploaded_images')?.toString();
     const area_json = formData.get('area')?.toString();
+    const zoomRaw = formData.get('zoom')?.toString();
+    console.log('Server received zoom:', zoomRaw, 'type:', typeof zoomRaw);
+    let zoom = parseInt(zoomRaw || '13');
+    
+    // Validate zoom is within acceptable range (1-20, Leaflet's max)
+    if (isNaN(zoom) || zoom < 1 || zoom > 20) {
+      logger.warn('Invalid zoom value, using default', { metadata: { zoom, raw: zoomRaw } });
+      zoom = 13;
+    }
 
     // Parse area data if provided
     let area: any = null;
@@ -100,6 +116,21 @@ export const actions: Actions = {
     }
 
     try {
+      // Log the parameters for debugging
+      logger.info('Creating hazard with parameters', { 
+        metadata: { 
+          title, 
+          category_id, 
+          latitude, 
+          longitude, 
+          severity_level, 
+          zoom,
+          zoom_type: typeof zoom,
+          is_seasonal,
+          has_area: !!area 
+        } 
+      });
+
       // Use PostgreSQL function to create hazard (RLS works properly this way)
       const { data: createResult, error: hazardError } = await supabase.rpc('create_hazard', {
         p_title: title,
@@ -110,7 +141,8 @@ export const actions: Actions = {
         p_severity_level: severity_level,
         p_reported_active_date: reported_active_date ? new Date(reported_active_date).toISOString() : null,
         p_is_seasonal: is_seasonal,
-        p_area: area
+        p_area: area,
+        p_zoom: zoom
       });
 
       if (hazardError || !createResult?.success) {

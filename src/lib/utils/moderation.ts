@@ -565,6 +565,7 @@ export class ModerationQueue {
           latitude,
           longitude,
           area,
+          zoom,
           severity_level,
           reported_active_date,
           is_seasonal,
@@ -598,6 +599,7 @@ export class ModerationQueue {
             longitude: hazard.longitude
           },
           area: hazard.area || null,
+          zoom: hazard.zoom || 13,
           category: {
             name: category?.name || 'Unknown',
             icon: category?.icon

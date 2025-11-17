@@ -17,8 +17,13 @@
     onMarkerClick,
   }: Props = $props();
 
-  // Get map context
-  const { map, leaflet: L, addCleanup } = getMapContext();
+  // Get map context - keep the object to maintain getter reactivity
+  const context = getMapContext();
+  const { addCleanup } = context;
+
+  // Access map and L through derived values to maintain reactivity
+  let map = $derived(context.map);
+  let L = $derived(context.leaflet);
 
   // State
   let markerInstances: any[] = [];
@@ -82,27 +87,43 @@
         <h3 style="margin: 0 0 8px 0; font-size: 16px; color: #333;">
           ${marker.title || "Untitled"}
         </h3>
-        ${category ? `
+        ${
+          category
+            ? `
           <p style="margin: 0 0 4px 0; font-size: 12px; color: #666;">
             <strong>Category:</strong> ${category}
           </p>
-        ` : ""}
-        ${marker.description ? `
+        `
+            : ""
+        }
+        ${
+          marker.description
+            ? `
           <p style="margin: 0 0 8px 0; font-size: 14px; color: #444;">
             ${marker.description}
           </p>
-        ` : ""}
-        ${marker.created_at ? `
+        `
+            : ""
+        }
+        ${
+          marker.created_at
+            ? `
           <p style="margin: 0 0 12px 0; font-size: 11px; color: #888;">
             Reported: ${new Date(marker.created_at).toLocaleDateString()}
           </p>
-        ` : ""}
-        ${marker.id ? `
+        `
+            : ""
+        }
+        ${
+          marker.id
+            ? `
           <a href="/hazards/${marker.id}" 
              style="display: inline-block; padding: 6px 12px; background: #1976d2; color: white; text-decoration: none; border-radius: 4px; font-size: 13px; font-weight: 500;">
             📍 View Details
           </a>
-        ` : ""}
+        `
+            : ""
+        }
       </div>
     `;
   };
@@ -132,12 +153,14 @@
     const icon = getMarkerIcon(category);
 
     // Normalize coordinates to numbers
-    const lat = typeof markerData.latitude === 'string' 
-      ? parseFloat(markerData.latitude) 
-      : markerData.latitude || 0;
-    const lng = typeof markerData.longitude === 'string'
-      ? parseFloat(markerData.longitude)
-      : markerData.longitude || 0;
+    const lat =
+      typeof markerData.latitude === "string"
+        ? parseFloat(markerData.latitude)
+        : markerData.latitude || 0;
+    const lng =
+      typeof markerData.longitude === "string"
+        ? parseFloat(markerData.longitude)
+        : markerData.longitude || 0;
 
     const markerIcon = createDivIcon(
       L,
@@ -192,12 +215,14 @@
           // Normalize lat/lng to numbers
           const normalizedData = {
             ...markerData,
-            latitude: typeof markerData.latitude === 'string' 
-              ? parseFloat(markerData.latitude) 
-              : markerData.latitude,
-            longitude: typeof markerData.longitude === 'string'
-              ? parseFloat(markerData.longitude)
-              : markerData.longitude,
+            latitude:
+              typeof markerData.latitude === "string"
+                ? parseFloat(markerData.latitude)
+                : markerData.latitude,
+            longitude:
+              typeof markerData.longitude === "string"
+                ? parseFloat(markerData.longitude)
+                : markerData.longitude,
           };
 
           const marker = createMarker(normalizedData);
@@ -230,14 +255,19 @@
     });
   }
 
-  onMount(async () => {
-    if (!map || !L) {
-      logger.error(
-        "MapMarkers: Map or Leaflet not available",
-        new Error("Map context missing")
-      );
-      return;
+  // Track if we've already initialized
+  let initialized = $state(false);
+
+  // Initialize clustering and markers when map and L are ready
+  $effect(() => {
+    if (map && L && !initialized) {
+      initialized = true;
+      initializeClustering();
     }
+  });
+
+  async function initializeClustering() {
+    if (!map || !L) return;
 
     // Initialize marker clustering if enabled
     if (enableClustering) {
@@ -319,15 +349,17 @@
 
     // Initial marker update
     updateMarkers();
+  }
 
-    // Register cleanup
-    addCleanup(() => {
-      if (markerClusterGroup) {
-        map?.removeLayer(markerClusterGroup);
+  // Register cleanup
+  onMount(() => {
+    return () => {
+      if (markerClusterGroup && map) {
+        map.removeLayer(markerClusterGroup);
       }
       markerInstances.forEach((marker) => marker.remove());
       markerInstances = [];
-    });
+    };
   });
 
   // Watch for marker changes

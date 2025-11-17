@@ -188,7 +188,7 @@
             initialLocation={{ lat: hazard.latitude, lng: hazard.longitude }}
             initialArea={hazard.area}
             readonly={true}
-            zoom={16}
+            zoom={hazard.zoom || 13}
             height="400px"
           />
         {/key}

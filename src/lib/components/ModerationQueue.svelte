@@ -475,7 +475,7 @@
                         }}
                         initialArea={currentItem.content_preview.area}
                         readonly={true}
-                        zoom={15}
+                        zoom={currentItem.content_preview.zoom || 13}
                       />
                     {/key}
                   </div>

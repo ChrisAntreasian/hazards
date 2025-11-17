@@ -28,8 +28,13 @@
     onLocationChange,
   }: Props = $props();
 
-  // Get map context
-  const { map, leaflet: L, addCleanup } = getMapContext();
+  // Get map context - keep the object to maintain getter reactivity
+  const context = getMapContext();
+  const { addCleanup } = context;
+
+  // Access map and L through derived values to maintain reactivity
+  let map = $derived(context.map);
+  let L = $derived(context.leaflet);
 
   // State
   let marker: any = null;
@@ -54,7 +59,7 @@
         align-items: center;
         justify-content: center;
         font-size: 18px;
-        cursor: ${draggable || isRepositioning ? 'move' : 'pointer'};
+        cursor: ${draggable || isRepositioning ? "move" : "pointer"};
       ">${markerIcon}</div>`,
       className: "custom-location-marker",
       iconSize: [32, 32],
@@ -66,7 +71,19 @@
    * Initialize location marker
    */
   function initializeMarker() {
-    if (!map || !L || marker) return;
+    if (!map || !L || marker) {
+      console.log("MapLocationMarker: Cannot initialize", {
+        hasMap: !!map,
+        hasL: !!L,
+        hasMarker: !!marker,
+      });
+      return;
+    }
+
+    if (!L.Marker) {
+      console.error("MapLocationMarker: L.Marker is undefined", L);
+      return;
+    }
 
     const icon = createMarkerIcon();
     if (!icon) return;
@@ -227,18 +244,24 @@
     }
   }
 
-  // Initialize on mount
-  onMount(() => {
-    if (enabled) {
+  // Track if we've already initialized
+  let initialized = $state(false);
+
+  // Initialize when map and L are ready
+  $effect(() => {
+    if (enabled && map && L && !initialized) {
+      initialized = true;
       initializeMarker();
 
       // Add map click handler if reposition mode is enabled
-      if (map && isRepositioning) {
+      if (isRepositioning) {
         map.on("click", handleMapClick);
       }
     }
+  });
 
-    // Cleanup
+  // Cleanup on unmount
+  onMount(() => {
     return () => {
       if (map) {
         map.off("click", handleMapClick);
@@ -249,13 +272,15 @@
     };
   });
 
-  // React to enabled prop changes
+  // React to enabled prop changes after initial mount
   $effect(() => {
-    if (enabled && map && !marker) {
-      initializeMarker();
-    } else if (!enabled && marker) {
-      marker.remove();
-      marker = null;
+    if (initialized) {
+      if (enabled && map && L && !marker) {
+        initializeMarker();
+      } else if (!enabled && marker) {
+        marker.remove();
+        marker = null;
+      }
     }
   });
 

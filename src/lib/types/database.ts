@@ -134,6 +134,8 @@ export interface Hazard {
   longitude: number;
   /** GeoJSON polygon representing the affected area (optional) */
   area: GeoJSON.Polygon | null;
+  /** Map zoom level at which the hazard was reported (1-18, default 13) */
+  zoom: number;
   /** Geographic cell identifier for efficient spatial queries and clustering */
   geo_cell: string;
   /** Geohash string enabling proximity searches and geographic indexing */

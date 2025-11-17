@@ -1,27 +1,41 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { getMapContext } from "./context";
-  import { autoSimplifyPolygon, type Point } from "$lib/utils/map-simplification";
+  import {
+    autoSimplifyPolygon,
+    type Point,
+  } from "$lib/utils/map-simplification";
   import { logger } from "$lib/utils/logger";
 
   interface Props {
     initialArea?: GeoJSON.Polygon | null;
     enabled?: boolean;
+    readonly?: boolean;
     autoSimplify?: boolean;
+    autoFitBounds?: boolean; // Whether to automatically fit map to area bounds
     onAreaChange?: (area: GeoJSON.Polygon | null) => void;
-    onAreaStats?: (stats: { vertices: number; originalVertices?: number } | null) => void;
+    onAreaStats?: (
+      stats: { vertices: number; originalVertices?: number } | null
+    ) => void;
   }
 
   let {
     initialArea = null,
     enabled = true,
+    readonly = false,
     autoSimplify = true,
+    autoFitBounds = !readonly, // Default: fit bounds only when not readonly
     onAreaChange,
     onAreaStats,
   }: Props = $props();
 
-  // Get map context
-  const { map, leaflet: L, addCleanup } = getMapContext();
+  // Get map context - keep the object to maintain getter reactivity
+  const context = getMapContext();
+  const { addCleanup } = context;
+
+  // Access map and L through derived values to maintain reactivity
+  let map = $derived(context.map);
+  let L = $derived(context.leaflet);
 
   // State
   let drawnItems: any = null;
@@ -33,34 +47,89 @@
    * Load leaflet-draw library
    */
   async function loadLeafletDraw() {
-    if (!L) return null;
+    if (!L) {
+      logger.warn("MapDrawing: Cannot load leaflet-draw, L is not available", {
+        component: "MapDrawing",
+      });
+      return false;
+    }
 
     try {
+      // Check if already loaded
+      if ((L as any).Draw) {
+        logger.debug("MapDrawing: leaflet-draw already loaded", {
+          component: "MapDrawing",
+        });
+        return true;
+      }
+
       // Load leaflet-draw CSS
       const drawCss = document.createElement("link");
       drawCss.rel = "stylesheet";
-      drawCss.href = "https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css";
+      drawCss.href =
+        "https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css";
       document.head.appendChild(drawCss);
 
       // Make Leaflet globally available for leaflet-draw
-      if (typeof window !== "undefined") {
+      // leaflet-draw is a UMD module that expects window.L to exist
+      if (typeof window !== "undefined" && !(window as any).L) {
         (window as any).L = L;
+        console.log("MapDrawing: Set window.L", !!L, !!L.Draw);
       }
 
       // Load leaflet-draw JS - it will extend the global L object
-      await import("leaflet-draw");
+      // Try npm package first, fallback to CDN if it fails
+      try {
+        // @ts-ignore - Dynamic import of UMD module that extends global L
+        await import("leaflet-draw/dist/leaflet.draw.js");
+        console.log(
+          "MapDrawing: leaflet-draw imported from npm, checking for Draw...",
+          !!(L as any).Draw,
+          !!(window as any).L?.Draw
+        );
+      } catch (err) {
+        console.warn("MapDrawing: npm import failed, trying CDN fallback", err);
+        // Fallback to CDN
+        const script = document.createElement("script");
+        script.src =
+          "https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js";
+        document.head.appendChild(script);
 
-      logger.debug("MapDrawing: leaflet-draw loaded successfully", {
+        // Wait for script to load
+        await new Promise((resolve, reject) => {
+          script.onload = resolve;
+          script.onerror = reject;
+        });
+        console.log(
+          "MapDrawing: leaflet-draw loaded from CDN, checking for Draw...",
+          !!(L as any).Draw,
+          !!(window as any).L?.Draw
+        );
+      }
+
+      // Longer delay to ensure the module has fully initialized
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      // Verify it loaded correctly by checking both our L and window.L
+      const hasDrawPlugin = !!(L as any).Draw || !!(window as any).L?.Draw;
+      console.log("MapDrawing: After delay, hasDrawPlugin:", hasDrawPlugin);
+
+      logger.debug("MapDrawing: leaflet-draw load attempt completed", {
         component: "MapDrawing",
+        metadata: {
+          success: hasDrawPlugin,
+          hasLocalDraw: !!(L as any).Draw,
+          hasWindowDraw: !!(window as any).L?.Draw,
+        },
       });
 
-      return L;
+      return hasDrawPlugin;
     } catch (error) {
       logger.error(
         "MapDrawing: Failed to load leaflet-draw",
         error instanceof Error ? error : new Error(String(error))
       );
-      return null;
+      return false;
     }
   }
 
@@ -68,39 +137,67 @@
    * Initialize drawing functionality
    */
   async function initializeDrawing() {
-    if (!map || !L) return;
-
-    const leaflet = await loadLeafletDraw();
-    if (!leaflet || !leaflet.Draw) {
-      logger.error(
-        "MapDrawing: leaflet-draw not available",
-        new Error("Missing leaflet-draw")
-      );
+    if (!map || !L) {
+      logger.warn("MapDrawing: Cannot initialize, map or L not available", {
+        component: "MapDrawing",
+        metadata: { hasMap: !!map, hasL: !!L },
+      });
       return;
     }
 
-    // Create feature group for drawn items
-    drawnItems = new leaflet.FeatureGroup();
-    map.addLayer(drawnItems);
+    // Only load leaflet-draw if not in readonly mode
+    if (!readonly) {
+      const loadSuccess = await loadLeafletDraw();
 
-    // Set up drawing event handlers
-    if (leaflet.Draw && leaflet.Draw.Event) {
-      map.on(leaflet.Draw.Event.CREATED, handleDrawCreated);
-      map.on(leaflet.Draw.Event.EDITED, handleDrawEdited);
-      map.on(leaflet.Draw.Event.DELETED, handleDrawDeleted);
+      // Check if Draw is available on either L or window.L
+      const LDraw = (L as any).Draw || (window as any).L?.Draw;
+
+      if (!loadSuccess || !LDraw) {
+        logger.error(
+          "MapDrawing: leaflet-draw not available after load attempt",
+          new Error("Missing leaflet-draw")
+        );
+        return;
+      }
+
+      // Use window.L if local L doesn't have Draw
+      if (!(L as any).Draw && (window as any).L?.Draw) {
+        console.log("MapDrawing: Using window.L for Draw plugin");
+        (L as any).Draw = (window as any).L.Draw;
+      }
     }
 
-    // Render initial area if provided
+    // Create feature group for drawn items
+    drawnItems = new L.FeatureGroup();
+    map.addLayer(drawnItems);
+
+    // Set up drawing event handlers only if not readonly
+    if (!readonly && (L as any).Draw && (L as any).Draw.Event) {
+      map.on((L as any).Draw.Event.CREATED, handleDrawCreated);
+      map.on((L as any).Draw.Event.EDITED, handleDrawEdited);
+      map.on((L as any).Draw.Event.DELETED, handleDrawDeleted);
+    }
+
+    // Render initial area if provided (with a delay to ensure map is ready)
     if (currentArea) {
-      renderArea(currentArea);
+      // Use a longer delay for initial render to ensure map tiles have loaded
+      setTimeout(() => {
+        if (currentArea) {
+          console.log("MapDrawing: Rendering initial area", currentArea);
+          renderArea(currentArea);
+        } else {
+          console.log("MapDrawing: No initial area to render");
+        }
+      }, 200);
     }
 
     logger.debug("MapDrawing: Drawing initialized", {
       component: "MapDrawing",
+      metadata: { readonly, hasInitialArea: !!currentArea, initialArea },
     });
 
-    // If enabled prop is true when initialization completes, start drawing
-    if (enabled && !isDrawing) {
+    // If enabled prop is true when initialization completes, start drawing (only if not readonly)
+    if (enabled && !readonly && !isDrawing) {
       startDrawing();
     }
   }
@@ -127,10 +224,18 @@
 
       drawnItems.addLayer(polygon);
 
-      // Fit map bounds to show the polygon
-      const bounds = polygon.getBounds();
-      if (bounds.isValid()) {
-        map.fitBounds(bounds, { padding: [50, 50] });
+      // Only auto-fit bounds if explicitly enabled
+      // This preserves the user's chosen zoom level
+      if (autoFitBounds) {
+        const bounds = polygon.getBounds();
+        if (bounds.isValid()) {
+          // Use setTimeout to ensure the map has finished initializing
+          setTimeout(() => {
+            if (map) {
+              map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+            }
+          }, 100);
+        }
       }
 
       // Update stats
@@ -290,7 +395,10 @@
       const simplifiedPoints = simplificationResult.simplified;
 
       // Update GeoJSON with simplified coordinates
-      const simplifiedCoords = simplifiedPoints.map((p: Point) => [p.lng, p.lat]);
+      const simplifiedCoords = simplifiedPoints.map((p: Point) => [
+        p.lng,
+        p.lat,
+      ]);
       simplifiedCoords.push(simplifiedCoords[0]); // Close the polygon
 
       finalGeoJson = {
@@ -377,12 +485,19 @@
     clearArea();
   }
 
-  // Initialize on mount
-  onMount(() => {
-    // Always initialize drawing functionality (even if not enabled yet)
-    initializeDrawing();
+  // Track if we've already initialized
+  let initialized = $state(false);
 
-    // Cleanup
+  // Initialize when map and L are ready
+  $effect(() => {
+    if (map && L && !initialized) {
+      initialized = true;
+      initializeDrawing();
+    }
+  });
+
+  // Cleanup on unmount
+  onMount(() => {
     return () => {
       stopDrawing();
       if (map && drawnItems) {
@@ -393,19 +508,26 @@
 
   // Start/stop drawing when enabled prop changes
   $effect(() => {
-    if (enabled && drawnItems && !isDrawing) {
+    if (enabled && !readonly && drawnItems && !isDrawing) {
       startDrawing();
-    } else if (!enabled && isDrawing) {
+    } else if ((!enabled || readonly) && isDrawing) {
       stopDrawing();
     }
   });
 
   // React to initialArea changes
   $effect(() => {
-    if (initialArea && initialArea !== currentArea) {
+    // Check if initialArea has changed (comparing by JSON to handle object equality)
+    const initialAreaJson = initialArea ? JSON.stringify(initialArea) : null;
+    const currentAreaJson = currentArea ? JSON.stringify(currentArea) : null;
+
+    if (initialAreaJson !== currentAreaJson) {
       currentArea = initialArea;
-      if (drawnItems) {
+      if (initialArea && drawnItems) {
         renderArea(initialArea);
+      } else if (!initialArea && drawnItems) {
+        // Clear the area if initialArea is now null
+        drawnItems.clearLayers();
       }
     }
   });

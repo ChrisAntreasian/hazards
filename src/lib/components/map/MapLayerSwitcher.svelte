@@ -11,8 +11,12 @@
 
   let { defaultLayer = "satellite", position = "topright" }: Props = $props();
 
-  // Get map context
-  const { map, leaflet: L } = getMapContext();
+  // Get map context - keep the object to maintain getter reactivity
+  const context = getMapContext();
+
+  // Access map and L through derived values to maintain reactivity
+  let map = $derived(context.map);
+  let L = $derived(context.leaflet);
 
   // State
   let showMenu = $state(false);
@@ -74,9 +78,14 @@
 
   let control: any = null;
 
-  // Initialize control
-  onMount(() => {
-    if (map && L && controlContainer) {
+  // Track if we've already initialized
+  let initialized = $state(false);
+
+  // Initialize control when map, L, and controlContainer are ready
+  $effect(() => {
+    if (map && L && controlContainer && !initialized) {
+      initialized = true;
+
       // Create Leaflet control
       const Control = L.Control.extend({
         onAdd: function () {
@@ -90,7 +99,10 @@
       // Add initial layer
       switchLayer(defaultLayer);
     }
+  });
 
+  // Cleanup on unmount
+  onMount(() => {
     return () => {
       if (map && control) {
         map.removeControl(control);
@@ -112,10 +124,12 @@
       };
     }
   });
-
 </script>
 
-<div bind:this={controlContainer} class="leaflet-control-container leaflet-bar leaflet-control">
+<div
+  bind:this={controlContainer}
+  class="leaflet-control-container leaflet-bar leaflet-control"
+>
   <button
     type="button"
     class="map-layer-button"

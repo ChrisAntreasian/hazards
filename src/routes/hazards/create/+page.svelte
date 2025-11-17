@@ -70,6 +70,12 @@
     currentArea = area;
   };
 
+  // Handle zoom changes from MapLocationPicker
+  const handleZoomChange = (newZoom: number) => {
+    console.log("Zoom changed to:", newZoom);
+    mapZoom = newZoom;
+  };
+
   // Handle image upload results
   const handleImageUpload = (event: CustomEvent<ImageUploadResult>) => {
     const result = event.detail;
@@ -77,7 +83,8 @@
   };
 
   const handleUploadError = (event: CustomEvent<{ message: string }>) => {
-    error = `Image upload failed: ${event.detail.message}`;
+    // Error is now handled by ImageUpload component's internal display
+    // No need to set page-level error
   };
 
   // Initialize
@@ -116,7 +123,12 @@
       class="hazard-form"
       method="POST"
       action="?/createHazard"
-      use:enhance={() => {
+      use:enhance={({ formData: fd }) => {
+        console.log("Form submitting with mapZoom:", mapZoom);
+        // Manually ensure zoom is in the form data
+        fd.set("zoom", String(mapZoom));
+        console.log("FormData zoom set to:", fd.get("zoom"));
+
         loading = true;
         error = "";
         success = "";
@@ -163,6 +175,14 @@
         type="hidden"
         name="uploaded_images"
         value={uploadedImages.join(",")}
+      />
+
+      <!-- Hidden field for map zoom level -->
+      <input
+        type="hidden"
+        name="zoom"
+        value={String(mapZoom)}
+        data-zoom={mapZoom}
       />
 
       <!-- Basic Information -->
@@ -276,11 +296,13 @@
               zoom={mapZoom}
               onLocationChange={handleLocationChange}
               onAreaChange={handleAreaChange}
+              onZoomChange={handleZoomChange}
             />
           {:else}
             <div class="location-prompt">
               <p>
-                Please use the location search below to set a location and enable the map.
+                Please use the location search below to set a location and
+                enable the map.
               </p>
             </div>
           {/if}

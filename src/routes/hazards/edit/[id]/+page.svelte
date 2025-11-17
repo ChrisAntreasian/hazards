@@ -39,10 +39,13 @@
   });
 
   // Location and area state
-  let currentLocation = $state<{ lat: number; lng: number }>({ lat: 0, lng: 0 });
+  let currentLocation = $state<{ lat: number; lng: number }>({
+    lat: 0,
+    lng: 0,
+  });
   let currentArea = $state<GeoJSON.Polygon | null>(null);
   let mapZoom = $state(13); // Track zoom level for map
-  
+
   // Initialize form data from hazard (runs once when hazard is available)
   $effect(() => {
     if (hazard) {
@@ -56,12 +59,13 @@
         ? new Date(hazard.reported_active_date).toISOString().split("T")[0]
         : new Date().toISOString().split("T")[0];
       formData.is_seasonal = hazard.is_seasonal;
-      
+
       currentLocation = {
         lat: hazard.latitude,
         lng: hazard.longitude,
       };
       currentArea = hazard.area;
+      mapZoom = hazard.zoom || 13; // Initialize zoom from saved value
     }
   });
   let uploadedImages = $state<string[]>([]);
@@ -92,6 +96,11 @@
   // Handle area changes from MapLocationPicker
   const handleAreaChange = (area: GeoJSON.Polygon | null) => {
     currentArea = area;
+  };
+
+  // Handle zoom changes from MapLocationPicker
+  const handleZoomChange = (newZoom: number) => {
+    mapZoom = newZoom;
   };
 
   // Handle successful image uploads
@@ -171,7 +180,12 @@
     class="hazard-form"
     method="POST"
     action="?/updateHazard"
-    use:enhance={() => {
+    use:enhance={({ formData: fd }) => {
+      console.log("Edit form submitting with mapZoom:", mapZoom);
+      // Manually ensure zoom is in the form data
+      fd.set("zoom", String(mapZoom));
+      console.log("Edit FormData zoom set to:", fd.get("zoom"));
+
       handleSubmit();
 
       return async ({ result, update }: { result: any; update: any }) => {
@@ -314,6 +328,7 @@
           zoom={mapZoom}
           onLocationChange={handleLocationChange}
           onAreaChange={handleAreaChange}
+          onZoomChange={handleZoomChange}
         />
       </div>
 
@@ -365,6 +380,7 @@
       <!-- Hidden inputs for form submission -->
       <input type="hidden" name="latitude" bind:value={formData.latitude} />
       <input type="hidden" name="longitude" bind:value={formData.longitude} />
+      <input type="hidden" name="zoom" value={mapZoom} />
       {#if currentArea}
         <input type="hidden" name="area" value={JSON.stringify(currentArea)} />
       {/if}

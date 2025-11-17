@@ -15,6 +15,7 @@
     readonly?: boolean;
     onLocationChange?: (location: { lat: number; lng: number }) => void;
     onAreaChange?: (area: GeoJSON.Polygon | null) => void;
+    onZoomChange?: (zoom: number) => void;
   }
 
   let {
@@ -25,6 +26,7 @@
     readonly = false,
     onLocationChange,
     onAreaChange,
+    onZoomChange,
   }: Props = $props();
 
   let mapMode = $state<"view" | "reposition" | "draw">("view");
@@ -33,9 +35,12 @@
   let showAreaSaved = $state(false);
   let mapLocationMarkerRef = $state<any>(null);
   let mapDrawingRef = $state<any>(null);
-  
+
   // Store initial center separately so it doesn't react to location changes during repositioning
-  let initialCenter = $state<[number, number]>([initialLocation.lat, initialLocation.lng]);
+  let initialCenter = $state<[number, number]>([
+    initialLocation.lat,
+    initialLocation.lng,
+  ]);
   let prevZoom = $state(zoom);
 
   // Watch for external location changes (only update if it's a significant external change)
@@ -47,14 +52,14 @@
     ) {
       // Only update if this appears to be an external change (not from user interaction)
       // Check if the marker ref doesn't exist yet or if the change is significant
-      const isSignificantChange = 
+      const isSignificantChange =
         Math.abs(initialLocation.lat - currentLocation.lat) > 0.001 ||
         Math.abs(initialLocation.lng - currentLocation.lng) > 0.001;
-      
+
       if (isSignificantChange) {
         currentLocation = initialLocation;
         initialCenter = [initialLocation.lat, initialLocation.lng];
-        
+
         if (mapLocationMarkerRef) {
           mapLocationMarkerRef.setLocation(initialLocation);
           // Check if zoom changed - if so, use the new zoom
@@ -108,6 +113,20 @@
     }
   }
 
+  // Handle zoom change from BaseMap
+  function handleZoomChange(event: any) {
+    const newZoom = event.target.getZoom();
+    console.log(
+      "MapLocationPicker: Zoom changed to",
+      newZoom,
+      "readonly:",
+      readonly
+    );
+    if (onZoomChange) {
+      onZoomChange(newZoom);
+    }
+  }
+
   // Clear area
   function clearArea() {
     if (mapDrawingRef) {
@@ -154,9 +173,10 @@
     {height}
     center={initialCenter}
     {zoom}
-    readonly={readonly}
+    {readonly}
     dragging={!readonly}
     zoomControl={!readonly}
+    onZoomEnd={handleZoomChange}
   >
     <MapLocationMarker
       bind:this={mapLocationMarkerRef}
@@ -167,14 +187,17 @@
       onLocationChange={handleLocationChange}
     />
 
+    <MapDrawing
+      bind:this={mapDrawingRef}
+      initialArea={currentArea}
+      enabled={!readonly && mapMode === "draw"}
+      {readonly}
+      autoSimplify={true}
+      autoFitBounds={false}
+      onAreaChange={handleAreaChange}
+    />
+
     {#if !readonly}
-      <MapDrawing
-        bind:this={mapDrawingRef}
-        initialArea={currentArea}
-        enabled={mapMode === "draw"}
-        autoSimplify={true}
-        onAreaChange={handleAreaChange}
-      />
       <MapLayerSwitcher />
     {/if}
   </BaseMap>
@@ -196,9 +219,7 @@
   {/if}
 
   {#if showAreaSaved}
-    <div class="save-notification">
-      ✅ Area saved successfully!
-    </div>
+    <div class="save-notification">✅ Area saved successfully!</div>
   {/if}
 </div>
 

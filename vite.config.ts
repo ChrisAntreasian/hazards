@@ -7,10 +7,10 @@ export default defineConfig({
 		global: 'globalThis'
 	},
 	optimizeDeps: {
-		include: ['leaflet', 'leaflet.markercluster']
+		include: ['leaflet', 'leaflet.markercluster', 'leaflet-draw']
 	},
 	ssr: {
-		noExternal: ['leaflet', 'leaflet.markercluster']
+		noExternal: ['leaflet', 'leaflet.markercluster', 'leaflet-draw']
 	},
 	build: {
 		rollupOptions: {

@@ -10,7 +10,14 @@
 
   let { showUserLocation = false, onMapReady }: Props = $props();
 
-  const { map, leaflet: L, addCleanup } = getMapContext();
+  // Get map context - keep the object to maintain getter reactivity
+  const context = getMapContext();
+  const { addCleanup } = context;
+
+  // Access map and L through derived values to maintain reactivity
+  let map = $derived(context.map);
+  let L = $derived(context.leaflet);
+
   let userLocationMarker: any = null;
 
   onMount(() => {

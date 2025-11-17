@@ -25,6 +25,7 @@ export interface ContentPreview {
     longitude: number;
   };
   area?: GeoJSON.Polygon | null;
+  zoom?: number;
   severity_level?: number;
   category?: {
     name: string;
