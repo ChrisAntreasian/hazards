@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import type { VoteStatusResult, VoteResponse } from '$lib/types/database';
+  import { onMount } from "svelte";
+  import type { VoteStatusResult, VoteResponse } from "$lib/types/database";
 
   interface Props {
     hazardId: string;
@@ -17,11 +17,11 @@
     votesDown = $bindable(0),
     voteScore = $bindable(0),
     isOwnHazard = false,
-    compact = false
+    compact = false,
   }: Props = $props();
 
   // Component state
-  let currentVote: 'up' | 'down' | null = $state(null);
+  let currentVote: "up" | "down" | null = $state(null);
   let canVote = $state(true);
   let loading = $state(true);
   let voting = $state(false);
@@ -52,24 +52,24 @@
       error = null;
 
       const response = await fetch(`/api/hazards/${hazardId}/vote-status`);
-      
+
       if (!response.ok) {
-        throw new Error('Failed to fetch vote status');
+        throw new Error("Failed to fetch vote status");
       }
 
       const status: VoteStatusResult = await response.json();
       currentVote = status.vote_type ?? null;
       canVote = status.can_vote;
     } catch (err) {
-      console.error('Error fetching vote status:', err);
-      error = 'Failed to load vote status';
+      console.error("Error fetching vote status:", err);
+      error = "Failed to load vote status";
       canVote = false;
     } finally {
       loading = false;
     }
   }
 
-  async function handleVote(voteType: 'up' | 'down') {
+  async function handleVote(voteType: "up" | "down") {
     if (!canVote || voting || isOwnHazard) return;
 
     // Store previous state for rollback
@@ -85,7 +85,7 @@
       // Optimistic update
       if (currentVote === voteType) {
         // Clicking same vote = remove vote
-        if (currentVote === 'up') {
+        if (currentVote === "up") {
           optimisticVotesUp--;
         } else {
           optimisticVotesDown--;
@@ -95,30 +95,29 @@
 
         // Make API call to remove vote
         const response = await fetch(`/api/hazards/${hazardId}/vote`, {
-          method: 'DELETE'
+          method: "DELETE",
         });
 
         if (!response.ok) {
-          throw new Error('Failed to remove vote');
+          throw new Error("Failed to remove vote");
         }
 
         const result = await response.json();
-        
+
         // Update with server values
         votesUp = result.hazard_votes.votes_up;
         votesDown = result.hazard_votes.votes_down;
         voteScore = result.hazard_votes.vote_score;
-
       } else {
         // Changing vote or casting new vote
         // Adjust counts optimistically
-        if (currentVote === 'up') {
+        if (currentVote === "up") {
           optimisticVotesUp--;
-        } else if (currentVote === 'down') {
+        } else if (currentVote === "down") {
           optimisticVotesDown--;
         }
 
-        if (voteType === 'up') {
+        if (voteType === "up") {
           optimisticVotesUp++;
         } else {
           optimisticVotesDown++;
@@ -129,14 +128,14 @@
 
         // Make API call
         const response = await fetch(`/api/hazards/${hazardId}/vote`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ vote_type: voteType })
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ vote_type: voteType }),
         });
 
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.message || 'Failed to cast vote');
+          throw new Error(errorData.message || "Failed to cast vote");
         }
 
         const result: VoteResponse = await response.json();
@@ -146,17 +145,16 @@
         votesDown = result.hazard_votes.votes_down;
         voteScore = result.hazard_votes.vote_score;
       }
-
     } catch (err) {
       // Rollback on error
       currentVote = previousVote;
       optimisticVotesUp = previousVotesUp;
       optimisticVotesDown = previousVotesDown;
       optimisticVoteScore = previousVoteScore;
-      
-      console.error('Error voting:', err);
-      error = err instanceof Error ? err.message : 'Failed to vote';
-      
+
+      console.error("Error voting:", err);
+      error = err instanceof Error ? err.message : "Failed to vote";
+
       // Clear error after 3 seconds
       setTimeout(() => {
         error = null;
@@ -166,10 +164,10 @@
     }
   }
 
-  function getVoteButtonClass(voteType: 'up' | 'down') {
-    const base = 'vote-btn';
-    const active = currentVote === voteType ? 'active' : '';
-    const disabled = !canVote || voting || isOwnHazard ? 'disabled' : '';
+  function getVoteButtonClass(voteType: "up" | "down") {
+    const base = "vote-btn";
+    const active = currentVote === voteType ? "active" : "";
+    const disabled = !canVote || voting || isOwnHazard ? "disabled" : "";
     return `${base} ${base}-${voteType} ${active} ${disabled}`.trim();
   }
 
@@ -192,13 +190,19 @@
     <div class="voting-controls">
       <button
         type="button"
-        class={getVoteButtonClass('up')}
-        onclick={() => handleVote('up')}
+        class={getVoteButtonClass("up")}
+        onclick={() => handleVote("up")}
         disabled={!canVote || voting || isOwnHazard}
         title={getTooltip()}
         aria-label="Upvote hazard"
       >
-        <svg class="vote-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg
+          class="vote-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
           <path d="M12 5l7 7-7-7-7 7 7-7zm0 0v14" />
         </svg>
         {#if !compact}
@@ -206,8 +210,14 @@
         {/if}
       </button>
 
-      <div class="vote-score" class:positive={optimisticVoteScore > 0} class:negative={optimisticVoteScore < 0}>
-        <span class="score-value">{optimisticVoteScore > 0 ? '+' : ''}{optimisticVoteScore}</span>
+      <div
+        class="vote-score"
+        class:positive={optimisticVoteScore > 0}
+        class:negative={optimisticVoteScore < 0}
+      >
+        <span class="score-value"
+          >{optimisticVoteScore > 0 ? "+" : ""}{optimisticVoteScore}</span
+        >
         {#if !compact}
           <span class="score-label">score</span>
         {/if}
@@ -215,13 +225,19 @@
 
       <button
         type="button"
-        class={getVoteButtonClass('down')}
-        onclick={() => handleVote('down')}
+        class={getVoteButtonClass("down")}
+        onclick={() => handleVote("down")}
         disabled={!canVote || voting || isOwnHazard}
         title={getTooltip()}
         aria-label="Downvote hazard"
       >
-        <svg class="vote-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg
+          class="vote-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
           <path d="M12 19l-7-7 7 7 7-7-7 7zm0 0V5" />
         </svg>
         {#if !compact}
@@ -413,7 +429,8 @@
   }
 
   @keyframes pulse {
-    0%, 100% {
+    0%,
+    100% {
       opacity: 1;
     }
     50% {

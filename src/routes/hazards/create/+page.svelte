@@ -48,8 +48,18 @@
   let selectedSeasonalMonths = $state<number[]>([]);
 
   const monthNames = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
   ];
 
   // Location and area state
@@ -116,7 +126,7 @@
 
   async function loadExpirationSettings(categoryId: string) {
     if (!supabase) return;
-    
+
     try {
       const { data: settings, error } = await supabase
         .from("expiration_settings")
@@ -127,15 +137,23 @@
       if (settings && !error) {
         expirationSettings = settings;
         // Set defaults from settings
-        selectedExpirationType = settings.default_expiration_type as ExpirationType;
-        
+        selectedExpirationType =
+          settings.default_expiration_type as ExpirationType;
+
         if (settings.auto_expire_duration) {
           // Parse interval string like "6 hours" or "2 days"
-          const match = settings.auto_expire_duration.match(/(\d+)\s*(hour|day|week)/i);
+          const match = settings.auto_expire_duration.match(
+            /(\d+)\s*(hour|day|week)/i
+          );
           if (match) {
             const value = parseInt(match[1]);
             const unit = match[2].toLowerCase();
-            autoExpireDuration = unit === 'day' ? value * 24 : unit === 'week' ? value * 24 * 7 : value;
+            autoExpireDuration =
+              unit === "day"
+                ? value * 24
+                : unit === "week"
+                  ? value * 24 * 7
+                  : value;
           }
         }
 
@@ -152,7 +170,8 @@
 
         if (defaultSettings) {
           expirationSettings = defaultSettings;
-          selectedExpirationType = defaultSettings.default_expiration_type as ExpirationType;
+          selectedExpirationType =
+            defaultSettings.default_expiration_type as ExpirationType;
         }
       }
     } catch (err) {
@@ -162,9 +181,13 @@
 
   function toggleSeasonalMonth(month: number) {
     if (selectedSeasonalMonths.includes(month)) {
-      selectedSeasonalMonths = selectedSeasonalMonths.filter(m => m !== month);
+      selectedSeasonalMonths = selectedSeasonalMonths.filter(
+        (m) => m !== month
+      );
     } else {
-      selectedSeasonalMonths = [...selectedSeasonalMonths, month].sort((a, b) => a - b);
+      selectedSeasonalMonths = [...selectedSeasonalMonths, month].sort(
+        (a, b) => a - b
+      );
     }
   }
 </script>
@@ -204,14 +227,20 @@
 
         // Add expiration data
         fd.set("expiration_type", selectedExpirationType);
-        
+
         if (selectedExpirationType === "auto_expire") {
           // Calculate expires_at timestamp
           const expiresAt = new Date();
           expiresAt.setHours(expiresAt.getHours() + autoExpireDuration);
           fd.set("expires_at", expiresAt.toISOString());
-        } else if (selectedExpirationType === "seasonal" && selectedSeasonalMonths.length > 0) {
-          fd.set("seasonal_pattern", JSON.stringify({ active_months: selectedSeasonalMonths }));
+        } else if (
+          selectedExpirationType === "seasonal" &&
+          selectedSeasonalMonths.length > 0
+        ) {
+          fd.set(
+            "seasonal_pattern",
+            JSON.stringify({ active_months: selectedSeasonalMonths })
+          );
         }
 
         loading = true;
@@ -446,7 +475,8 @@
       <section class="form-section">
         <h2>Expiration & Resolution</h2>
         <p class="section-description">
-          Choose how this hazard should expire or be resolved. Default settings are based on the selected category.
+          Choose how this hazard should expire or be resolved. Default settings
+          are based on the selected category.
         </p>
 
         <div class="expiration-types">
@@ -464,9 +494,10 @@
                 <span class="option-title">Auto-Expire</span>
               </div>
               <p class="option-description">
-                Automatically expires after a set time (for temporary conditions like weather)
+                Automatically expires after a set time (for temporary conditions
+                like weather)
               </p>
-              
+
               {#if selectedExpirationType === "auto_expire"}
                 <div class="option-settings">
                   <label for="auto-expire-duration">Expires in:</label>
@@ -506,7 +537,8 @@
                 {/if}
               </div>
               <p class="option-description">
-                Requires users to report when resolved (for fixable issues like road closures)
+                Requires users to report when resolved (for fixable issues like
+                road closures)
               </p>
             </div>
           </label>
@@ -544,9 +576,10 @@
                 <span class="option-title">Seasonal</span>
               </div>
               <p class="option-description">
-                Active only during specific months (for recurring seasonal hazards)
+                Active only during specific months (for recurring seasonal
+                hazards)
               </p>
-              
+
               {#if selectedExpirationType === "seasonal"}
                 <div class="option-settings">
                   <div class="field-label">Active months:</div>
@@ -555,7 +588,9 @@
                       <button
                         type="button"
                         class="month-button"
-                        class:selected={selectedSeasonalMonths.includes(index + 1)}
+                        class:selected={selectedSeasonalMonths.includes(
+                          index + 1
+                        )}
                         onclick={() => toggleSeasonalMonth(index + 1)}
                       >
                         {month.substring(0, 3)}
@@ -563,10 +598,14 @@
                     {/each}
                   </div>
                   {#if selectedSeasonalMonths.length === 0}
-                    <p class="hint error">⚠ Please select at least one active month</p>
+                    <p class="hint error">
+                      ⚠ Please select at least one active month
+                    </p>
                   {:else}
                     <p class="hint">
-                      Active: {selectedSeasonalMonths.map(m => monthNames[m - 1]).join(", ")}
+                      Active: {selectedSeasonalMonths
+                        .map((m) => monthNames[m - 1])
+                        .join(", ")}
                     </p>
                   {/if}
                 </div>
@@ -578,9 +617,15 @@
         {#if expirationSettings}
           <div class="settings-info">
             <p class="text-sm text-gray-600">
-              📋 Default for this category: <strong>{expirationSettings.default_expiration_type.replace('_', ' ')}</strong>
+              📋 Default for this category: <strong
+                >{expirationSettings.default_expiration_type.replace(
+                  "_",
+                  " "
+                )}</strong
+              >
               {#if expirationSettings.confirmation_threshold}
-                • Resolution threshold: {expirationSettings.confirmation_threshold} confirmations
+                • Resolution threshold: {expirationSettings.confirmation_threshold}
+                confirmations
               {/if}
             </p>
           </div>

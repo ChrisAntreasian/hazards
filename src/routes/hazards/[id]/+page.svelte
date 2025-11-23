@@ -33,20 +33,24 @@
   let voteScore = $state(hazard.vote_score ?? 0);
 
   // Expiration system state - loaded from server
-  let expirationStatus = $state<ExpirationStatusResponse | null>(data.expirationStatus || null);
+  let expirationStatus = $state<ExpirationStatusResponse | null>(
+    data.expirationStatus || null
+  );
   let showResolutionForm = $state(false);
 
   // Reload expiration status (for after user actions like extend/resolve)
   async function loadExpirationStatus() {
     try {
-      const response = await fetch(`/api/hazards/${hazard.id}/expiration-status`);
+      const response = await fetch(
+        `/api/hazards/${hazard.id}/expiration-status`
+      );
       if (response.ok) {
         expirationStatus = await response.json();
       } else {
-        console.error('Failed to load expiration status:', response.status);
+        console.error("Failed to load expiration status:", response.status);
       }
     } catch (error) {
-      console.error('Failed to load expiration status:', error);
+      console.error("Failed to load expiration status:", error);
     }
   }
 
@@ -58,25 +62,25 @@
 
     try {
       const response = await fetch(`/api/hazards/${hazard.id}/extend`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           expires_at: newExpiry.toISOString(),
-          reason: 'Extended by 24 hours',
+          reason: "Extended by 24 hours",
         }),
       });
 
       if (response.ok) {
         // Reload expiration status
         await loadExpirationStatus();
-        alert('Expiration extended by 24 hours');
+        alert("Expiration extended by 24 hours");
       } else {
         const data = await response.json();
-        alert(data.message || 'Failed to extend expiration');
+        alert(data.message || "Failed to extend expiration");
       }
     } catch (error) {
-      console.error('Failed to extend expiration:', error);
-      alert('An error occurred while extending expiration');
+      console.error("Failed to extend expiration:", error);
+      alert("An error occurred while extending expiration");
     }
   }
 
@@ -235,15 +239,16 @@
       <div class="voting-container">
         <HazardVoting
           hazardId={hazard.id}
-          bind:votesUp={votesUp}
-          bind:votesDown={votesDown}
-          bind:voteScore={voteScore}
+          bind:votesUp
+          bind:votesDown
+          bind:voteScore
           isOwnHazard={isOwner}
         />
       </div>
       <p class="voting-help-text">
-        Vote to help the community verify this hazard's accuracy. 
-        Upvote if you can confirm this hazard exists, downvote if it seems inaccurate or resolved.
+        Vote to help the community verify this hazard's accuracy. Upvote if you
+        can confirm this hazard exists, downvote if it seems inaccurate or
+        resolved.
       </p>
     </section>
 
@@ -255,17 +260,19 @@
         <!-- Status Badges -->
         <div class="status-badges">
           <ExpirationStatusBadge status={expirationStatus.status} />
-          
-          {#if hazard.expiration_type === 'auto_expire' && hazard.expires_at}
+
+          {#if hazard.expiration_type === "auto_expire" && hazard.expires_at}
             <TimeRemaining expiresAt={hazard.expires_at} />
           {/if}
-          
-          {#if hazard.expiration_type === 'seasonal' && hazard.seasonal_pattern}
+
+          {#if hazard.expiration_type === "seasonal" && hazard.seasonal_pattern}
             <SeasonalBadge pattern={hazard.seasonal_pattern} />
           {/if}
 
-          {#if hazard.expiration_type === 'permanent'}
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-medium border bg-gray-100 text-gray-800 border-gray-300">
+          {#if hazard.expiration_type === "permanent"}
+            <span
+              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-medium border bg-gray-100 text-gray-800 border-gray-300"
+            >
               <span class="text-xs">∞</span>
               <span>Permanent Feature</span>
             </span>
@@ -273,7 +280,7 @@
         </div>
 
         <!-- Extend Button (for auto_expire and user_resolvable) -->
-        {#if expirationStatus.can_extend && hazard.expiration_type === 'auto_expire'}
+        {#if expirationStatus.can_extend && hazard.expiration_type === "auto_expire"}
           <div class="extend-section">
             <button
               type="button"
@@ -284,14 +291,17 @@
             </button>
             {#if hazard.extended_count > 0}
               <p class="text-sm text-gray-600">
-                Extended {hazard.extended_count} time{hazard.extended_count !== 1 ? 's' : ''}
+                Extended {hazard.extended_count} time{hazard.extended_count !==
+                1
+                  ? "s"
+                  : ""}
               </p>
             {/if}
           </div>
         {/if}
 
         <!-- Resolution Section -->
-        {#if hazard.expiration_type === 'user_resolvable' && !hazard.resolved_at}
+        {#if hazard.expiration_type === "user_resolvable" && !hazard.resolved_at}
           <div class="resolution-section">
             {#if expirationStatus.resolution_report}
               <!-- Show existing resolution report -->
@@ -316,17 +326,18 @@
                 <ResolutionReportForm
                   hazardId={hazard.id}
                   onSuccess={handleResolutionSuccess}
-                  onCancel={() => showResolutionForm = false}
+                  onCancel={() => (showResolutionForm = false)}
                 />
               {:else}
                 <div class="resolution-prompt">
                   <p class="text-gray-700 mb-3">
-                    Has this hazard been resolved? Submit a resolution report to let the community know.
+                    Has this hazard been resolved? Submit a resolution report to
+                    let the community know.
                   </p>
                   <button
                     type="button"
                     class="btn btn-primary"
-                    onclick={() => showResolutionForm = true}
+                    onclick={() => (showResolutionForm = true)}
                   >
                     ✓ Submit Resolution Report
                   </button>
@@ -339,12 +350,16 @@
         <!-- Resolved Message -->
         {#if hazard.resolved_at}
           <div class="resolved-message">
-            <div class="flex items-center gap-2 text-green-700 font-semibold mb-2">
+            <div
+              class="flex items-center gap-2 text-green-700 font-semibold mb-2"
+            >
               <span class="text-xl">✓</span>
               <span>This hazard has been resolved</span>
             </div>
             {#if hazard.resolution_note}
-              <p class="text-gray-700 bg-gray-50 p-3 rounded-lg border border-gray-200">
+              <p
+                class="text-gray-700 bg-gray-50 p-3 rounded-lg border border-gray-200"
+              >
                 {hazard.resolution_note}
               </p>
             {/if}
