@@ -52,6 +52,31 @@ export interface Database {
         Insert: Omit<HazardImage, 'id' | 'created_at'>;
         Update: Partial<HazardImage>;
       };
+      hazard_votes: {
+        Row: HazardVote;
+        Insert: Omit<HazardVote, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<HazardVote>;
+      };
+      hazard_resolution_reports: {
+        Row: ResolutionReport;
+        Insert: Omit<ResolutionReport, 'id' | 'created_at'>;
+        Update: Partial<ResolutionReport>;
+      };
+      hazard_resolution_confirmations: {
+        Row: ResolutionConfirmation;
+        Insert: Omit<ResolutionConfirmation, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<ResolutionConfirmation>;
+      };
+      expiration_settings: {
+        Row: ExpirationSettings;
+        Insert: Omit<ExpirationSettings, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<ExpirationSettings>;
+      };
+      expiration_audit_log: {
+        Row: ExpirationAuditLog;
+        Insert: Omit<ExpirationAuditLog, 'id' | 'created_at'>;
+        Update: never; // Audit logs are append-only
+      };
       regions: {
         Row: Region;
         Insert: Omit<Region, 'id' | 'created_at'>;
@@ -152,6 +177,28 @@ export interface Hazard {
   is_seasonal: boolean;
   /** When hazard was last observed active (null if status unknown) */
   reported_active_date: string | null;
+  /** Total number of upvotes received from community */
+  votes_up: number;
+  /** Total number of downvotes received from community */
+  votes_down: number;
+  /** Net vote score (votes_up - votes_down) for sorting and display */
+  vote_score: number;
+  /** Type of expiration for this hazard */
+  expiration_type: ExpirationType;
+  /** When this hazard will automatically expire (for auto_expire type) */
+  expires_at: string | null;
+  /** Number of times expiration has been extended */
+  extended_count: number;
+  /** When this hazard was marked as resolved */
+  resolved_at: string | null;
+  /** User who created the resolution report */
+  resolved_by: string | null;
+  /** Note explaining how hazard was resolved */
+  resolution_note: string | null;
+  /** Seasonal pattern for seasonal hazards */
+  seasonal_pattern: SeasonalPattern | null;
+  /** When expiration warning notification was last sent */
+  expiration_notified_at: string | null;
   /** Initial submission timestamp for chronological ordering */
   created_at: string;
   /** Last modification timestamp tracking status changes and edits */
@@ -168,6 +215,26 @@ export interface HazardImage {
   votes_up: number;
   votes_down: number;
   moderation_status: 'pending' | 'approved' | 'rejected';
+}
+
+/**
+ * User vote (upvote/downvote) on a hazard report.
+ * Users can vote once per hazard to indicate agreement or disagreement.
+ * Users cannot vote on their own hazards.
+ */
+export interface HazardVote {
+  /** Unique vote identifier */
+  id: string;
+  /** Reference to the hazard being voted on */
+  hazard_id: string;
+  /** User who cast the vote */
+  user_id: string;
+  /** Type of vote: 'up' for upvote, 'down' for downvote */
+  vote_type: 'up' | 'down';
+  /** When the vote was originally cast */
+  created_at: string;
+  /** When the vote was last changed (if user changes vote) */
+  updated_at: string;
 }
 
 export interface Region {
@@ -277,4 +344,219 @@ export interface UserHazardRpcResult {
   category_name: string;
   /** Icon identifier for category display */
   category_icon: string;
+}
+
+/**
+ * Response from voting status query indicating user's vote state for a hazard.
+ */
+export interface VoteStatusResult {
+  /** Whether the user has voted on this hazard */
+  has_voted: boolean;
+  /** Type of vote if user has voted, null otherwise */
+  vote_type?: 'up' | 'down' | null;
+  /** Whether user is allowed to vote (false if they own the hazard) */
+  can_vote: boolean;
+}
+
+/**
+ * Request body for casting or changing a vote on a hazard.
+ */
+export interface VoteRequest {
+  /** Type of vote to cast */
+  vote_type: 'up' | 'down';
+}
+
+/**
+ * Response after successfully casting or changing a vote.
+ */
+export interface VoteResponse {
+  /** Success status */
+  success: boolean;
+  /** The created or updated vote record */
+  vote: HazardVote;
+  /** Updated vote counts for the hazard */
+  hazard_votes: {
+    votes_up: number;
+    votes_down: number;
+    vote_score: number;
+  };
+}
+
+/**
+ * ============================================================================
+ * EXPIRATION SYSTEM TYPES
+ * ============================================================================
+ */
+
+/**
+ * Types of hazard expiration behavior.
+ */
+export type ExpirationType = 
+  | 'auto_expire'      // Automatically expires after a set duration (e.g., weather hazards)
+  | 'user_resolvable'  // Requires user-submitted resolution report (e.g., road closure)
+  | 'permanent'        // Never expires (e.g., terrain features)
+  | 'seasonal';        // Only active during specific months (e.g., bee nests)
+
+/**
+ * Current expiration/resolution status of a hazard.
+ */
+export type ExpirationStatus = 
+  | 'active'             // Hazard is currently active
+  | 'expiring_soon'      // Expires within 24 hours (auto_expire only)
+  | 'expired'            // Past expiration time (auto_expire only)
+  | 'dormant'            // Outside active season (seasonal only)
+  | 'pending_resolution' // Resolution report submitted with confirmations
+  | 'resolved';          // Marked as resolved
+
+/**
+ * Seasonal activity pattern for seasonal hazards.
+ */
+export interface SeasonalPattern {
+  /** Array of active months (1-12) when hazard is present */
+  active_months: number[];
+}
+
+/**
+ * Detailed resolution report for a hazard.
+ * Only one resolution report per hazard is allowed.
+ */
+export interface ResolutionReport {
+  /** Unique report identifier */
+  id: string;
+  /** Reference to the hazard being reported as resolved */
+  hazard_id: string;
+  /** User who submitted the resolution report */
+  reported_by: string;
+  /** Detailed explanation of how hazard was resolved */
+  resolution_note: string;
+  /** Optional URL to photo evidence of resolution */
+  evidence_url: string | null;
+  /** Reporter's trust score at time of report (for audit) */
+  trust_score_at_report: number | null;
+  /** When the report was submitted */
+  created_at: string;
+}
+
+/**
+ * User confirmation or dispute of a resolution report.
+ * Users vote whether they confirm the hazard is resolved or dispute it.
+ */
+export interface ResolutionConfirmation {
+  /** Unique confirmation identifier */
+  id: string;
+  /** Reference to the hazard */
+  hazard_id: string;
+  /** User casting the confirmation/dispute */
+  user_id: string;
+  /** Type of confirmation: confirmed = agrees resolved, disputed = says still exists */
+  confirmation_type: 'confirmed' | 'disputed';
+  /** Optional note explaining the confirmation/dispute */
+  note: string | null;
+  /** When the confirmation was cast */
+  created_at: string;
+  /** When the confirmation was last changed */
+  updated_at: string;
+}
+
+/**
+ * Admin-configurable default expiration settings per hazard category.
+ */
+export interface ExpirationSettings {
+  /** Unique settings identifier */
+  id: string;
+  /** Reference to hazard category (null for default settings) */
+  category_id: string | null;
+  /** Category path (e.g., "weather/thunderstorm") */
+  category_path: string;
+  /** Default expiration type for this category */
+  default_expiration_type: ExpirationType;
+  /** Default duration for auto_expire type (e.g., "6 hours", "2 days") */
+  auto_expire_duration: string | null;
+  /** Default seasonal pattern for seasonal type */
+  seasonal_pattern: SeasonalPattern | null;
+  /** Number of confirmations needed to auto-resolve a hazard */
+  confirmation_threshold: number;
+  /** Whether users can override the default expiration type */
+  allow_user_override: boolean;
+  /** Admin who last updated these settings */
+  updated_by: string | null;
+  /** When settings were last updated */
+  updated_at: string;
+  /** When settings were created */
+  created_at: string;
+}
+
+/**
+ * Audit log entry for expiration-related actions.
+ */
+export interface ExpirationAuditLog {
+  /** Unique log entry identifier */
+  id: string;
+  /** Reference to the hazard */
+  hazard_id: string;
+  /** Action performed (e.g., 'auto_expired', 'manually_resolved', 'extended') */
+  action: string;
+  /** User who performed the action (null for system actions) */
+  performed_by: string | null;
+  /** Previous state before action (JSON) */
+  previous_state: Record<string, any> | null;
+  /** New state after action (JSON) */
+  new_state: Record<string, any> | null;
+  /** Reason or description of the action */
+  reason: string | null;
+  /** When the action occurred */
+  created_at: string;
+}
+
+/**
+ * Request body for creating a resolution report.
+ */
+export interface CreateResolutionReportRequest {
+  /** Detailed explanation of resolution */
+  resolution_note: string;
+  /** Optional URL to evidence photo */
+  evidence_url?: string;
+}
+
+/**
+ * Request body for confirming/disputing a resolution.
+ */
+export interface CreateConfirmationRequest {
+  /** Type of confirmation */
+  confirmation_type: 'confirmed' | 'disputed';
+  /** Optional explanation */
+  note?: string;
+}
+
+/**
+ * Request body for extending hazard expiration.
+ */
+export interface ExtendExpirationRequest {
+  /** New expiration time (ISO 8601 timestamp) */
+  expires_at: string;
+  /** Reason for extension */
+  reason?: string;
+}
+
+/**
+ * Response from expiration status query.
+ */
+export interface ExpirationStatusResponse {
+  /** Hazard ID */
+  hazard_id: string;
+  /** Current expiration status */
+  status: ExpirationStatus;
+  /** Time remaining until expiration (seconds, null if not applicable) */
+  time_remaining: number | null;
+  /** Resolution report if one exists */
+  resolution_report: ResolutionReport | null;
+  /** Confirmation/dispute counts */
+  confirmations: {
+    confirmed: number;
+    disputed: number;
+  };
+  /** Whether current user can extend expiration */
+  can_extend: boolean;
+  /** Whether current user can submit resolution report */
+  can_resolve: boolean;
 }

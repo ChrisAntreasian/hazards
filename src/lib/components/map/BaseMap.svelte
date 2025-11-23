@@ -99,7 +99,8 @@
         map = L.map(mapElement, mapOptions).setView(center, zoom);
 
         // Add initial tile layer
-        const layerConfig = getTileLayer(currentLayerId) || getDefaultTileLayer();
+        const layerConfig =
+          getTileLayer(currentLayerId) || getDefaultTileLayer();
         currentTileLayer = L.tileLayer(layerConfig.url, {
           attribution: layerConfig.attribution,
           maxZoom: layerConfig.maxZoom || 19,

@@ -73,8 +73,7 @@
     },
     {
       title: "Location Marker Test",
-      description:
-        "Test draggable location marker with reposition mode",
+      description: "Test draggable location marker with reposition mode",
       href: "/dev/map-location-marker-test",
       icon: "🎯",
     },

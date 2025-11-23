@@ -35,7 +35,7 @@
     {
       id: 4,
       latitude: 42.3595,
-      longitude: -71.0610,
+      longitude: -71.061,
       category: "Water",
       title: "Flooded Trail Section",
       description: "Trail is flooded after recent heavy rain.",
@@ -53,8 +53,8 @@
     // Cluster test: Add several markers close together
     {
       id: 6,
-      latitude: 42.3650,
-      longitude: -71.0620,
+      latitude: 42.365,
+      longitude: -71.062,
       category: "Insects",
       title: "Bee Nest",
       description: "Active bee nest in tree hollow.",
@@ -205,7 +205,8 @@
 
   <div class="api-example">
     <h2>Usage Example</h2>
-    <pre><code>&lt;script&gt;
+    <pre><code
+        >&lt;script&gt;
   import &#123; BaseMap, MapMarkers &#125; from "$lib/components/map";
   
   const hazards = [
@@ -226,7 +227,8 @@
     markers=&#123;hazards&#125; 
     enableClustering=&#123;true&#125;
     onMarkerClick=&#123;(marker) => console.log(marker)&#125; /&gt;
-&lt;/BaseMap&gt;</code></pre>
+&lt;/BaseMap&gt;</code
+      ></pre>
   </div>
 </div>
 

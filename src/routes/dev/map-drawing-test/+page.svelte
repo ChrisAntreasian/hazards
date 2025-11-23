@@ -3,7 +3,10 @@
 
   let drawingComponent: any;
   let currentArea = $state<GeoJSON.Polygon | null>(null);
-  let areaStats = $state<{ vertices: number; originalVertices?: number } | null>(null);
+  let areaStats = $state<{
+    vertices: number;
+    originalVertices?: number;
+  } | null>(null);
   let drawingEnabled = $state(true);
 
   function handleAreaChange(area: GeoJSON.Polygon | null) {
@@ -11,7 +14,9 @@
     console.log("Area changed:", area);
   }
 
-  function handleAreaStats(stats: { vertices: number; originalVertices?: number } | null) {
+  function handleAreaStats(
+    stats: { vertices: number; originalVertices?: number } | null
+  ) {
     areaStats = stats;
     console.log("Area stats:", stats);
   }
@@ -44,8 +49,8 @@
 
   <div class="info">
     <p>
-      The MapDrawing plugin provides polygon drawing functionality with automatic
-      simplification:
+      The MapDrawing plugin provides polygon drawing functionality with
+      automatic simplification:
     </p>
     <ul>
       <li>✅ Draw polygons on the map</li>
@@ -130,7 +135,8 @@
 
   <div class="usage">
     <h2>Usage Example</h2>
-    <pre><code>&lt;script&gt;
+    <pre><code
+        >&lt;script&gt;
   import &#123; BaseMap, MapDrawing &#125; from "$lib/components/map";
 
   let drawingRef;
@@ -162,7 +168,8 @@
 &lt;/button&gt;
 &lt;button onclick=&#123;() =&gt; drawingRef.clearArea()&#125;&gt;
   Clear
-&lt;/button&gt;</code></pre>
+&lt;/button&gt;</code
+      ></pre>
   </div>
 
   <div class="features">

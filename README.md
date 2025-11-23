@@ -332,14 +332,22 @@ hazards/
 ### Available Scripts
 
 ```bash
+# Development
 npm run dev          # Start development server
 npm run build        # Build for production
 npm run preview      # Preview production build
 npm run check        # Run svelte-check for type errors
+
+# Testing
+npm test             # Run unit tests (Vitest)
+npm run test:ui      # Run unit tests with UI
+npm run test:e2e     # Run E2E tests (Playwright)
+npm run test:e2e:ui  # Run E2E tests with visual debugger
+npm run test:e2e:smoke   # Quick smoke tests (30 seconds)
+
+# Code Quality
 npm run lint         # Run ESLint
 npm run format       # Format code with Prettier
-npm test             # Run unit tests
-npm run test:ui      # Run tests with UI
 ```
 
 ### Database Management
@@ -363,8 +371,33 @@ npm run generate-types
 - **TypeScript**: Strict mode enabled, no implicit `any`
 - **Linting**: ESLint with SvelteKit rules
 - **Formatting**: Prettier with Svelte plugin
-- **Testing**: Component tests with Vitest
+- **Testing**: 
+  - Unit tests with Vitest + Testing Library
+  - E2E tests with Playwright (22 automated tests)
 - **Validation**: Form validation on client and server
+
+### Automated Testing
+
+The project includes comprehensive E2E testing with Playwright:
+
+```bash
+# Quick smoke tests (30 seconds) - Run this frequently!
+npm run test:e2e:smoke
+
+# Full test suite (10-15 minutes) - Run before commits
+npm run test:e2e
+
+# Visual debugger (BEST for development)
+npm run test:e2e:ui
+```
+
+**📚 Quick Start**: See [`PLAYWRIGHT_QUICKSTART.md`](./PLAYWRIGHT_QUICKSTART.md) for 5-minute setup
+
+**Test Coverage**:
+- ✅ Voting system (upvote, downvote, permissions)
+- ✅ All 4 expiration types (auto-expire, user-resolvable, permanent, seasonal)
+- ✅ Resolution workflow (submit reports, confirmations, auto-resolve)
+- ✅ 50-100x faster than manual testing
 
 ---
 

@@ -2,7 +2,15 @@
   import { goto } from "$app/navigation";
   import { page } from "$app/stores";
   import MapLocationPicker from "$lib/components/MapLocationPicker.svelte";
+  import HazardVoting from "$lib/components/HazardVoting.svelte";
+  import ExpirationStatusBadge from "$lib/components/ExpirationStatusBadge.svelte";
+  import TimeRemaining from "$lib/components/TimeRemaining.svelte";
+  import SeasonalBadge from "$lib/components/SeasonalBadge.svelte";
+  import ResolutionReportForm from "$lib/components/ResolutionReportForm.svelte";
+  import ResolutionConfirmation from "$lib/components/ResolutionConfirmation.svelte";
+  import ResolutionHistory from "$lib/components/ResolutionHistory.svelte";
   import type { PageData } from "./$types";
+  import type { ExpirationStatusResponse } from "$lib/types/database";
 
   interface Props {
     data: PageData;
@@ -18,6 +26,68 @@
   // Check if current user owns this hazard
   const isOwner = user?.id === hazard.user_id;
   const canEdit = isOwner && hazard.status === "pending";
+
+  // Initialize vote counts with defaults (for when migration hasn't been applied yet)
+  let votesUp = $state(hazard.votes_up ?? 0);
+  let votesDown = $state(hazard.votes_down ?? 0);
+  let voteScore = $state(hazard.vote_score ?? 0);
+
+  // Expiration system state - loaded from server
+  let expirationStatus = $state<ExpirationStatusResponse | null>(data.expirationStatus || null);
+  let showResolutionForm = $state(false);
+
+  // Reload expiration status (for after user actions like extend/resolve)
+  async function loadExpirationStatus() {
+    try {
+      const response = await fetch(`/api/hazards/${hazard.id}/expiration-status`);
+      if (response.ok) {
+        expirationStatus = await response.json();
+      } else {
+        console.error('Failed to load expiration status:', response.status);
+      }
+    } catch (error) {
+      console.error('Failed to load expiration status:', error);
+    }
+  }
+
+  async function handleExtendExpiration() {
+    if (!hazard.expires_at) return;
+
+    const currentExpiry = new Date(hazard.expires_at);
+    const newExpiry = new Date(currentExpiry.getTime() + 24 * 60 * 60 * 1000); // Add 24 hours
+
+    try {
+      const response = await fetch(`/api/hazards/${hazard.id}/extend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          expires_at: newExpiry.toISOString(),
+          reason: 'Extended by 24 hours',
+        }),
+      });
+
+      if (response.ok) {
+        // Reload expiration status
+        await loadExpirationStatus();
+        alert('Expiration extended by 24 hours');
+      } else {
+        const data = await response.json();
+        alert(data.message || 'Failed to extend expiration');
+      }
+    } catch (error) {
+      console.error('Failed to extend expiration:', error);
+      alert('An error occurred while extending expiration');
+    }
+  }
+
+  function handleResolutionSuccess() {
+    showResolutionForm = false;
+    loadExpirationStatus();
+  }
+
+  function handleConfirmationChange() {
+    loadExpirationStatus();
+  }
 
   function formatDate(dateString: string) {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -158,6 +228,133 @@
         {hazard.description}
       </div>
     </section>
+
+    <!-- Community Voting -->
+    <section class="voting-section">
+      <h2>Community Feedback</h2>
+      <div class="voting-container">
+        <HazardVoting
+          hazardId={hazard.id}
+          bind:votesUp={votesUp}
+          bind:votesDown={votesDown}
+          bind:voteScore={voteScore}
+          isOwnHazard={isOwner}
+        />
+      </div>
+      <p class="voting-help-text">
+        Vote to help the community verify this hazard's accuracy. 
+        Upvote if you can confirm this hazard exists, downvote if it seems inaccurate or resolved.
+      </p>
+    </section>
+
+    <!-- Expiration & Resolution Status -->
+    {#if expirationStatus}
+      <section class="expiration-section">
+        <h2>Hazard Status & Resolution</h2>
+
+        <!-- Status Badges -->
+        <div class="status-badges">
+          <ExpirationStatusBadge status={expirationStatus.status} />
+          
+          {#if hazard.expiration_type === 'auto_expire' && hazard.expires_at}
+            <TimeRemaining expiresAt={hazard.expires_at} />
+          {/if}
+          
+          {#if hazard.expiration_type === 'seasonal' && hazard.seasonal_pattern}
+            <SeasonalBadge pattern={hazard.seasonal_pattern} />
+          {/if}
+
+          {#if hazard.expiration_type === 'permanent'}
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-medium border bg-gray-100 text-gray-800 border-gray-300">
+              <span class="text-xs">∞</span>
+              <span>Permanent Feature</span>
+            </span>
+          {/if}
+        </div>
+
+        <!-- Extend Button (for auto_expire and user_resolvable) -->
+        {#if expirationStatus.can_extend && hazard.expiration_type === 'auto_expire'}
+          <div class="extend-section">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              onclick={handleExtendExpiration}
+            >
+              ⏰ Extend Expiration by 24 Hours
+            </button>
+            {#if hazard.extended_count > 0}
+              <p class="text-sm text-gray-600">
+                Extended {hazard.extended_count} time{hazard.extended_count !== 1 ? 's' : ''}
+              </p>
+            {/if}
+          </div>
+        {/if}
+
+        <!-- Resolution Section -->
+        {#if hazard.expiration_type === 'user_resolvable' && !hazard.resolved_at}
+          <div class="resolution-section">
+            {#if expirationStatus.resolution_report}
+              <!-- Show existing resolution report -->
+              <ResolutionHistory
+                report={expirationStatus.resolution_report}
+                confirmedCount={expirationStatus.confirmations.confirmed}
+                disputedCount={expirationStatus.confirmations.disputed}
+              />
+
+              <!-- Confirmation buttons (if not report owner or hazard owner) -->
+              {#if !isOwner && user && expirationStatus.resolution_report.reported_by !== user.id}
+                <div class="confirmation-actions">
+                  <ResolutionConfirmation
+                    hazardId={hazard.id}
+                    onConfirmationChange={handleConfirmationChange}
+                  />
+                </div>
+              {/if}
+            {:else if expirationStatus.can_resolve}
+              <!-- Show resolution form or button to show it -->
+              {#if showResolutionForm}
+                <ResolutionReportForm
+                  hazardId={hazard.id}
+                  onSuccess={handleResolutionSuccess}
+                  onCancel={() => showResolutionForm = false}
+                />
+              {:else}
+                <div class="resolution-prompt">
+                  <p class="text-gray-700 mb-3">
+                    Has this hazard been resolved? Submit a resolution report to let the community know.
+                  </p>
+                  <button
+                    type="button"
+                    class="btn btn-primary"
+                    onclick={() => showResolutionForm = true}
+                  >
+                    ✓ Submit Resolution Report
+                  </button>
+                </div>
+              {/if}
+            {/if}
+          </div>
+        {/if}
+
+        <!-- Resolved Message -->
+        {#if hazard.resolved_at}
+          <div class="resolved-message">
+            <div class="flex items-center gap-2 text-green-700 font-semibold mb-2">
+              <span class="text-xl">✓</span>
+              <span>This hazard has been resolved</span>
+            </div>
+            {#if hazard.resolution_note}
+              <p class="text-gray-700 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                {hazard.resolution_note}
+              </p>
+            {/if}
+            <p class="text-sm text-gray-500 mt-2">
+              Resolved on {formatDate(hazard.resolved_at)}
+            </p>
+          </div>
+        {/if}
+      </section>
+    {/if}
 
     <!-- Location and Map -->
     <section class="location-section">
@@ -700,6 +897,95 @@
   .technical-value {
     font-family: monospace;
     color: #1e293b;
+  }
+
+  /* Voting Section */
+  .voting-section {
+    background: var(--color-surface, #f8fafc);
+    border-radius: 12px;
+    padding: 2rem;
+    border: 2px solid var(--color-border, #e2e8f0);
+  }
+
+  .voting-section h2 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    text-align: center;
+  }
+
+  .voting-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1rem;
+  }
+
+  .voting-help-text {
+    text-align: center;
+    color: var(--color-text-secondary, #64748b);
+    font-size: 0.875rem;
+    margin: 1rem 0 0;
+    line-height: 1.5;
+  }
+
+  /* Expiration Section */
+  .expiration-section {
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    border: 2px solid #e2e8f0;
+  }
+
+  .expiration-section h2 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+  }
+
+  .status-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .extend-section {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+  }
+
+  .extend-section button {
+    margin-bottom: 0.5rem;
+  }
+
+  .resolution-section {
+    margin-top: 1.5rem;
+  }
+
+  .confirmation-actions {
+    margin-top: 1.5rem;
+    padding: 1.5rem;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+  }
+
+  .resolution-prompt {
+    padding: 1.5rem;
+    background: #f0f9ff;
+    border-radius: 8px;
+    border: 1px solid #0ea5e9;
+    text-align: center;
+  }
+
+  .resolved-message {
+    padding: 1.5rem;
+    background: #f0fdf4;
+    border-radius: 8px;
+    border: 2px solid #86efac;
   }
 
   @media (max-width: 768px) {

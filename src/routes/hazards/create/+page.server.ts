@@ -81,6 +81,11 @@ export const actions: Actions = {
     console.log('Server received zoom:', zoomRaw, 'type:', typeof zoomRaw);
     let zoom = parseInt(zoomRaw || '13');
     
+    // Extract expiration data
+    const expiration_type = formData.get('expiration_type')?.toString() || 'user_resolvable';
+    const expires_at = formData.get('expires_at')?.toString();
+    const seasonal_pattern = formData.get('seasonal_pattern')?.toString();
+    
     // Validate zoom is within acceptable range (1-20, Leaflet's max)
     if (isNaN(zoom) || zoom < 1 || zoom > 20) {
       logger.warn('Invalid zoom value, using default', { metadata: { zoom, raw: zoomRaw } });
@@ -115,6 +120,8 @@ export const actions: Actions = {
       return fail(400, { error: 'Location is required' });
     }
 
+    let hazardId: string | null = null;
+
     try {
       // Log the parameters for debugging
       logger.info('Creating hazard with parameters', { 
@@ -127,9 +134,22 @@ export const actions: Actions = {
           zoom,
           zoom_type: typeof zoom,
           is_seasonal,
-          has_area: !!area 
+          has_area: !!area,
+          expiration_type,
+          has_expires_at: !!expires_at,
+          has_seasonal_pattern: !!seasonal_pattern
         } 
       });
+
+      // Parse seasonal pattern if provided
+      let seasonal_pattern_json = null;
+      if (seasonal_pattern) {
+        try {
+          seasonal_pattern_json = JSON.parse(seasonal_pattern);
+        } catch (err) {
+          logger.warn('Invalid seasonal_pattern JSON', { metadata: { seasonal_pattern } });
+        }
+      }
 
       // Use PostgreSQL function to create hazard (RLS works properly this way)
       const { data: createResult, error: hazardError } = await supabase.rpc('create_hazard', {
@@ -142,7 +162,10 @@ export const actions: Actions = {
         p_reported_active_date: reported_active_date ? new Date(reported_active_date).toISOString() : null,
         p_is_seasonal: is_seasonal,
         p_area: area,
-        p_zoom: zoom
+        p_zoom: zoom,
+        p_expiration_type: expiration_type,
+        p_expires_at: expires_at || null,
+        p_seasonal_pattern: seasonal_pattern_json
       });
 
       if (hazardError || !createResult?.success) {
@@ -153,7 +176,8 @@ export const actions: Actions = {
         });
       }
 
-      const hazardId = createResult.hazard_id;
+      hazardId = createResult.hazard_id;
+      logger.info('Hazard created successfully', { metadata: { hazardId, createResult } });
 
       // Update uploaded images to link to this hazard
       if (uploaded_images) {
@@ -183,7 +207,13 @@ export const actions: Actions = {
       });
     }
 
-    // Redirect to dashboard on success (outside try-catch to prevent redirect being caught as error)
-    redirect(303, '/dashboard?success=hazard-created');
+    // Redirect to hazard detail page on success (outside try-catch to prevent redirect being caught as error)
+    if (!hazardId) {
+      logger.error('Hazard created but no ID returned');
+      return fail(500, { error: 'Failed to get hazard ID after creation' });
+    }
+    
+    logger.info('Redirecting to hazard detail page', { metadata: { hazardId } });
+    redirect(303, `/hazards/${hazardId}?success=hazard-created`);
   }
 };

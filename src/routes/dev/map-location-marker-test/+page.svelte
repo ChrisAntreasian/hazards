@@ -1,5 +1,9 @@
 <script lang="ts">
-  import { BaseMap, MapLocationMarker, MapLayerSwitcher } from "$lib/components/map";
+  import {
+    BaseMap,
+    MapLocationMarker,
+    MapLayerSwitcher,
+  } from "$lib/components/map";
 
   let markerRef: any;
   let currentLocation = $state({ lat: 42.3601, lng: -71.0589 });
@@ -67,7 +71,7 @@
 
   <div class="controls">
     <h2>Marker Controls</h2>
-    
+
     <div class="control-section">
       <h3>Mode Controls</h3>
       <div class="button-group">
@@ -153,16 +157,20 @@
 
   <div class="map-container">
     <h2>Interactive Map</h2>
-    <BaseMap center={[currentLocation.lat, currentLocation.lng]} zoom={13} height="500px">
+    <BaseMap
+      center={[currentLocation.lat, currentLocation.lng]}
+      zoom={13}
+      height="500px"
+    >
       <MapLayerSwitcher />
       <MapLocationMarker
         bind:this={markerRef}
         initialLocation={currentLocation}
         enabled={markerEnabled}
-        draggable={draggable}
-        repositionMode={repositionMode}
-        markerIcon={markerIcon}
-        markerColor={markerColor}
+        {draggable}
+        {repositionMode}
+        {markerIcon}
+        {markerColor}
         onLocationChange={handleLocationChange}
       />
     </BaseMap>
@@ -170,7 +178,8 @@
 
   <div class="usage">
     <h2>Usage Example</h2>
-    <pre><code>&lt;script&gt;
+    <pre><code
+        >&lt;script&gt;
   import &#123; BaseMap, MapLocationMarker &#125; from "$lib/components/map";
 
   let markerRef;
@@ -197,7 +206,8 @@
 &lt;/button&gt;
 &lt;button onclick=&#123;() =&gt; markerRef.panToMarker()&#125;&gt;
   Pan to Marker
-&lt;/button&gt;</code></pre>
+&lt;/button&gt;</code
+      ></pre>
   </div>
 
   <div class="features">

@@ -10,6 +10,7 @@
   import type { Location } from "$lib/components/map/types";
   import { enhance } from "$app/forms";
   import { page } from "$app/stores";
+  import type { ExpirationType, ExpirationSettings } from "$lib/types/database";
 
   interface Props {
     data: PageData;
@@ -39,6 +40,17 @@
     reported_active_date: new Date().toISOString().split("T")[0],
     is_seasonal: false,
   });
+
+  // Expiration state
+  let expirationSettings = $state<ExpirationSettings | null>(null);
+  let selectedExpirationType = $state<ExpirationType>("user_resolvable");
+  let autoExpireDuration = $state<number>(24); // hours
+  let selectedSeasonalMonths = $state<number[]>([]);
+
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
 
   // Location and area state
   let currentLocation = $state<{ lat: number; lng: number } | null>(null);
@@ -94,6 +106,67 @@
       supabase.auth.setSession(session);
     }
   });
+
+  // Load expiration settings when category changes
+  $effect(() => {
+    if (formData.category_id) {
+      loadExpirationSettings(formData.category_id);
+    }
+  });
+
+  async function loadExpirationSettings(categoryId: string) {
+    if (!supabase) return;
+    
+    try {
+      const { data: settings, error } = await supabase
+        .from("expiration_settings")
+        .select("*")
+        .eq("category_id", categoryId)
+        .single();
+
+      if (settings && !error) {
+        expirationSettings = settings;
+        // Set defaults from settings
+        selectedExpirationType = settings.default_expiration_type as ExpirationType;
+        
+        if (settings.auto_expire_duration) {
+          // Parse interval string like "6 hours" or "2 days"
+          const match = settings.auto_expire_duration.match(/(\d+)\s*(hour|day|week)/i);
+          if (match) {
+            const value = parseInt(match[1]);
+            const unit = match[2].toLowerCase();
+            autoExpireDuration = unit === 'day' ? value * 24 : unit === 'week' ? value * 24 * 7 : value;
+          }
+        }
+
+        if (settings.seasonal_pattern?.active_months) {
+          selectedSeasonalMonths = settings.seasonal_pattern.active_months;
+        }
+      } else {
+        // Load default settings
+        const { data: defaultSettings } = await supabase
+          .from("expiration_settings")
+          .select("*")
+          .eq("category_path", "default")
+          .single();
+
+        if (defaultSettings) {
+          expirationSettings = defaultSettings;
+          selectedExpirationType = defaultSettings.default_expiration_type as ExpirationType;
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load expiration settings:", err);
+    }
+  }
+
+  function toggleSeasonalMonth(month: number) {
+    if (selectedSeasonalMonths.includes(month)) {
+      selectedSeasonalMonths = selectedSeasonalMonths.filter(m => m !== month);
+    } else {
+      selectedSeasonalMonths = [...selectedSeasonalMonths, month].sort((a, b) => a - b);
+    }
+  }
 </script>
 
 <svelte:head>
@@ -128,6 +201,18 @@
         // Manually ensure zoom is in the form data
         fd.set("zoom", String(mapZoom));
         console.log("FormData zoom set to:", fd.get("zoom"));
+
+        // Add expiration data
+        fd.set("expiration_type", selectedExpirationType);
+        
+        if (selectedExpirationType === "auto_expire") {
+          // Calculate expires_at timestamp
+          const expiresAt = new Date();
+          expiresAt.setHours(expiresAt.getHours() + autoExpireDuration);
+          fd.set("expires_at", expiresAt.toISOString());
+        } else if (selectedExpirationType === "seasonal" && selectedSeasonalMonths.length > 0) {
+          fd.set("seasonal_pattern", JSON.stringify({ active_months: selectedSeasonalMonths }));
+        }
 
         loading = true;
         error = "";
@@ -355,6 +440,151 @@
             This is a seasonal hazard (recurring annually)
           </label>
         </div>
+      </section>
+
+      <!-- Expiration Settings -->
+      <section class="form-section">
+        <h2>Expiration & Resolution</h2>
+        <p class="section-description">
+          Choose how this hazard should expire or be resolved. Default settings are based on the selected category.
+        </p>
+
+        <div class="expiration-types">
+          <!-- Auto Expire -->
+          <label class="expiration-option">
+            <input
+              type="radio"
+              name="expiration_type"
+              value="auto_expire"
+              bind:group={selectedExpirationType}
+            />
+            <div class="option-content">
+              <div class="option-header">
+                <span class="option-icon">⏰</span>
+                <span class="option-title">Auto-Expire</span>
+              </div>
+              <p class="option-description">
+                Automatically expires after a set time (for temporary conditions like weather)
+              </p>
+              
+              {#if selectedExpirationType === "auto_expire"}
+                <div class="option-settings">
+                  <label for="auto-expire-duration">Expires in:</label>
+                  <div class="duration-input">
+                    <input
+                      id="auto-expire-duration"
+                      type="number"
+                      min="1"
+                      max="168"
+                      bind:value={autoExpireDuration}
+                      class="duration-number"
+                    />
+                    <span>hours</span>
+                  </div>
+                  <p class="hint">
+                    Typical: Thunderstorm (6h), Ice (24h), Flood (72h)
+                  </p>
+                </div>
+              {/if}
+            </div>
+          </label>
+
+          <!-- User Resolvable -->
+          <label class="expiration-option">
+            <input
+              type="radio"
+              name="expiration_type"
+              value="user_resolvable"
+              bind:group={selectedExpirationType}
+            />
+            <div class="option-content">
+              <div class="option-header">
+                <span class="option-icon">✓</span>
+                <span class="option-title">User Resolvable</span>
+                {#if expirationSettings?.default_expiration_type === "user_resolvable"}
+                  <span class="default-badge">Recommended</span>
+                {/if}
+              </div>
+              <p class="option-description">
+                Requires users to report when resolved (for fixable issues like road closures)
+              </p>
+            </div>
+          </label>
+
+          <!-- Permanent -->
+          <label class="expiration-option">
+            <input
+              type="radio"
+              name="expiration_type"
+              value="permanent"
+              bind:group={selectedExpirationType}
+            />
+            <div class="option-content">
+              <div class="option-header">
+                <span class="option-icon">∞</span>
+                <span class="option-title">Permanent</span>
+              </div>
+              <p class="option-description">
+                Never expires (for permanent features like terrain or plants)
+              </p>
+            </div>
+          </label>
+
+          <!-- Seasonal -->
+          <label class="expiration-option">
+            <input
+              type="radio"
+              name="expiration_type"
+              value="seasonal"
+              bind:group={selectedExpirationType}
+            />
+            <div class="option-content">
+              <div class="option-header">
+                <span class="option-icon">🌿</span>
+                <span class="option-title">Seasonal</span>
+              </div>
+              <p class="option-description">
+                Active only during specific months (for recurring seasonal hazards)
+              </p>
+              
+              {#if selectedExpirationType === "seasonal"}
+                <div class="option-settings">
+                  <div class="field-label">Active months:</div>
+                  <div class="month-selector">
+                    {#each monthNames as month, index}
+                      <button
+                        type="button"
+                        class="month-button"
+                        class:selected={selectedSeasonalMonths.includes(index + 1)}
+                        onclick={() => toggleSeasonalMonth(index + 1)}
+                      >
+                        {month.substring(0, 3)}
+                      </button>
+                    {/each}
+                  </div>
+                  {#if selectedSeasonalMonths.length === 0}
+                    <p class="hint error">⚠ Please select at least one active month</p>
+                  {:else}
+                    <p class="hint">
+                      Active: {selectedSeasonalMonths.map(m => monthNames[m - 1]).join(", ")}
+                    </p>
+                  {/if}
+                </div>
+              {/if}
+            </div>
+          </label>
+        </div>
+
+        {#if expirationSettings}
+          <div class="settings-info">
+            <p class="text-sm text-gray-600">
+              📋 Default for this category: <strong>{expirationSettings.default_expiration_type.replace('_', ' ')}</strong>
+              {#if expirationSettings.confirmation_threshold}
+                • Resolution threshold: {expirationSettings.confirmation_threshold} confirmations
+              {/if}
+            </p>
+          </div>
+        {/if}
       </section>
 
       <!-- Image Upload -->
@@ -658,5 +888,161 @@
     color: var(--color-text-secondary);
     margin-bottom: 1.5rem;
     font-size: 0.95rem;
+  }
+
+  /* Expiration Settings Styles */
+  .expiration-types {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .expiration-option {
+    display: flex;
+    gap: 1rem;
+    padding: 1.25rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .expiration-option:hover {
+    border-color: #3b82f6;
+    background: #f8fafc;
+  }
+
+  .expiration-option:has(input:checked) {
+    border-color: #3b82f6;
+    background: #eff6ff;
+  }
+
+  .expiration-option input[type="radio"] {
+    width: auto;
+    margin-top: 0.25rem;
+    cursor: pointer;
+  }
+
+  .option-content {
+    flex: 1;
+  }
+
+  .option-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .option-icon {
+    font-size: 1.25rem;
+  }
+
+  .option-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: #1e293b;
+  }
+
+  .default-badge {
+    padding: 0.125rem 0.5rem;
+    background: #dcfce7;
+    color: #166534;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  .option-description {
+    color: #64748b;
+    font-size: 0.9rem;
+    margin: 0;
+  }
+
+  .option-settings {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+  }
+
+  .option-settings label {
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .duration-input {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .duration-number {
+    width: 100px;
+    padding: 0.5rem;
+  }
+
+  .month-selector {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+
+  .month-button {
+    padding: 0.5rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 6px;
+    background: white;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+  }
+
+  .month-button:hover {
+    border-color: #3b82f6;
+    background: #f8fafc;
+  }
+
+  .month-button.selected {
+    border-color: #3b82f6;
+    background: #3b82f6;
+    color: white;
+    font-weight: 600;
+  }
+
+  .hint {
+    font-size: 0.85rem;
+    color: #64748b;
+    margin-top: 0.5rem;
+    font-style: italic;
+  }
+
+  .hint.error {
+    color: #dc2626;
+  }
+
+  .settings-info {
+    padding: 1rem;
+    background: #f8fafc;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+  }
+
+  .text-sm {
+    font-size: 0.875rem;
+  }
+
+  .text-gray-600 {
+    color: #64748b;
+  }
+
+  @media (max-width: 768px) {
+    .month-selector {
+      grid-template-columns: repeat(3, 1fr);
+    }
   }
 </style>

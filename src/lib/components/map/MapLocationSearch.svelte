@@ -85,10 +85,14 @@
         setTimeout(() => {
           successMessage = "";
         }, 5000);
-        
+
         logger.debug("MapLocationSearch: Location found via address", {
           component: "MapLocationSearch",
-          metadata: { address: addressInput, location, display_name: result.display_name },
+          metadata: {
+            address: addressInput,
+            location,
+            display_name: result.display_name,
+          },
         });
       } else {
         errorMessage =

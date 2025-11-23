@@ -88,7 +88,8 @@
 
   <div class="usage">
     <h2>Usage</h2>
-    <pre><code>&lt;script&gt;
+    <pre><code
+        >&lt;script&gt;
   import &#123; BaseMap, MapLayerSwitcher &#125; from "$lib/components/map";
 &lt;/script&gt;
 
@@ -101,7 +102,8 @@
   
   &lt;!-- Set default layer --&gt;
   &lt;MapLayerSwitcher defaultLayer="terrain" /&gt;
-&lt;/BaseMap&gt;</code></pre>
+&lt;/BaseMap&gt;</code
+      ></pre>
   </div>
 
   <div class="layers-info">
