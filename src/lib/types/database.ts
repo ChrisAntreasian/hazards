@@ -168,7 +168,7 @@ export interface Hazard {
   /** Regional identifier for timezone, seasonal data, and local context */
   region_id: string;
   /** Moderation status controlling public visibility and map inclusion */
-  status: 'pending' | 'approved' | 'flagged' | 'removed';
+  status: 'pending' | 'approved' | 'active' | 'flagged' | 'removed';
   /** Computed reliability score based on reporter trust and community verification */
   trust_score: number;
   /** Number of users who have verified this hazard's accuracy and current status */

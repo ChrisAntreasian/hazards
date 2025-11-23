@@ -60,18 +60,39 @@ export async function expireHazardIfNeeded(
     // Expire it now
     const hoursExpired = Math.floor((now.getTime() - expiresAt.getTime()) / (1000 * 60 * 60));
     
+    logger.info('Attempting to expire hazard', {
+      metadata: { 
+        hazard_id: hazard.id, 
+        expires_at: hazard.expires_at,
+        hours_expired: hoursExpired 
+      }
+    });
+    
     try {
-      await supabase
+      const { error: updateError } = await supabase
         .from('hazards')
         .update({
           resolved_at: now.toISOString(),
-          resolved_by: 'system',
+          resolved_by: null, // NULL for system-triggered expiration
           resolution_note: `Auto-expired after ${hoursExpired} hour(s) past expiration time`
         })
         .eq('id', hazard.id);
 
+      if (updateError) {
+        logger.error('Failed to update hazard expiration', 
+          new Error(JSON.stringify(updateError)), {
+          metadata: { hazard_id: hazard.id, error: updateError }
+        });
+        console.error('[EXPIRATION ERROR]', updateError);
+        return false;
+      }
+      
+      logger.info('Successfully expired hazard', {
+        metadata: { hazard_id: hazard.id }
+      });
+
       // Update audit log
-      await supabase
+      const { error: auditError } = await supabase
         .from('expiration_audit_log')
         .insert({
           hazard_id: hazard.id,
@@ -81,9 +102,15 @@ export async function expireHazardIfNeeded(
           reason: `Auto-expired on access after ${hoursExpired} hour(s)`
         });
 
+      if (auditError) {
+        logger.warn('Failed to log expiration to audit log', {
+          metadata: { hazard_id: hazard.id, error: auditError }
+        });
+      }
+
       // Update local object so UI shows correct state
       hazard.resolved_at = now.toISOString();
-      hazard.resolved_by = 'system';
+      hazard.resolved_by = null;
       hazard.resolution_note = `Auto-expired after ${hoursExpired} hour(s) past expiration time`;
 
       logger.info('Hazard auto-expired on access', {
@@ -175,7 +202,7 @@ export async function expireAllExpiredHazards(
         .from('hazards')
         .update({
           resolved_at: now.toISOString(),
-          resolved_by: 'system',
+          resolved_by: null, // NULL for system-triggered expiration
           resolution_note: `Auto-expired after ${hoursExpired} hour(s) past expiration time`
         })
         .eq('id', hazard.id);
