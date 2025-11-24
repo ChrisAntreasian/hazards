@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
+  import { invalidate } from "$app/navigation";
   import { page } from "$app/stores";
   import MapLocationPicker from "$lib/components/MapLocationPicker.svelte";
   import HazardVoting from "$lib/components/HazardVoting.svelte";
@@ -18,14 +19,15 @@
 
   let { data }: Props = $props();
 
-  const hazard = data.hazard;
+  // Make hazard reactive so we can update it from API responses
+  let hazard = $state(data.hazard);
   const user = data.user;
   const ratings = data.ratings;
   const averageRatings = data.averageRatings;
 
-  // Check if current user owns this hazard
-  const isOwner = user?.id === hazard.user_id;
-  const canEdit = isOwner && hazard.status === "pending";
+  // Check if current user owns this hazard (use derived for reactivity)
+  const isOwner = $derived(user?.id === hazard.user_id);
+  const canEdit = $derived(isOwner && hazard.status === "pending");
 
   // Initialize vote counts with defaults (for when migration hasn't been applied yet)
   let votesUp = $state(hazard.votes_up ?? 0);
@@ -54,6 +56,14 @@
     }
   }
 
+  // Reload all page data (hazard + expiration status)
+  async function reloadPageData() {
+    // Invalidate the page data to trigger a reload from the server
+    await invalidate(`/hazards/${hazard.id}`);
+    // Also reload expiration status
+    await loadExpirationStatus();
+  }
+
   async function handleExtendExpiration() {
     if (!hazard.expires_at) return;
 
@@ -71,8 +81,11 @@
       });
 
       if (response.ok) {
-        // Reload expiration status
-        await loadExpirationStatus();
+        const data = await response.json();
+        
+        // Reload page data to show updated expiration time
+        await reloadPageData();
+        
         alert("Expiration extended by 24 hours");
       } else {
         const data = await response.json();
@@ -84,13 +97,14 @@
     }
   }
 
-  function handleResolutionSuccess() {
+  async function handleResolutionSuccess() {
     showResolutionForm = false;
-    loadExpirationStatus();
+    await reloadPageData();
   }
 
-  function handleConfirmationChange() {
-    loadExpirationStatus();
+  async function handleConfirmationChange() {
+    // Reload all page data - hazard might be auto-resolved by trigger
+    await reloadPageData();
   }
 
   function formatDate(dateString: string) {
@@ -325,6 +339,9 @@
               {#if showResolutionForm}
                 <ResolutionReportForm
                   hazardId={hazard.id}
+                  userId={user.id}
+                  session={data.session}
+                  user={user}
                   onSuccess={handleResolutionSuccess}
                   onCancel={() => (showResolutionForm = false)}
                 />

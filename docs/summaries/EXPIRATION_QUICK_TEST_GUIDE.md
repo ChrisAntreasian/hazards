@@ -155,7 +155,7 @@ INSERT INTO hazards (
 
 ```sql
 SELECT id, title, status, resolved_at, expires_at
-FROM hazards WHERE id = '[HAZARD_ID]';
+FROM hazards WHERE id = '7d5f113b-8527-4efa-855a-44fd0f550cb4';
 ```
 
 **Expected:**
@@ -236,16 +236,48 @@ SELECT
   hr.id,
   hr.title,
   COUNT(hrc.id) as confirmation_count,
-  hr.status
+  hr.status,
+  hr.resolved_at
 FROM hazards hr
-LEFT JOIN hazard_resolution_confirmations hrc ON hr.id = hrc.hazard_id
+LEFT JOIN hazard_resolution_confirmations hrc ON hr.id = hrc.hazard_id AND hrc.is_confirmed = true
 WHERE hr.id = '[HAZARD_ID]'
-GROUP BY hr.id, hr.title, hr.status;
+GROUP BY hr.id, hr.title, hr.status, hr.resolved_at;
 ```
 
 **Expected:**
 - 1-2 confirmations recorded
 - At 3 confirmations, hazard should auto-resolve (trigger fires)
+
+**Note:** The trigger only fires when confirmations are **inserted via the UI or SQL INSERT**. Simply updating the hazard's `resolved_at` directly won't trigger the auto-resolution logic. You must actually insert confirmation records to test the trigger.
+
+### Step 5: Manual Trigger Test (Optional)
+
+If you want to test the trigger via SQL without using the UI:
+
+```sql
+-- Get additional user IDs for testing (need 3 different users)
+SELECT id, email FROM auth.users LIMIT 5;
+
+-- Insert confirmations one at a time
+-- First confirmation
+INSERT INTO hazard_resolution_confirmations (hazard_id, user_id, is_confirmed)
+VALUES ('[HAZARD_ID]', '[USER_2_ID]', true);
+
+-- Second confirmation  
+INSERT INTO hazard_resolution_confirmations (hazard_id, user_id, is_confirmed)
+VALUES ('[HAZARD_ID]', '[USER_3_ID]', true);
+
+-- Third confirmation - trigger should fire and auto-resolve!
+INSERT INTO hazard_resolution_confirmations (hazard_id, user_id, is_confirmed)
+VALUES ('[HAZARD_ID]', '[USER_4_ID]', true);
+
+-- Verify hazard is now resolved
+SELECT id, title, resolved_at, resolved_by, resolution_note
+FROM hazards WHERE id = '[HAZARD_ID]';
+-- resolved_at should now have a timestamp
+-- resolved_by should be NULL (community-resolved)
+-- resolution_note should be 'Auto-resolved by community consensus'
+```
 
 ---
 

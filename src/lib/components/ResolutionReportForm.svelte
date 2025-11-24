@@ -1,25 +1,42 @@
 <script lang="ts">
   import type { CreateResolutionReportRequest } from "$lib/types/database";
+  import type { ImageUploadResult } from "$lib/types/images";
+  import ImageUpload from "$lib/components/ImageUpload.svelte";
+  import { createSupabaseLoadClient } from "$lib/supabase";
 
   interface Props {
     /** Hazard ID to submit resolution for */
     hazardId: string;
+    /** Current user ID for image upload */
+    userId: string;
+    /** Current user session for image upload */
+    session: any;
+    /** Current user object for image upload */
+    user: any;
     /** Callback when report is successfully submitted */
     onSuccess?: () => void;
     /** Callback when form is cancelled */
     onCancel?: () => void;
   }
 
-  let { hazardId, onSuccess, onCancel }: Props = $props();
+  let { hazardId, userId, session, user, onSuccess, onCancel }: Props = $props();
+
+  const supabase = createSupabaseLoadClient();
 
   let resolutionNote = $state("");
-  let evidenceUrl = $state("");
+  let evidenceImageUrls = $state<string[]>([]);
   let loading = $state(false);
   let error = $state<string | null>(null);
   let success = $state(false);
 
   const maxNoteLength = 1000;
   const remainingChars = $derived(maxNoteLength - resolutionNote.length);
+
+  // Handle image upload results
+  const handleImageUpload = (event: CustomEvent<ImageUploadResult>) => {
+    const result = event.detail;
+    evidenceImageUrls = [...evidenceImageUrls, result.originalUrl];
+  };
 
   async function handleSubmit() {
     error = null;
@@ -30,8 +47,9 @@
         resolution_note: resolutionNote.trim(),
       };
 
-      if (evidenceUrl.trim()) {
-        body.evidence_url = evidenceUrl.trim();
+      // Include evidence images if any were uploaded
+      if (evidenceImageUrls.length > 0) {
+        body.evidence_url = evidenceImageUrls[0]; // Use first image for now
       }
 
       const response = await fetch(`/api/hazards/${hazardId}/resolve`, {
@@ -63,7 +81,7 @@
 
   function handleCancel() {
     resolutionNote = "";
-    evidenceUrl = "";
+    evidenceImageUrls = [];
     error = null;
     onCancel?.();
   }
@@ -95,12 +113,12 @@
         handleSubmit();
       }}
     >
-      <div class="space-y-4">
+      <div class="space-y-6">
         <!-- Resolution Note -->
         <div>
           <label
             for="resolution-note"
-            class="block text-sm font-medium text-gray-700 mb-1"
+            class="block text-sm font-medium text-gray-700 mb-2"
           >
             Resolution Details *
           </label>
@@ -108,17 +126,16 @@
             id="resolution-note"
             bind:value={resolutionNote}
             placeholder="Describe how the hazard was resolved (e.g., 'Tree removed by city crew', 'Weather cleared, roads dry')"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-            rows="4"
+            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-y min-h-[120px] text-base"
             maxlength={maxNoteLength}
             required
             disabled={loading}
           ></textarea>
-          <div class="flex justify-between items-center mt-1">
-            <p class="text-xs text-gray-500">Minimum 10 characters</p>
+          <div class="flex justify-between items-center mt-2">
+            <p class="text-sm text-gray-600">Minimum 10 characters</p>
             <p
-              class="text-xs"
-              class:text-gray-500={remainingChars > 100}
+              class="text-sm font-medium"
+              class:text-gray-600={remainingChars > 100}
               class:text-yellow-600={remainingChars <= 100 &&
                 remainingChars > 0}
               class:text-red-600={remainingChars <= 0}
@@ -128,24 +145,23 @@
           </div>
         </div>
 
-        <!-- Evidence URL (Optional) -->
+        <!-- Evidence Photo Upload (Optional) -->
         <div>
-          <label
-            for="evidence-url"
-            class="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Evidence Photo URL (Optional)
-          </label>
-          <input
-            id="evidence-url"
-            type="url"
-            bind:value={evidenceUrl}
-            placeholder="https://example.com/photo.jpg"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          <div class="block text-sm font-medium text-gray-700 mb-2">
+            Evidence Photos (Optional)
+          </div>
+          <ImageUpload
+            {userId}
+            {hazardId}
+            maxFiles={3}
             disabled={loading}
+            supabaseClient={supabase}
+            currentSession={session}
+            currentUser={user}
+            on:upload={handleImageUpload}
           />
-          <p class="text-xs text-gray-500 mt-1">
-            Link to a photo showing the resolved hazard
+          <p class="text-sm text-gray-600 mt-2">
+            Upload photos showing the resolved hazard (max 3 images)
           </p>
         </div>
 
@@ -157,21 +173,21 @@
         {/if}
 
         <!-- Info Box -->
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
-          <p class="text-blue-800 text-sm">
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <p class="text-blue-900 text-sm leading-relaxed">
             <strong>Note:</strong> Only one resolution report can be submitted per
             hazard. Other users will be able to confirm or dispute your report.
           </p>
         </div>
 
         <!-- Actions -->
-        <div class="flex gap-3 pt-2">
+        <div class="flex gap-3 pt-4">
           <button
             type="submit"
             disabled={!isValid || loading}
-            class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium
+            class="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold text-base
 							hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-							disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+							disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
           >
             {#if loading}
               <span class="flex items-center justify-center gap-2">
@@ -188,9 +204,9 @@
               type="button"
               onclick={handleCancel}
               disabled={loading}
-              class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium
-								hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2
-								disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              class="px-6 py-3 bg-white text-gray-700 rounded-lg font-semibold text-base border border-gray-300
+								hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2
+								disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
             >
               Cancel
             </button>
