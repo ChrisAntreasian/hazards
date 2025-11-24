@@ -237,6 +237,26 @@ export const load: PageServerLoad = async (event) => {
       logger.warn('Failed to load expiration status', { metadata: { hazardId, error: err } });
     }
 
+    // Load educational content if hazard has a template_id
+    let educationalContent = null;
+    if (hazard.template_id) {
+      try {
+        // Fetch educational content from API endpoint
+        const contentResponse = await event.fetch(`/api/content/template/${hazard.template_id}`);
+        
+        if (contentResponse.ok) {
+          const contentData = await contentResponse.json();
+          if (contentData.success && contentData.data) {
+            educationalContent = contentData.data;
+          }
+        }
+      } catch (err) {
+        logger.warn('Failed to load educational content', { 
+          metadata: { hazardId, templateId: hazard.template_id, error: err } 
+        });
+      }
+    }
+
     return {
       user,
       hazard,
@@ -246,7 +266,8 @@ export const load: PageServerLoad = async (event) => {
         accuracy: avgAccuracy,
         count: ratings?.length || 0
       },
-      expirationStatus
+      expirationStatus,
+      educationalContent
     };
   } catch (err) {
     if (err instanceof Error && 'status' in err) {

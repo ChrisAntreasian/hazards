@@ -10,6 +10,7 @@
   import ResolutionReportForm from "$lib/components/ResolutionReportForm.svelte";
   import ResolutionConfirmation from "$lib/components/ResolutionConfirmation.svelte";
   import ResolutionHistory from "$lib/components/ResolutionHistory.svelte";
+  import EducationalContentCard from "$lib/components/EducationalContentCard.svelte";
   import type { PageData } from "./$types";
   import type { ExpirationStatusResponse } from "$lib/types/database";
 
@@ -24,6 +25,7 @@
   const user = data.user;
   const ratings = data.ratings;
   const averageRatings = data.averageRatings;
+  const educationalContent = (data as any).educationalContent || null;
 
   // Check if current user owns this hazard (use derived for reactivity)
   const isOwner = $derived(user?.id === hazard.user_id);
@@ -499,6 +501,18 @@
             <span class="rating-value">{averageRatings.count}</span>
           </div>
         </div>
+      </section>
+    {/if}
+
+    <!-- Educational Content -->
+    {#if educationalContent}
+      <section class="educational-section">
+        <h2>Learn More About This Hazard</h2>
+        <EducationalContentCard 
+          content={educationalContent}
+          showImages={true}
+          defaultTab="overview"
+        />
       </section>
     {/if}
 
@@ -1018,6 +1032,18 @@
     background: #f0fdf4;
     border-radius: 8px;
     border: 2px solid #86efac;
+  }
+
+  /* Educational Content Section */
+  .educational-section {
+    margin-top: 3rem;
+  }
+
+  .educational-section h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 1.5rem;
   }
 
   @media (max-width: 768px) {
