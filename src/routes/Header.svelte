@@ -19,6 +19,11 @@
         <a href="/map">🗺️ Map</a>
       </li>
       <li
+        aria-current={page.url.pathname.startsWith("/learn") ? "page" : undefined}
+      >
+        <a href="/learn">📚 Learn</a>
+      </li>
+      <li
         aria-current={page.url.pathname === "/hazards/create"
           ? "page"
           : undefined}

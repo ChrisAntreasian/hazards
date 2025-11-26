@@ -55,7 +55,7 @@
 
 	<!-- Main Content Tabs -->
 	<div class="main-content">
-		<ContentNavigationTabs files={mainContentFiles} {activeTab} onTabChange={handleTabChange} let:content let:file>
+		<ContentNavigationTabs files={mainContentFiles} activeFileType={activeTab} onTabChange={handleTabChange} let:content let:file>
 			<article class="content-section">
 				<MarkdownRenderer content={content} />
 			</article>

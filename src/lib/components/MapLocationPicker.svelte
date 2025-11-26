@@ -181,7 +181,7 @@
     <MapLocationMarker
       bind:this={mapLocationMarkerRef}
       initialLocation={currentLocation}
-      enabled={!readonly}
+      enabled={true}
       draggable={!readonly}
       repositionMode={mapMode === "reposition"}
       onLocationChange={handleLocationChange}

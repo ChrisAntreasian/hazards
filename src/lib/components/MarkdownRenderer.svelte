@@ -3,24 +3,25 @@
 	 * Markdown renderer component with syntax highlighting support
 	 * Renders markdown content with proper HTML escaping and styling
 	 */
-	import { onMount } from 'svelte';
 	import { marked } from 'marked';
 	import DOMPurify from 'isomorphic-dompurify';
 
-	export let content: string;
-	export let class: string = '';
+	interface Props {
+		content: string;
+		className?: string;
+	}
 
-	let renderedHtml = '';
+	let { content, className = '' }: Props = $props();
+
+	let renderedHtml = $state('');
 
 	// Configure marked options
 	marked.setOptions({
 		breaks: true, // Convert \n to <br>
-		gfm: true, // GitHub Flavored Markdown
-		headerIds: true, // Add IDs to headers
-		mangle: false // Don't escape email addresses
+		gfm: true // GitHub Flavored Markdown
 	});
 
-	$: {
+	$effect(() => {
 		// Render and sanitize markdown whenever content changes
 		if (content) {
 			const rawHtml = marked(content) as string;
@@ -55,10 +56,10 @@
 				ALLOWED_ATTR: ['href', 'title', 'alt', 'src', 'id', 'class']
 			});
 		}
-	}
+	});
 </script>
 
-<div class="markdown-content {class}">
+<div class="markdown-content {className}">
 	{@html renderedHtml}
 </div>
 
