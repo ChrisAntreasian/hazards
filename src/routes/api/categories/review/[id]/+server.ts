@@ -144,8 +144,9 @@ export const PATCH: RequestHandler = async (event) => {
       throw err;
     }
     
-    logger.error('Suggestion review failed', err instanceof Error ? err : new Error(String(err)));
-    throw error(500, 'Failed to review suggestion');
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    logger.error('Suggestion review failed', new Error(errorMessage));
+    throw error(500, `Failed to review suggestion: ${errorMessage}`);
   }
 };
 

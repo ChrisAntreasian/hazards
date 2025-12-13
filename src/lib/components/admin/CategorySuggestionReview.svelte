@@ -85,6 +85,17 @@
         })
       });
 
+      if (!response.ok) {
+        const errorText = await response.text();
+        try {
+          const errorJson = JSON.parse(errorText);
+          error = errorJson.message || errorJson.error || `Failed to ${action} category (${response.status})`;
+        } catch {
+          error = `Failed to ${action} category: ${response.status} ${errorText.substring(0, 100)}`;
+        }
+        return;
+      }
+
       const result = await response.json();
 
       if (result.success) {
@@ -95,7 +106,7 @@
         error = result.error || `Failed to ${action} category`;
       }
     } catch (err) {
-      error = `Network error during ${action}`;
+      error = `Network error during ${action}: ${err instanceof Error ? err.message : String(err)}`;
       console.error(`Error ${action}ing category:`, err);
     } finally {
       isLoading = false;
