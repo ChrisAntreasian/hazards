@@ -1,24 +1,29 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
+// Valid categories (even if content is empty)
+const VALID_CATEGORIES = ['plants', 'insects', 'animals', 'terrain'];
+
 export const load: PageServerLoad = async ({ params, fetch }) => {
   const { category } = params;
+  
+  // Check if it's a valid category (even if empty)
+  if (!VALID_CATEGORIES.includes(category)) {
+    throw error(404, `Category "${category}" not found`);
+  }
   
   try {
     // Fetch the list of all available educational content
     const response = await fetch('/api/content/list');
     
-    if (!response.ok) {
-      throw error(404, 'Content not found');
+    let subcategories = {};
+    
+    if (response.ok) {
+      const data = await response.json();
+      // Get subcategories if they exist, otherwise empty object
+      subcategories = data.data?.[category] || {};
     }
     
-    const data = await response.json();
-    
-    if (!data.success || !data.data[category]) {
-      throw error(404, `Category "${category}" not found`);
-    }
-    
-    const subcategories = data.data[category];
     const categoryName = category.charAt(0).toUpperCase() + category.slice(1);
     
     return {
@@ -27,10 +32,14 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
       subcategories
     };
   } catch (err) {
-    if (err && typeof err === 'object' && 'status' in err) {
-      throw err; // Re-throw SvelteKit errors
-    }
     console.error('Error loading category:', err);
-    throw error(500, 'Failed to load category content');
+    
+    // Still return the page with empty content rather than error
+    const categoryName = category.charAt(0).toUpperCase() + category.slice(1);
+    return {
+      category,
+      categoryName,
+      subcategories: {}
+    };
   }
 };
