@@ -178,7 +178,7 @@
   async function loadQueueOverview() {
     try {
       const response = await fetch(
-        "/api/moderation/queue?limit=20&status=" +
+        "/api/moderation/queue?limit=50&status=" +
           (currentView === "urgent" ? "pending" : currentView)
       );
       if (!response.ok) throw new Error("Failed to load queue");
@@ -332,6 +332,11 @@
     <p class="subtitle">
       Review and approve community-submitted hazards and content
     </p>
+    <div class="quick-links">
+      <a href="/admin/categories" class="quick-link">
+        📂 Category Suggestions
+      </a>
+    </div>
   </div>
 
   <!-- Stats Overview -->
@@ -811,6 +816,33 @@
   .subtitle {
     color: var(--color-text-secondary);
     font-size: 1.1rem;
+  }
+
+  .quick-links {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  .quick-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    color: #374151;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+
+  .quick-link:hover {
+    background: #e5e7eb;
+    color: #1f2937;
   }
 
   .stats-grid {

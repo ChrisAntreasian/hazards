@@ -220,31 +220,18 @@ export const GET: RequestHandler = async (event) => {
   const offset = parseInt(url.searchParams.get('offset') || '0');
 
   try {
-    // Fetch suggestions
+    // Fetch suggestions with simpler query (avoid complex joins that may fail)
     const statusArray = status.split(',');
     const { data: suggestions, error: fetchError, count } = await supabase
       .from('category_suggestions')
-      .select(`
-        *,
-        users!category_suggestions_suggested_by_fkey (
-          id,
-          email,
-          trust_score
-        ),
-        hazard_categories!category_suggestions_suggested_parent_id_fkey (
-          id,
-          name,
-          path,
-          icon
-        )
-      `, { count: 'exact' })
+      .select('*', { count: 'exact' })
       .in('status', statusArray)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
     if (fetchError) {
       logger.error('Failed to fetch category suggestions', new Error(fetchError.message));
-      throw error(500, 'Failed to fetch suggestions');
+      throw error(500, `Failed to fetch suggestions: ${fetchError.message}`);
     }
 
     return json({

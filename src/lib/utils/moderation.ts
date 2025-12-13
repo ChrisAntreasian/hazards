@@ -584,6 +584,17 @@ export class ModerationQueue {
         .select('id, user_id, original_url, thumbnail_url, uploaded_at, vote_score, metadata')
         .eq('hazard_id', data.content_id);
       
+      if (hazardError) {
+        logger.dbError('fetch hazard for moderation', hazardError, {
+          metadata: {
+            content_id: data.content_id,
+            error_code: hazardError.code,
+            error_details: hazardError.details,
+            error_hint: hazardError.hint
+          }
+        });
+      }
+      
       if (hazardData) {
         const hazard = hazardData;
         const category = Array.isArray(hazard.hazard_categories) 
@@ -591,9 +602,9 @@ export class ModerationQueue {
           : hazard.hazard_categories;
         
         contentPreview = {
-          title: hazard.title,
-          description: hazard.description,
-          severity_level: hazard.severity_level,
+          title: hazard.title || 'Untitled Hazard',
+          description: hazard.description || 'No description provided',
+          severity_level: hazard.severity_level || 0,
           location: {
             latitude: hazard.latitude,
             longitude: hazard.longitude
@@ -624,7 +635,7 @@ export class ModerationQueue {
         });
         contentPreview = {
           title: 'Unknown Hazard',
-          description: 'Data not available',
+          description: hazardError?.message || 'Data not available',
           severity_level: 0,
           images: []
         };
@@ -700,15 +711,63 @@ export class ModerationQueue {
     const status = action === 'approve' ? 'approved' : 'rejected';
 
     try {
+      let contentOwnerId: string | null = null;
+
       switch (item.type) {
         case 'hazard':
+          // Get hazard owner for trust score update
+          const { data: hazard } = await supabase
+            .from('hazards')
+            .select('user_id')
+            .eq('id', item.content_id)
+            .single();
+          
+          contentOwnerId = hazard?.user_id || null;
+
           await supabase
             .from('hazards')
             .update({ status })
             .eq('id', item.content_id);
+
+          // Update related hazard flag if this moderation item is from a flag
+          // Find the flag that created this moderation item
+          const { data: flag } = await supabase
+            .from('hazard_flags')
+            .select('id, user_id')
+            .eq('hazard_id', item.content_id)
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (flag) {
+            // Update flag status based on moderation decision
+            const flagStatus = action === 'approve' ? 'upheld' : 'dismissed';
+            await supabase
+              .from('hazard_flags')
+              .update({ 
+                status: flagStatus,
+                reviewed_at: new Date().toISOString()
+              })
+              .eq('id', flag.id);
+
+            // Award/penalize trust score to flagger based on outcome
+            // Note: The database trigger on hazard_flags handles the trust score update
+            // when status changes to 'upheld' or 'dismissed', so we don't need to call
+            // update_trust_score manually here
+          }
           break;
 
         case 'image':
+          // Get image owner for trust score update
+          const { data: image } = await supabase
+            .from('hazard_images')
+            .select('user_id')
+            .eq('id', item.content_id)
+            .single();
+          
+          contentOwnerId = image?.user_id || null;
+
           await supabase
             .from('hazard_images')
             .update({ moderation_status: status })
@@ -716,11 +775,37 @@ export class ModerationQueue {
           break;
 
         case 'template':
+          // Get template owner for trust score update
+          const { data: template } = await supabase
+            .from('hazard_templates')
+            .select('created_by')
+            .eq('id', item.content_id)
+            .single();
+          
+          contentOwnerId = template?.created_by || null;
+
           await supabase
             .from('hazard_templates')
             .update({ status: action === 'approve' ? 'published' : 'rejected' })
             .eq('id', item.content_id);
           break;
+      }
+
+      // Award trust score points to content owner
+      if (contentOwnerId) {
+        const eventType = action === 'approve' ? 'hazard_approved' : 'hazard_rejected';
+        const { error: trustScoreError } = await supabase.rpc('update_trust_score', {
+          p_user_id: contentOwnerId,
+          p_event_type: eventType,
+          p_related_content_id: item.content_id,
+          p_related_content_type: item.type,
+          p_notes: `${item.type} ${action}d by moderator`
+        });
+
+        if (trustScoreError) {
+          console.error('Error updating trust score:', trustScoreError);
+          // Don't throw - trust score is not critical for moderation workflow
+        }
       }
     } catch (error) {
       console.error('Error updating content status:', error);

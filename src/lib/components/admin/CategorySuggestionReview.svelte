@@ -15,7 +15,7 @@
     reviewed_by: string | null;
     reviewed_at: string | null;
     review_notes: string | null;
-    created_category_id: string | null;
+    approved_category_id: string | null;
     created_at: string;
     updated_at: string;
     users?: {
@@ -64,9 +64,8 @@
   }
 
   async function reviewSuggestion(action: 'approve' | 'reject') {
-    if (!selectedSuggestion?.created_category_id && selectedSuggestion?.status === 'provisional') {
-      // For provisional categories, we need the category ID
-      error = 'Cannot review: No associated category found';
+    if (!selectedSuggestion) {
+      error = 'No suggestion selected';
       return;
     }
 
@@ -74,20 +73,11 @@
     error = null;
 
     try {
-      // Get the category ID to review
-      const categoryId = selectedSuggestion?.created_category_id;
-      
-      if (!categoryId) {
-        // For pending suggestions that haven't created a category yet
-        // We need to first create the category then approve it
-        // For now, just update the suggestion status
-        error = 'Pending suggestions without categories not yet supported';
-        isLoading = false;
-        return;
-      }
+      // For suggestions, we review the suggestion directly, not a category
+      const suggestionId = selectedSuggestion.id;
 
-      const response = await fetch(`/api/categories/review/${categoryId}`, {
-        method: 'POST',
+      const response = await fetch(`/api/categories/review/${suggestionId}`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action,
