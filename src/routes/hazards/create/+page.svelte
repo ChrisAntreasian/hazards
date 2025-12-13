@@ -5,12 +5,14 @@
   import ImageUpload from "$lib/components/ImageUpload.svelte";
   import MapLocationPicker from "$lib/components/MapLocationPicker.svelte";
   import { MapLocationSearch } from "$lib/components/map";
+  import CategorySelector from "$lib/components/CategorySelector.svelte";
   import type { PageData } from "./$types";
   import type { ImageUploadResult } from "$lib/types/images.js";
   import type { Location } from "$lib/components/map/types";
   import { enhance } from "$app/forms";
   import { page } from "$app/stores";
   import type { ExpirationType, ExpirationSettings } from "$lib/types/database";
+  import type { CategorySuggestion } from "$lib/components/CategorySelector.svelte";
 
   interface Props {
     data: PageData;
@@ -25,6 +27,12 @@
 
   // Categories from server-side load
   let categories = $derived(data.categories || []);
+  
+  // User trust score for category suggestions
+  let userTrustScore = $derived(data.userTrustScore || 0);
+  
+  // Category suggestion state (for novel hazards)
+  let pendingSuggestion = $state<CategorySuggestion | null>(null);
 
   // Supabase setup
   const supabase = createSupabaseLoadClient();
@@ -190,6 +198,30 @@
       );
     }
   }
+  
+  // Handle category selection changes
+  function handleCategoryChange(categoryId: string | null) {
+    formData.category_id = categoryId || "";
+    // Clear any pending suggestion when a real category is selected
+    if (categoryId) {
+      pendingSuggestion = null;
+    }
+  }
+  
+  // Handle category suggestion (for novel hazards)
+  function handleCategorySuggested(suggestion: CategorySuggestion) {
+    pendingSuggestion = suggestion;
+    // If a provisional category was created, use that ID
+    if (suggestion.provisionalCategoryId) {
+      formData.category_id = suggestion.provisionalCategoryId;
+    } else {
+      // Use the "Other" category as fallback for suggestions
+      const otherCategory = categories.find((c: any) => c.path === 'other');
+      if (otherCategory) {
+        formData.category_id = otherCategory.id;
+      }
+    }
+  }
 </script>
 
 <svelte:head>
@@ -241,6 +273,18 @@
             "seasonal_pattern",
             JSON.stringify({ active_months: selectedSeasonalMonths })
           );
+        }
+        
+        // Add suggested category data if present
+        if (pendingSuggestion && !pendingSuggestion.provisionalCategoryId) {
+          fd.set("suggested_category", JSON.stringify({
+            name: pendingSuggestion.name,
+            path: pendingSuggestion.path,
+            parent_id: pendingSuggestion.parentId,
+            icon: pendingSuggestion.icon,
+            description: pendingSuggestion.description,
+            suggestion_id: pendingSuggestion.suggestionId
+          }));
         }
 
         loading = true;
@@ -329,34 +373,26 @@
 
         <div class="form-group">
           <label for="category">Category *</label>
-          <select
-            id="category"
-            name="category_id"
-            bind:value={formData.category_id}
-            required
-          >
-            <option value=""
-              >Select a category... ({categories.length} available)</option
-            >
-            <!-- Level 0 categories (main categories) -->
-            {#each categories.filter((cat) => cat.level === 0) as mainCategory}
-              <option value={mainCategory.id}
-                >{mainCategory.icon} {mainCategory.name}</option
-              >
-              <!-- Level 1 subcategories -->
-              {#each categories.filter((cat) => cat.level === 1 && cat.path.startsWith(mainCategory.path + "/")) as subCategory}
-                <option value={subCategory.id}>
-                  ↳ {subCategory.icon} {subCategory.name}</option
-                >
-                <!-- Level 2 sub-subcategories -->
-                {#each categories.filter((cat) => cat.level === 2 && cat.path.startsWith(subCategory.path + "/")) as subSubCategory}
-                  <option value={subSubCategory.id}>
-                    ↳ {subSubCategory.icon} {subSubCategory.name}</option
-                  >
-                {/each}
-              {/each}
-            {/each}
-          </select>
+          <CategorySelector
+            {categories}
+            selectedCategoryId={formData.category_id || null}
+            {userTrustScore}
+            onCategoryChange={handleCategoryChange}
+            onCategorySuggested={handleCategorySuggested}
+          />
+          {#if pendingSuggestion}
+            <div class="suggestion-notice">
+              {#if pendingSuggestion.provisionalCategoryId}
+                <span class="badge badge-success">✓ Category Created</span>
+                <p>Your suggested category "<strong>{pendingSuggestion.name}</strong>" has been provisionally created and will be reviewed by moderators.</p>
+              {:else}
+                <span class="badge badge-info">📝 Suggestion Pending</span>
+                <p>Your hazard will be filed under "Other" and linked to your suggested category "<strong>{pendingSuggestion.name}</strong>" for moderator review.</p>
+              {/if}
+            </div>
+          {/if}
+          <!-- Hidden field for form submission -->
+          <input type="hidden" name="category_id" value={formData.category_id} />
         </div>
 
         <div class="form-group">
@@ -754,7 +790,6 @@
   }
 
   input,
-  select,
   textarea {
     width: 100%;
     padding: 0.75rem;
@@ -765,7 +800,6 @@
   }
 
   input:focus,
-  select:focus,
   textarea:focus {
     outline: none;
     border-color: var(--color-primary);
@@ -1089,5 +1123,38 @@
     .month-selector {
       grid-template-columns: repeat(3, 1fr);
     }
+  }
+
+  /* Category suggestion notice styles */
+  .suggestion-notice {
+    margin-top: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+  }
+
+  .suggestion-notice p {
+    margin: 0.5rem 0 0 0;
+    font-size: 0.9rem;
+    color: #0369a1;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .badge-success {
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  .badge-info {
+    background: #dbeafe;
+    color: #1e40af;
   }
 </style>

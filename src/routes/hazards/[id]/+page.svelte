@@ -11,6 +11,10 @@
   import ResolutionConfirmation from "$lib/components/ResolutionConfirmation.svelte";
   import ResolutionHistory from "$lib/components/ResolutionHistory.svelte";
   import EducationalContentCard from "$lib/components/EducationalContentCard.svelte";
+  import EducationalLink from "$lib/components/EducationalLink.svelte";
+  import HazardFlagButton from "$lib/components/HazardFlagButton.svelte";
+  import FlagHazardModal from "$lib/components/FlagHazardModal.svelte";
+  import { getEducationalLinkSync, type EducationalLink as EduLinkType } from "$lib/utils/educational-links";
   import type { PageData } from "./$types";
   import type { ExpirationStatusResponse } from "$lib/types/database";
 
@@ -31,6 +35,17 @@
   const isOwner = $derived(user?.id === hazard.user_id);
   const canEdit = $derived(isOwner && hazard.status === "pending");
 
+  // Educational link (fallback when no specific content available)
+  const educationalLink = $derived<EduLinkType>(
+    getEducationalLinkSync({
+      template_id: hazard.template_id,
+      category_path: hazard.hazard_categories?.path,
+      category_name: hazard.hazard_categories?.name,
+      category_icon: hazard.hazard_categories?.icon,
+      title: hazard.title
+    })
+  );
+
   // Initialize vote counts with defaults (for when migration hasn't been applied yet)
   let votesUp = $state(hazard.votes_up ?? 0);
   let votesDown = $state(hazard.votes_down ?? 0);
@@ -41,6 +56,31 @@
     data.expirationStatus || null
   );
   let showResolutionForm = $state(false);
+
+  // Flagging state
+  let userHasFlagged = $state(false);
+  let showFlagModal = $state(false);
+
+  // Load flag status on mount
+  async function loadFlagStatus() {
+    if (!user) return;
+    try {
+      const response = await fetch(`/api/hazards/${hazard.id}/flag/check`);
+      if (response.ok) {
+        const data = await response.json();
+        userHasFlagged = data.hasFlagged;
+      }
+    } catch (error) {
+      console.error('Failed to load flag status:', error);
+    }
+  }
+
+  // Call on mount
+  $effect(() => {
+    if (user) {
+      loadFlagStatus();
+    }
+  });
 
   // Reload expiration status (for after user actions like extend/resolve)
   async function loadExpirationStatus() {
@@ -156,6 +196,35 @@
   function handleBackToReports() {
     goto("/my-reports");
   }
+
+  function handleFlagClick() {
+    if (!user) {
+      alert('Please log in to flag hazards');
+      goto('/auth/login');
+      return;
+    }
+    showFlagModal = true;
+  }
+
+  async function handleFlagSubmit(data: { reason: string; notes: string }) {
+    try {
+      const response = await fetch(`/api/hazards/${hazard.id}/flag`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || 'Failed to submit flag');
+      }
+
+      userHasFlagged = true;
+      alert('Flag submitted successfully. Our moderation team will review it.');
+    } catch (error) {
+      throw error; // Re-throw to modal error handler
+    }
+  }
 </script>
 
 <svelte:head>
@@ -266,6 +335,16 @@
         can confirm this hazard exists, downvote if it seems inaccurate or
         resolved.
       </p>
+
+      {#if user && !isOwner}
+        <div class="flag-section">
+          <HazardFlagButton
+            hazardId={hazard.id}
+            userHasFlagged={userHasFlagged}
+            on:flag={handleFlagClick}
+          />
+        </div>
+      {/if}
     </section>
 
     <!-- Expiration & Resolution Status -->
@@ -514,6 +593,19 @@
           defaultTab="overview"
         />
       </section>
+    {:else}
+      <!-- Fallback: Show link to browse educational content -->
+      <section class="educational-section educational-fallback">
+        <h2>Safety Information</h2>
+        <p class="educational-prompt">
+          Want to learn more about how to identify, avoid, and respond to hazards like this one?
+        </p>
+        <EducationalLink 
+          link={educationalLink}
+          variant="card"
+          showDescription={true}
+        />
+      </section>
     {/if}
 
     <!-- Technical Details -->
@@ -556,6 +648,14 @@
     </section>
   </div>
 </div>
+
+<!-- Flag Modal -->
+<FlagHazardModal
+  hazardId={hazard.id}
+  isOpen={showFlagModal}
+  onClose={() => showFlagModal = false}
+  onSubmit={handleFlagSubmit}
+/>
 
 <style>
   .hazard-details-page {
@@ -973,6 +1073,14 @@
     line-height: 1.5;
   }
 
+  .flag-section {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: center;
+  }
+
   /* Expiration Section */
   .expiration-section {
     background: white;
@@ -1044,6 +1152,20 @@
     font-weight: 600;
     color: #1f2937;
     margin-bottom: 1.5rem;
+  }
+
+  .educational-fallback {
+    background: #fafafa;
+    padding: 2rem;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+  }
+
+  .educational-prompt {
+    color: #4b5563;
+    margin-bottom: 1.5rem;
+    font-size: 1rem;
+    line-height: 1.6;
   }
 
   @media (max-width: 768px) {

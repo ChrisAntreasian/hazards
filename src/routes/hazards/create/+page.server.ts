@@ -13,26 +13,43 @@ export const load: PageServerLoad = async (event) => {
   
   if (!supabase) {
     return {
-      categories: []
+      categories: [],
+      userTrustScore: 0
     };
+  }
+
+  // Get current user
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  // Get user's trust score
+  let userTrustScore = 0;
+  if (user) {
+    const { data: userData } = await supabase
+      .from('users')
+      .select('trust_score')
+      .eq('id', user.id)
+      .single();
+    userTrustScore = userData?.trust_score || 0;
   }
 
   // Load categories for the hazard creation form
   const { data: categories, error: categoryError } = await supabase
     .from('hazard_categories')
-    .select('id, name, path, icon, level')
+    .select('id, name, path, icon, level, parent_id, created_at')
     .order('level', { ascending: true })
     .order('name', { ascending: true });
 
   if (categoryError) {
     logger.dbError('load categories', new Error(categoryError.message || 'Failed to load categories'));
     return {
-      categories: []
+      categories: [],
+      userTrustScore
     };
   }
 
   return {
-    categories: categories || []
+    categories: categories || [],
+    userTrustScore
   };
 };
 
@@ -77,6 +94,7 @@ export const actions: Actions = {
     const is_seasonal = formData.get('is_seasonal') === 'on';
     const uploaded_images = formData.get('uploaded_images')?.toString();
     const area_json = formData.get('area')?.toString();
+    const suggested_category_json = formData.get('suggested_category')?.toString();
     const zoomRaw = formData.get('zoom')?.toString();
     console.log('Server received zoom:', zoomRaw, 'type:', typeof zoomRaw);
     let zoom = parseInt(zoomRaw || '13');
