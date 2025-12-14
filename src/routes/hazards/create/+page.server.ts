@@ -13,26 +13,43 @@ export const load: PageServerLoad = async (event) => {
   
   if (!supabase) {
     return {
-      categories: []
+      categories: [],
+      userTrustScore: 0
     };
+  }
+
+  // Get current user
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  // Get user's trust score
+  let userTrustScore = 0;
+  if (user) {
+    const { data: userData } = await supabase
+      .from('users')
+      .select('trust_score')
+      .eq('id', user.id)
+      .single();
+    userTrustScore = userData?.trust_score || 0;
   }
 
   // Load categories for the hazard creation form
   const { data: categories, error: categoryError } = await supabase
     .from('hazard_categories')
-    .select('id, name, path, icon, level')
+    .select('id, name, path, icon, level, parent_id, created_at')
     .order('level', { ascending: true })
     .order('name', { ascending: true });
 
   if (categoryError) {
     logger.dbError('load categories', new Error(categoryError.message || 'Failed to load categories'));
     return {
-      categories: []
+      categories: [],
+      userTrustScore
     };
   }
 
   return {
-    categories: categories || []
+    categories: categories || [],
+    userTrustScore
   };
 };
 
@@ -59,6 +76,13 @@ export const actions: Actions = {
 
     const formData = await event.request.formData();
     
+    // Log all form data keys for debugging
+    console.log('===== FORM DATA KEYS =====');
+    for (const [key, value] of formData.entries()) {
+      console.log(`  ${key}:`, typeof value === 'string' ? value.substring(0, 100) : value);
+    }
+    console.log('==========================');
+    
     // Extract form data
     const title = formData.get('title')?.toString()?.trim();
     const description = formData.get('description')?.toString()?.trim();
@@ -70,6 +94,21 @@ export const actions: Actions = {
     const is_seasonal = formData.get('is_seasonal') === 'on';
     const uploaded_images = formData.get('uploaded_images')?.toString();
     const area_json = formData.get('area')?.toString();
+    const suggested_category_json = formData.get('suggested_category')?.toString();
+    const zoomRaw = formData.get('zoom')?.toString();
+    console.log('Server received zoom:', zoomRaw, 'type:', typeof zoomRaw);
+    let zoom = parseInt(zoomRaw || '13');
+    
+    // Extract expiration data
+    const expiration_type = formData.get('expiration_type')?.toString() || 'user_resolvable';
+    const expires_at = formData.get('expires_at')?.toString();
+    const seasonal_pattern = formData.get('seasonal_pattern')?.toString();
+    
+    // Validate zoom is within acceptable range (1-20, Leaflet's max)
+    if (isNaN(zoom) || zoom < 1 || zoom > 20) {
+      logger.warn('Invalid zoom value, using default', { metadata: { zoom, raw: zoomRaw } });
+      zoom = 13;
+    }
 
     // Parse area data if provided
     let area: any = null;
@@ -99,7 +138,37 @@ export const actions: Actions = {
       return fail(400, { error: 'Location is required' });
     }
 
+    let hazardId: string | null = null;
+
     try {
+      // Log the parameters for debugging
+      logger.info('Creating hazard with parameters', { 
+        metadata: { 
+          title, 
+          category_id, 
+          latitude, 
+          longitude, 
+          severity_level, 
+          zoom,
+          zoom_type: typeof zoom,
+          is_seasonal,
+          has_area: !!area,
+          expiration_type,
+          has_expires_at: !!expires_at,
+          has_seasonal_pattern: !!seasonal_pattern
+        } 
+      });
+
+      // Parse seasonal pattern if provided
+      let seasonal_pattern_json = null;
+      if (seasonal_pattern) {
+        try {
+          seasonal_pattern_json = JSON.parse(seasonal_pattern);
+        } catch (err) {
+          logger.warn('Invalid seasonal_pattern JSON', { metadata: { seasonal_pattern } });
+        }
+      }
+
       // Use PostgreSQL function to create hazard (RLS works properly this way)
       const { data: createResult, error: hazardError } = await supabase.rpc('create_hazard', {
         p_title: title,
@@ -110,7 +179,11 @@ export const actions: Actions = {
         p_severity_level: severity_level,
         p_reported_active_date: reported_active_date ? new Date(reported_active_date).toISOString() : null,
         p_is_seasonal: is_seasonal,
-        p_area: area
+        p_area: area,
+        p_zoom: zoom,
+        p_expiration_type: expiration_type,
+        p_expires_at: expires_at || null,
+        p_seasonal_pattern: seasonal_pattern_json
       });
 
       if (hazardError || !createResult?.success) {
@@ -121,7 +194,8 @@ export const actions: Actions = {
         });
       }
 
-      const hazardId = createResult.hazard_id;
+      hazardId = createResult.hazard_id;
+      logger.info('Hazard created successfully', { metadata: { hazardId, createResult } });
 
       // Update uploaded images to link to this hazard
       if (uploaded_images) {
@@ -151,7 +225,13 @@ export const actions: Actions = {
       });
     }
 
-    // Redirect to dashboard on success (outside try-catch to prevent redirect being caught as error)
-    redirect(303, '/dashboard?success=hazard-created');
+    // Redirect to hazard detail page on success (outside try-catch to prevent redirect being caught as error)
+    if (!hazardId) {
+      logger.error('Hazard created but no ID returned');
+      return fail(500, { error: 'Failed to get hazard ID after creation' });
+    }
+    
+    logger.info('Redirecting to hazard detail page', { metadata: { hazardId } });
+    redirect(303, `/hazards/${hazardId}?success=hazard-created`);
   }
 };

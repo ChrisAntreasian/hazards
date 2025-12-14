@@ -126,10 +126,13 @@
       </div>
 
       <div class="dashboard-card">
-        <div class="card-icon">🎓</div>
-        <h3>Safety Education</h3>
-        <p>Learn about outdoor hazards and safety best practices.</p>
-        <a href="/education" class="btn btn-secondary">Learn More</a>
+        <div class="card-icon">📚</div>
+        <h3>Learn About Hazards</h3>
+        <p>
+          Educational guides for identifying, preventing, and treating hazard
+          encounters.
+        </p>
+        <a href="/learn" class="btn btn-primary">Browse Guides</a>
       </div>
     </div>
 

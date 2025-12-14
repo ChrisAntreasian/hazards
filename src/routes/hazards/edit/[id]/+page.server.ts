@@ -142,6 +142,15 @@ export const actions: Actions = {
     const reported_active_date = formData.get('reported_active_date')?.toString();
     const is_seasonal = formData.get('is_seasonal') === 'on';
     const area_json = formData.get('area')?.toString();
+    const zoomRaw = formData.get('zoom')?.toString();
+    console.log('Edit page: Server received zoom:', zoomRaw, 'type:', typeof zoomRaw);
+    let zoom = parseInt(zoomRaw || '13');
+    
+    // Validate zoom is within acceptable range (1-20, Leaflet's max)
+    if (isNaN(zoom) || zoom < 1 || zoom > 20) {
+      console.warn('Edit page: Invalid zoom value, using default', { zoom, raw: zoomRaw });
+      zoom = 13;
+    }
 
     // Parse area data if provided
     let area: any = null;
@@ -204,6 +213,7 @@ export const actions: Actions = {
           reported_active_date: reported_active_date ? new Date(reported_active_date).toISOString() : null,
           is_seasonal,
           area,
+          zoom,
           updated_at: new Date().toISOString()
         })
         .eq('id', hazardId);

@@ -25,11 +25,11 @@
         <p>View and report hazards in your area with precise location data</p>
       </div>
 
-      <div class="feature">
+      <a href="/learn" class="feature feature-link">
         <div class="feature-icon">📚</div>
         <h3>Educational Content</h3>
         <p>Learn to identify and safely handle various outdoor hazards</p>
-      </div>
+      </a>
 
       <div class="feature">
         <div class="feature-icon">👥</div>
@@ -44,6 +44,7 @@
     <div class="cta-buttons">
       <a href="/hazards/create" class="btn btn-primary">Report a Hazard</a>
       <a href="/map" class="btn btn-secondary">Explore Map</a>
+      <a href="/learn" class="btn btn-secondary">📚 Learn About Hazards</a>
     </div>
 
     <div class="region-info">
@@ -111,6 +112,17 @@
   .feature p {
     color: #64748b;
     line-height: 1.5;
+  }
+
+  .feature-link {
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .feature-link:hover {
+    border-color: #3b82f6;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
   }
 
   .cta-buttons {

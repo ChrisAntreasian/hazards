@@ -178,7 +178,7 @@
   async function loadQueueOverview() {
     try {
       const response = await fetch(
-        "/api/moderation/queue?limit=20&status=" +
+        "/api/moderation/queue?limit=50&status=" +
           (currentView === "urgent" ? "pending" : currentView)
       );
       if (!response.ok) throw new Error("Failed to load queue");
@@ -332,6 +332,11 @@
     <p class="subtitle">
       Review and approve community-submitted hazards and content
     </p>
+    <div class="quick-links">
+      <a href="/admin/categories" class="quick-link">
+        📂 Category Suggestions
+      </a>
+    </div>
   </div>
 
   <!-- Stats Overview -->
@@ -464,18 +469,18 @@
                       currentItem.content_preview.location.longitude
                     )}
                   </p>
-                  
+
                   <!-- Interactive Map Display -->
                   <div class="moderation-map">
                     {#key currentItem.content_id}
-                      <MapLocationPicker 
+                      <MapLocationPicker
                         initialLocation={{
                           lat: currentItem.content_preview.location.latitude,
-                          lng: currentItem.content_preview.location.longitude
+                          lng: currentItem.content_preview.location.longitude,
                         }}
                         initialArea={currentItem.content_preview.area}
                         readonly={true}
-                        zoom={15}
+                        zoom={currentItem.content_preview.zoom || 13}
                       />
                     {/key}
                   </div>
@@ -522,7 +527,8 @@
               {#if currentItem.content_preview.images && currentItem.content_preview.images.length > 0}
                 <div class="images-section">
                   <h4>
-                    Attached Images ({currentItem.content_preview.images.length}):
+                    Attached Images ({currentItem.content_preview.images
+                      .length}):
                   </h4>
                   <div class="images-grid">
                     {#each currentItem.content_preview.images as image}
@@ -551,7 +557,9 @@
                           </p>
                           {#if image.vote_score !== undefined && image.vote_score !== 0}
                             <p class="vote-score">
-                              {image.vote_score > 0 ? '👍' : '👎'} Score: {Math.abs(image.vote_score)}
+                              {image.vote_score > 0 ? "👍" : "👎"} Score: {Math.abs(
+                                image.vote_score
+                              )}
                             </p>
                           {/if}
                         </div>
@@ -808,6 +816,33 @@
   .subtitle {
     color: var(--color-text-secondary);
     font-size: 1.1rem;
+  }
+
+  .quick-links {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  .quick-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    color: #374151;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+
+  .quick-link:hover {
+    background: #e5e7eb;
+    color: #1f2937;
   }
 
   .stats-grid {
@@ -1081,7 +1116,9 @@
     border-radius: 12px;
     border: 1px solid #e2e8f0;
     overflow: hidden;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition:
+      transform 0.2s,
+      box-shadow 0.2s;
   }
 
   .image-card:hover {
@@ -1130,7 +1167,9 @@
     font-size: 2rem;
     opacity: 0;
     transform: scale(0.8);
-    transition: opacity 0.3s ease, transform 0.3s ease;
+    transition:
+      opacity 0.3s ease,
+      transform 0.3s ease;
   }
 
   .image-preview-button:hover .view-icon {

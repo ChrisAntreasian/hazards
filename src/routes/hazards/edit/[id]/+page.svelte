@@ -4,9 +4,11 @@
   import { logger } from "$lib/utils/logger.js";
   import ImageUpload from "$lib/components/ImageUpload.svelte";
   import MapLocationPicker from "$lib/components/MapLocationPicker.svelte";
+  import { MapLocationSearch } from "$lib/components/map";
   import ImageDeleteModal from "$lib/components/ImageDeleteModal.svelte";
   import type { PageData } from "./$types";
   import type { ImageUploadResult } from "$lib/types/images.js";
+  import type { Location } from "$lib/components/map/types";
   import { enhance } from "$app/forms";
   import { page } from "$app/stores";
 
@@ -24,26 +26,48 @@
   // Supabase setup
   const supabase = createSupabaseLoadClient();
 
-  // Form state pre-populated with existing hazard data
+  // Form state - initialize empty, populate in effect
   let formData = $state({
-    title: hazard.title,
-    description: hazard.description,
-    category_id: hazard.category_id || "",
-    severity_level: hazard.severity_level,
-    latitude: hazard.latitude.toString(),
-    longitude: hazard.longitude.toString(),
-    reported_active_date: hazard.reported_active_date 
-      ? new Date(hazard.reported_active_date).toISOString().split("T")[0]
-      : new Date().toISOString().split("T")[0],
-    is_seasonal: hazard.is_seasonal,
+    title: "",
+    description: "",
+    category_id: "",
+    severity_level: 1,
+    latitude: "",
+    longitude: "",
+    reported_active_date: new Date().toISOString().split("T")[0],
+    is_seasonal: false,
   });
 
   // Location and area state
   let currentLocation = $state<{ lat: number; lng: number }>({
-    lat: hazard.latitude,
-    lng: hazard.longitude
+    lat: 0,
+    lng: 0,
   });
-  let currentArea = $state<GeoJSON.Polygon | null>(hazard.area);
+  let currentArea = $state<GeoJSON.Polygon | null>(null);
+  let mapZoom = $state(13); // Track zoom level for map
+
+  // Initialize form data from hazard (runs once when hazard is available)
+  $effect(() => {
+    if (hazard) {
+      formData.title = hazard.title;
+      formData.description = hazard.description;
+      formData.category_id = hazard.category_id || "";
+      formData.severity_level = hazard.severity_level;
+      formData.latitude = hazard.latitude.toString();
+      formData.longitude = hazard.longitude.toString();
+      formData.reported_active_date = hazard.reported_active_date
+        ? new Date(hazard.reported_active_date).toISOString().split("T")[0]
+        : new Date().toISOString().split("T")[0];
+      formData.is_seasonal = hazard.is_seasonal;
+
+      currentLocation = {
+        lat: hazard.latitude,
+        lng: hazard.longitude,
+      };
+      currentArea = hazard.area;
+      mapZoom = hazard.zoom || 13; // Initialize zoom from saved value
+    }
+  });
   let uploadedImages = $state<string[]>([]);
   let loading = $state(false);
   let error = $state("");
@@ -60,9 +84,23 @@
     formData.longitude = location.lng.toString();
   };
 
+  // Handle location search results
+  const handleLocationSearch = (location: Location, zoom?: number) => {
+    currentLocation = location;
+    formData.latitude = location.lat.toString();
+    formData.longitude = location.lng.toString();
+    // Update zoom if provided, otherwise use reasonable default
+    mapZoom = zoom || 13;
+  };
+
   // Handle area changes from MapLocationPicker
   const handleAreaChange = (area: GeoJSON.Polygon | null) => {
     currentArea = area;
+  };
+
+  // Handle zoom changes from MapLocationPicker
+  const handleZoomChange = (newZoom: number) => {
+    mapZoom = newZoom;
   };
 
   // Handle successful image uploads
@@ -77,41 +115,6 @@
   const handleImageError = (event: CustomEvent<{ message: string }>) => {
     error = `Image upload failed: ${event.detail.message}`;
     setTimeout(() => (error = ""), 5000);
-  };
-
-  // Get user's current location
-  const getCurrentLocation = async () => {
-    if (!navigator.geolocation) {
-      error = "Geolocation is not supported by this browser";
-      return;
-    }
-
-    try {
-      const position = await new Promise<GeolocationPosition>(
-        (resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 300000, // 5 minutes
-          });
-        }
-      );
-
-      const location = {
-        lat: position.coords.latitude,
-        lng: position.coords.longitude,
-      };
-
-      currentLocation = location;
-      formData.latitude = location.lat.toString();
-      formData.longitude = location.lng.toString();
-
-      success = "Location updated successfully!";
-      setTimeout(() => (success = ""), 3000);
-    } catch (err) {
-      error = "Failed to get current location. Please enter coordinates manually.";
-      setTimeout(() => (error = ""), 5000);
-    }
   };
 
   // Handle form submission
@@ -130,7 +133,7 @@
     if (image) {
       imageToDelete = {
         id: imageId,
-        url: image.thumbnail_url || image.image_url
+        url: image.thumbnail_url || image.image_url,
       };
       showDeleteModal = true;
     }
@@ -139,13 +142,15 @@
   function handleDeleteConfirm(imageId: string) {
     // Remove the image from the hazard's image list locally
     if (hazard.hazard_images) {
-      hazard.hazard_images = hazard.hazard_images.filter((img: any) => img.id !== imageId);
+      hazard.hazard_images = hazard.hazard_images.filter(
+        (img: any) => img.id !== imageId
+      );
     }
-    
+
     // Close modal
     showDeleteModal = false;
     imageToDelete = null;
-    
+
     // Show success message
     success = "Image deleted successfully!";
     setTimeout(() => (success = ""), 3000);
@@ -165,14 +170,22 @@
 <div class="container">
   <div class="page-header">
     <h1>Edit Hazard Report</h1>
-    <p>Update the details of your hazard report. Changes will be reviewed before being published.</p>
+    <p>
+      Update the details of your hazard report. Changes will be reviewed before
+      being published.
+    </p>
   </div>
 
   <form
     class="hazard-form"
     method="POST"
     action="?/updateHazard"
-    use:enhance={() => {
+    use:enhance={({ formData: fd }) => {
+      console.log("Edit form submitting with mapZoom:", mapZoom);
+      // Manually ensure zoom is in the form data
+      fd.set("zoom", String(mapZoom));
+      console.log("Edit FormData zoom set to:", fd.get("zoom"));
+
       handleSubmit();
 
       return async ({ result, update }: { result: any; update: any }) => {
@@ -235,7 +248,8 @@
           <!-- Hierarchical category display -->
           {#each categories.filter((cat) => cat.level === 0) as mainCategory}
             <option value={mainCategory.id}>
-              {mainCategory.icon} {mainCategory.name}
+              {mainCategory.icon}
+              {mainCategory.name}
             </option>
             <!-- Level 1 subcategories -->
             {#each categories.filter((cat) => cat.level === 1 && cat.path.startsWith(mainCategory.path + "/")) as subCategory}
@@ -291,16 +305,30 @@
     <section class="form-section">
       <h2>Location & Area</h2>
       <p class="section-description">
-        Update the precise location where the hazard is located. Optionally, modify the affected area.
+        Update the precise location where the hazard is located. Optionally,
+        modify the affected area.
       </p>
+
+      <!-- Location Search -->
+      <div class="location-search-section">
+        <h4>Search for Location</h4>
+        <MapLocationSearch
+          onLocationFound={handleLocationSearch}
+          initialLocation={currentLocation}
+          showCurrentLocation={true}
+          placeholder="Search by address, city, zip code, or enter coordinates..."
+        />
+      </div>
 
       <!-- Map Location Picker -->
       <div class="map-container">
-        <MapLocationPicker 
+        <MapLocationPicker
           initialLocation={currentLocation}
           initialArea={currentArea}
+          zoom={mapZoom}
           onLocationChange={handleLocationChange}
           onAreaChange={handleAreaChange}
+          onZoomChange={handleZoomChange}
         />
       </div>
 
@@ -352,6 +380,7 @@
       <!-- Hidden inputs for form submission -->
       <input type="hidden" name="latitude" bind:value={formData.latitude} />
       <input type="hidden" name="longitude" bind:value={formData.longitude} />
+      <input type="hidden" name="zoom" value={mapZoom} />
       {#if currentArea}
         <input type="hidden" name="area" value={JSON.stringify(currentArea)} />
       {/if}
@@ -362,14 +391,15 @@
       <section class="form-section">
         <h2>Existing Images</h2>
         <p class="section-description">
-          Current images attached to this hazard. Click the X to remove an image.
+          Current images attached to this hazard. Click the X to remove an
+          image.
         </p>
-        
+
         <div class="existing-images-grid">
           {#each hazard.hazard_images as image}
             <div class="image-card">
               <div class="image-card-header">
-                <button 
+                <button
                   type="button"
                   class="remove-image-btn"
                   onclick={() => removeImage(image.id)}
@@ -380,14 +410,16 @@
                 </button>
               </div>
               <div class="image-preview-wrapper">
-                <img 
-                  src={image.thumbnail_url || image.image_url} 
+                <img
+                  src={image.thumbnail_url || image.image_url}
                   alt="Hazard scene"
                   loading="lazy"
                 />
               </div>
               <div class="image-card-footer">
-                <div class="image-status-badge status-{image.moderation_status}">
+                <div
+                  class="image-status-badge status-{image.moderation_status}"
+                >
                   {image.moderation_status}
                 </div>
                 <div class="image-date-small">
@@ -404,13 +436,17 @@
     <section class="form-section">
       <h2>Add New Images</h2>
       <p class="section-description">
-        Upload additional photos to help identify and locate the hazard. Images are reviewed before being published.
+        Upload additional photos to help identify and locate the hazard. Images
+        are reviewed before being published.
       </p>
 
       <ImageUpload
         hazardId={hazard.id}
         userId={user?.id || ""}
-        hazardLocation={currentLocation || { lat: hazard.latitude, lng: hazard.longitude }}
+        hazardLocation={currentLocation || {
+          lat: hazard.latitude,
+          lng: hazard.longitude,
+        }}
         supabaseClient={supabase}
         currentUser={user}
         on:upload={handleImageUpload}
@@ -465,11 +501,7 @@
       {/if}
 
       <div class="form-actions">
-        <button
-          type="button"
-          class="btn btn-secondary"
-          onclick={handleCancel}
-        >
+        <button type="button" class="btn btn-secondary" onclick={handleCancel}>
           Cancel
         </button>
         <button type="submit" class="btn btn-primary" disabled={loading}>
@@ -559,16 +591,22 @@
     margin-bottom: 0.5rem;
   }
 
-  input, textarea, select {
+  input,
+  textarea,
+  select {
     width: 100%;
     padding: 0.75rem;
     border: 1px solid #d1d5db;
     border-radius: 6px;
     font-size: 1rem;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    transition:
+      border-color 0.2s,
+      box-shadow 0.2s;
   }
 
-  input:focus, textarea:focus, select:focus {
+  input:focus,
+  textarea:focus,
+  select:focus {
     outline: none;
     border-color: var(--color-primary);
     box-shadow: 0 0 0 3px var(--color-primary-light);
@@ -609,6 +647,16 @@
   }
 
   /* Map and location styles */
+  .location-search-section {
+    margin-bottom: 1.5rem;
+  }
+
+  .location-search-section h4 {
+    margin-bottom: 0.75rem;
+    color: var(--color-text);
+    font-size: 1rem;
+  }
+
   .map-container {
     margin: 1.5rem 0;
     border: 1px solid var(--color-border);
@@ -656,7 +704,9 @@
     border: 1px solid #e2e8f0;
     overflow: hidden;
     position: relative;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition:
+      transform 0.2s,
+      box-shadow 0.2s;
   }
 
   .image-card:hover {

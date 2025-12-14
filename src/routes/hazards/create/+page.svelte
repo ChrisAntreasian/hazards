@@ -4,10 +4,15 @@
   import { logger } from "$lib/utils/logger.js";
   import ImageUpload from "$lib/components/ImageUpload.svelte";
   import MapLocationPicker from "$lib/components/MapLocationPicker.svelte";
+  import { MapLocationSearch } from "$lib/components/map";
+  import CategorySelector from "$lib/components/CategorySelector.svelte";
   import type { PageData } from "./$types";
   import type { ImageUploadResult } from "$lib/types/images.js";
+  import type { Location } from "$lib/components/map/types";
   import { enhance } from "$app/forms";
   import { page } from "$app/stores";
+  import type { ExpirationType, ExpirationSettings } from "$lib/types/database";
+  import type { CategorySuggestion } from "$lib/components/CategorySelector.svelte";
 
   interface Props {
     data: PageData;
@@ -22,6 +27,12 @@
 
   // Categories from server-side load
   let categories = $derived(data.categories || []);
+
+  // User trust score for category suggestions
+  let userTrustScore = $derived(data.userTrustScore || 0);
+
+  // Category suggestion state (for novel hazards)
+  let pendingSuggestion = $state<CategorySuggestion | null>(null);
 
   // Supabase setup
   const supabase = createSupabaseLoadClient();
@@ -38,14 +49,35 @@
     is_seasonal: false,
   });
 
+  // Expiration state
+  let expirationSettings = $state<ExpirationSettings | null>(null);
+  let selectedExpirationType = $state<ExpirationType>("user_resolvable");
+  let autoExpireDuration = $state<number>(24); // hours
+  let selectedSeasonalMonths = $state<number[]>([]);
+
+  const monthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+
   // Location and area state
   let currentLocation = $state<{ lat: number; lng: number } | null>(null);
   let currentArea = $state<GeoJSON.Polygon | null>(null);
+  let mapZoom = $state(13); // Track zoom level for map
   let uploadedImages = $state<string[]>([]);
   let loading = $state(false);
   let error = $state("");
   let success = $state("");
-  let locationLoading = $state(false);
 
   // Handle location changes from MapLocationPicker
   const handleLocationChange = (location: { lat: number; lng: number }) => {
@@ -54,57 +86,24 @@
     formData.longitude = location.lng.toString();
   };
 
+  // Handle location search results
+  const handleLocationSearch = (location: Location, zoom?: number) => {
+    currentLocation = location;
+    formData.latitude = location.lat.toString();
+    formData.longitude = location.lng.toString();
+    // Update zoom if provided, otherwise use reasonable default
+    mapZoom = zoom || 13;
+  };
+
   // Handle area changes from MapLocationPicker
   const handleAreaChange = (area: GeoJSON.Polygon | null) => {
     currentArea = area;
   };
 
-  // Get user's current location
-  const getCurrentLocation = async () => {
-    if (!navigator.geolocation) {
-      error = "Geolocation is not supported by this browser";
-      return;
-    }
-
-    locationLoading = true;
-    error = "";
-
-    try {
-      const position = await new Promise<GeolocationPosition>(
-        (resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 300000,
-          });
-        }
-      );
-
-      currentLocation = {
-        lat: position.coords.latitude,
-        lng: position.coords.longitude,
-      };
-
-      formData.latitude = position.coords.latitude.toString();
-      formData.longitude = position.coords.longitude.toString();
-
-      success = "Location acquired successfully!";
-      setTimeout(() => {
-        success = "";
-      }, 3000);
-    } catch (err: any) {
-      logger.warn("Geolocation failed", {
-        metadata: { errorMessage: err.message },
-      });
-      error = `Failed to get location: ${err.message || "Unknown error"}`;
-
-      // Default to Boston area as fallback
-      currentLocation = { lat: 42.3601, lng: -71.0589 };
-      formData.latitude = "42.3601";
-      formData.longitude = "-71.0589";
-    } finally {
-      locationLoading = false;
-    }
+  // Handle zoom changes from MapLocationPicker
+  const handleZoomChange = (newZoom: number) => {
+    console.log("Zoom changed to:", newZoom);
+    mapZoom = newZoom;
   };
 
   // Handle image upload results
@@ -114,7 +113,8 @@
   };
 
   const handleUploadError = (event: CustomEvent<{ message: string }>) => {
-    error = `Image upload failed: ${event.detail.message}`;
+    // Error is now handled by ImageUpload component's internal display
+    // No need to set page-level error
   };
 
   // Initialize
@@ -124,6 +124,104 @@
       supabase.auth.setSession(session);
     }
   });
+
+  // Load expiration settings when category changes
+  $effect(() => {
+    if (formData.category_id) {
+      loadExpirationSettings(formData.category_id);
+    }
+  });
+
+  async function loadExpirationSettings(categoryId: string) {
+    if (!supabase) return;
+
+    try {
+      const { data: settings, error } = await supabase
+        .from("expiration_settings")
+        .select("*")
+        .eq("category_id", categoryId)
+        .single();
+
+      if (settings && !error) {
+        expirationSettings = settings;
+        // Set defaults from settings
+        selectedExpirationType =
+          settings.default_expiration_type as ExpirationType;
+
+        if (settings.auto_expire_duration) {
+          // Parse interval string like "6 hours" or "2 days"
+          const match = settings.auto_expire_duration.match(
+            /(\d+)\s*(hour|day|week)/i
+          );
+          if (match) {
+            const value = parseInt(match[1]);
+            const unit = match[2].toLowerCase();
+            autoExpireDuration =
+              unit === "day"
+                ? value * 24
+                : unit === "week"
+                  ? value * 24 * 7
+                  : value;
+          }
+        }
+
+        if (settings.seasonal_pattern?.active_months) {
+          selectedSeasonalMonths = settings.seasonal_pattern.active_months;
+        }
+      } else {
+        // Load default settings
+        const { data: defaultSettings } = await supabase
+          .from("expiration_settings")
+          .select("*")
+          .eq("category_path", "default")
+          .single();
+
+        if (defaultSettings) {
+          expirationSettings = defaultSettings;
+          selectedExpirationType =
+            defaultSettings.default_expiration_type as ExpirationType;
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load expiration settings:", err);
+    }
+  }
+
+  function toggleSeasonalMonth(month: number) {
+    if (selectedSeasonalMonths.includes(month)) {
+      selectedSeasonalMonths = selectedSeasonalMonths.filter(
+        (m) => m !== month
+      );
+    } else {
+      selectedSeasonalMonths = [...selectedSeasonalMonths, month].sort(
+        (a, b) => a - b
+      );
+    }
+  }
+
+  // Handle category selection changes
+  function handleCategoryChange(categoryId: string | null) {
+    formData.category_id = categoryId || "";
+    // Clear any pending suggestion when a real category is selected
+    if (categoryId) {
+      pendingSuggestion = null;
+    }
+  }
+
+  // Handle category suggestion (for novel hazards)
+  function handleCategorySuggested(suggestion: CategorySuggestion) {
+    pendingSuggestion = suggestion;
+    // If a provisional category was created, use that ID
+    if (suggestion.provisionalCategoryId) {
+      formData.category_id = suggestion.provisionalCategoryId;
+    } else {
+      // Use the "Other" category as fallback for suggestions
+      const otherCategory = categories.find((c: any) => c.path === "other");
+      if (otherCategory) {
+        formData.category_id = otherCategory.id;
+      }
+    }
+  }
 </script>
 
 <svelte:head>
@@ -153,7 +251,45 @@
       class="hazard-form"
       method="POST"
       action="?/createHazard"
-      use:enhance={() => {
+      use:enhance={({ formData: fd }) => {
+        console.log("Form submitting with mapZoom:", mapZoom);
+        // Manually ensure zoom is in the form data
+        fd.set("zoom", String(mapZoom));
+        console.log("FormData zoom set to:", fd.get("zoom"));
+
+        // Add expiration data
+        fd.set("expiration_type", selectedExpirationType);
+
+        if (selectedExpirationType === "auto_expire") {
+          // Calculate expires_at timestamp
+          const expiresAt = new Date();
+          expiresAt.setHours(expiresAt.getHours() + autoExpireDuration);
+          fd.set("expires_at", expiresAt.toISOString());
+        } else if (
+          selectedExpirationType === "seasonal" &&
+          selectedSeasonalMonths.length > 0
+        ) {
+          fd.set(
+            "seasonal_pattern",
+            JSON.stringify({ active_months: selectedSeasonalMonths })
+          );
+        }
+
+        // Add suggested category data if present
+        if (pendingSuggestion && !pendingSuggestion.provisionalCategoryId) {
+          fd.set(
+            "suggested_category",
+            JSON.stringify({
+              name: pendingSuggestion.name,
+              path: pendingSuggestion.path,
+              parent_id: pendingSuggestion.parentId,
+              icon: pendingSuggestion.icon,
+              description: pendingSuggestion.description,
+              suggestion_id: pendingSuggestion.suggestionId,
+            })
+          );
+        }
+
         loading = true;
         error = "";
         success = "";
@@ -202,6 +338,14 @@
         value={uploadedImages.join(",")}
       />
 
+      <!-- Hidden field for map zoom level -->
+      <input
+        type="hidden"
+        name="zoom"
+        value={String(mapZoom)}
+        data-zoom={mapZoom}
+      />
+
       <!-- Basic Information -->
       <section class="form-section">
         <h2>Basic Information</h2>
@@ -232,34 +376,39 @@
 
         <div class="form-group">
           <label for="category">Category *</label>
-          <select
-            id="category"
+          <CategorySelector
+            {categories}
+            selectedCategoryId={formData.category_id || null}
+            {userTrustScore}
+            onCategoryChange={handleCategoryChange}
+            onCategorySuggested={handleCategorySuggested}
+          />
+          {#if pendingSuggestion}
+            <div class="suggestion-notice">
+              {#if pendingSuggestion.provisionalCategoryId}
+                <span class="badge badge-success">✓ Category Created</span>
+                <p>
+                  Your suggested category "<strong
+                    >{pendingSuggestion.name}</strong
+                  >" has been provisionally created and will be reviewed by
+                  moderators.
+                </p>
+              {:else}
+                <span class="badge badge-info">📝 Suggestion Pending</span>
+                <p>
+                  Your hazard will be filed under "Other" and linked to your
+                  suggested category "<strong>{pendingSuggestion.name}</strong>"
+                  for moderator review.
+                </p>
+              {/if}
+            </div>
+          {/if}
+          <!-- Hidden field for form submission -->
+          <input
+            type="hidden"
             name="category_id"
-            bind:value={formData.category_id}
-            required
-          >
-            <option value=""
-              >Select a category... ({categories.length} available)</option
-            >
-            <!-- Level 0 categories (main categories) -->
-            {#each categories.filter((cat) => cat.level === 0) as mainCategory}
-              <option value={mainCategory.id}
-                >{mainCategory.icon} {mainCategory.name}</option
-              >
-              <!-- Level 1 subcategories -->
-              {#each categories.filter((cat) => cat.level === 1 && cat.path.startsWith(mainCategory.path + "/")) as subCategory}
-                <option value={subCategory.id}>
-                  ↳ {subCategory.icon} {subCategory.name}</option
-                >
-                <!-- Level 2 sub-subcategories -->
-                {#each categories.filter((cat) => cat.level === 2 && cat.path.startsWith(subCategory.path + "/")) as subSubCategory}
-                  <option value={subSubCategory.id}>
-                    ↳ {subSubCategory.icon} {subSubCategory.name}</option
-                  >
-                {/each}
-              {/each}
-            {/each}
-          </select>
+            value={formData.category_id}
+          />
         </div>
 
         <div class="form-group">
@@ -300,83 +449,51 @@
       <section class="form-section">
         <h2>Location & Area</h2>
         <p class="section-description">
-          Set the precise location where the hazard is located. Optionally, draw an area to show the affected region.
+          Set the precise location where the hazard is located. Optionally, draw
+          an area to show the affected region.
         </p>
 
         <!-- Map Location Picker -->
         <div class="map-container">
           {#if currentLocation}
-            <MapLocationPicker 
+            <MapLocationPicker
               initialLocation={currentLocation}
               initialArea={currentArea}
+              zoom={mapZoom}
               onLocationChange={handleLocationChange}
               onAreaChange={handleAreaChange}
+              onZoomChange={handleZoomChange}
             />
           {:else}
             <div class="location-prompt">
-              <p>Please get your current location or enter coordinates manually to enable the map.</p>
-              <button
-                type="button"
-                class="btn btn-primary"
-                onclick={getCurrentLocation}
-                disabled={locationLoading}
-              >
-                {locationLoading ? "Getting Location..." : "📍 Get Current Location"}
-              </button>
+              <p>
+                Please use the location search below to set a location and
+                enable the map.
+              </p>
             </div>
           {/if}
         </div>
 
-        <!-- Manual coordinate entry (fallback) -->
-        <details class="manual-coordinates">
-          <summary>Or enter coordinates manually</summary>
-          <div class="form-row">
-            <div class="form-group">
-              <label for="latitude">Latitude *</label>
-              <input
-                id="latitude"
-                name="latitude"
-                type="number"
-                step="any"
-                bind:value={formData.latitude}
-                placeholder="42.3601"
-                required
-                onchange={() => {
-                  const lat = parseFloat(formData.latitude);
-                  const lng = parseFloat(formData.longitude);
-                  if (!isNaN(lat) && !isNaN(lng)) {
-                    currentLocation = { lat, lng };
-                  }
-                }}
-              />
-            </div>
-            <div class="form-group">
-              <label for="longitude">Longitude *</label>
-              <input
-                id="longitude"
-                name="longitude"
-                type="number"
-                step="any"
-                bind:value={formData.longitude}
-                placeholder="-71.0589"
-                required
-                onchange={() => {
-                  const lat = parseFloat(formData.latitude);
-                  const lng = parseFloat(formData.longitude);
-                  if (!isNaN(lat) && !isNaN(lng)) {
-                    currentLocation = { lat, lng };
-                  }
-                }}
-              />
-            </div>
-          </div>
-        </details>
+        <!-- Location Search -->
+        <div class="location-search-section">
+          <h3>Search for Location</h3>
+          <MapLocationSearch
+            onLocationFound={handleLocationSearch}
+            initialLocation={currentLocation || undefined}
+            showCurrentLocation={true}
+            placeholder="Search by address, city, zip code, or enter coordinates..."
+          />
+        </div>
 
         <!-- Hidden inputs for form submission -->
         <input type="hidden" name="latitude" bind:value={formData.latitude} />
         <input type="hidden" name="longitude" bind:value={formData.longitude} />
         {#if currentArea}
-          <input type="hidden" name="area" value={JSON.stringify(currentArea)} />
+          <input
+            type="hidden"
+            name="area"
+            value={JSON.stringify(currentArea)}
+          />
         {/if}
       </section>
 
@@ -404,6 +521,167 @@
             This is a seasonal hazard (recurring annually)
           </label>
         </div>
+      </section>
+
+      <!-- Expiration Settings -->
+      <section class="form-section">
+        <h2>Expiration & Resolution</h2>
+        <p class="section-description">
+          Choose how this hazard should expire or be resolved. Default settings
+          are based on the selected category.
+        </p>
+
+        <div class="expiration-types">
+          <!-- Auto Expire -->
+          <label class="expiration-option">
+            <input
+              type="radio"
+              name="expiration_type"
+              value="auto_expire"
+              bind:group={selectedExpirationType}
+            />
+            <div class="option-content">
+              <div class="option-header">
+                <span class="option-icon">⏰</span>
+                <span class="option-title">Auto-Expire</span>
+              </div>
+              <p class="option-description">
+                Automatically expires after a set time (for temporary conditions
+                like weather)
+              </p>
+
+              {#if selectedExpirationType === "auto_expire"}
+                <div class="option-settings">
+                  <label for="auto-expire-duration">Expires in:</label>
+                  <div class="duration-input">
+                    <input
+                      id="auto-expire-duration"
+                      type="number"
+                      min="1"
+                      max="168"
+                      bind:value={autoExpireDuration}
+                      class="duration-number"
+                    />
+                    <span>hours</span>
+                  </div>
+                  <p class="hint">
+                    Typical: Thunderstorm (6h), Ice (24h), Flood (72h)
+                  </p>
+                </div>
+              {/if}
+            </div>
+          </label>
+
+          <!-- User Resolvable -->
+          <label class="expiration-option">
+            <input
+              type="radio"
+              name="expiration_type"
+              value="user_resolvable"
+              bind:group={selectedExpirationType}
+            />
+            <div class="option-content">
+              <div class="option-header">
+                <span class="option-icon">✓</span>
+                <span class="option-title">User Resolvable</span>
+                {#if expirationSettings?.default_expiration_type === "user_resolvable"}
+                  <span class="default-badge">Recommended</span>
+                {/if}
+              </div>
+              <p class="option-description">
+                Requires users to report when resolved (for fixable issues like
+                road closures)
+              </p>
+            </div>
+          </label>
+
+          <!-- Permanent -->
+          <label class="expiration-option">
+            <input
+              type="radio"
+              name="expiration_type"
+              value="permanent"
+              bind:group={selectedExpirationType}
+            />
+            <div class="option-content">
+              <div class="option-header">
+                <span class="option-icon">∞</span>
+                <span class="option-title">Permanent</span>
+              </div>
+              <p class="option-description">
+                Never expires (for permanent features like terrain or plants)
+              </p>
+            </div>
+          </label>
+
+          <!-- Seasonal -->
+          <label class="expiration-option">
+            <input
+              type="radio"
+              name="expiration_type"
+              value="seasonal"
+              bind:group={selectedExpirationType}
+            />
+            <div class="option-content">
+              <div class="option-header">
+                <span class="option-icon">🌿</span>
+                <span class="option-title">Seasonal</span>
+              </div>
+              <p class="option-description">
+                Active only during specific months (for recurring seasonal
+                hazards)
+              </p>
+
+              {#if selectedExpirationType === "seasonal"}
+                <div class="option-settings">
+                  <div class="field-label">Active months:</div>
+                  <div class="month-selector">
+                    {#each monthNames as month, index}
+                      <button
+                        type="button"
+                        class="month-button"
+                        class:selected={selectedSeasonalMonths.includes(
+                          index + 1
+                        )}
+                        onclick={() => toggleSeasonalMonth(index + 1)}
+                      >
+                        {month.substring(0, 3)}
+                      </button>
+                    {/each}
+                  </div>
+                  {#if selectedSeasonalMonths.length === 0}
+                    <p class="hint error">
+                      ⚠ Please select at least one active month
+                    </p>
+                  {:else}
+                    <p class="hint">
+                      Active: {selectedSeasonalMonths
+                        .map((m) => monthNames[m - 1])
+                        .join(", ")}
+                    </p>
+                  {/if}
+                </div>
+              {/if}
+            </div>
+          </label>
+        </div>
+
+        {#if expirationSettings}
+          <div class="settings-info">
+            <p class="text-sm text-gray-600">
+              📋 Default for this category: <strong
+                >{expirationSettings.default_expiration_type.replace(
+                  "_",
+                  " "
+                )}</strong
+              >
+              {#if expirationSettings.confirmation_threshold}
+                • Resolution threshold: {expirationSettings.confirmation_threshold}
+                confirmations
+              {/if}
+            </p>
+          </div>
+        {/if}
       </section>
 
       <!-- Image Upload -->
@@ -520,12 +798,6 @@
     margin-bottom: 1.5rem;
   }
 
-  .form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-  }
-
   label {
     display: block;
     font-weight: 500;
@@ -534,7 +806,6 @@
   }
 
   input,
-  select,
   textarea {
     width: 100%;
     padding: 0.75rem;
@@ -545,7 +816,6 @@
   }
 
   input:focus,
-  select:focus,
   textarea:focus {
     outline: none;
     border-color: var(--color-primary);
@@ -569,20 +839,6 @@
     text-align: center;
     font-size: 1rem;
     color: #374151;
-  }
-
-  .location-controls {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-    flex-wrap: wrap;
-  }
-
-  .location-status {
-    color: var(--color-success);
-    font-size: 0.9rem;
-    font-weight: 500;
   }
 
   .checkbox-label {
@@ -680,16 +936,6 @@
       padding: 1.5rem;
     }
 
-    .form-row {
-      grid-template-columns: 1fr;
-      gap: 0.75rem;
-    }
-
-    .location-controls {
-      flex-direction: column;
-      align-items: stretch;
-    }
-
     .form-actions {
       flex-direction: column;
     }
@@ -721,36 +967,210 @@
     font-size: 1.1rem;
   }
 
-  .manual-coordinates {
+  .location-search-section {
     margin-top: 1rem;
-    border: 1px solid var(--color-border);
-    border-radius: 6px;
-    padding: 0;
+    margin-bottom: 1.5rem;
   }
 
-  .manual-coordinates summary {
-    padding: 1rem;
-    background: var(--color-bg-muted);
-    cursor: pointer;
-    font-weight: 500;
-    color: var(--color-text-secondary);
-  }
-
-  .manual-coordinates summary:hover {
-    background: var(--color-bg-tertiary);
-  }
-
-  .manual-coordinates[open] summary {
-    border-bottom: 1px solid var(--color-border);
-  }
-
-  .manual-coordinates .form-row {
-    padding: 1rem;
+  .location-search-section h3 {
+    font-size: 1.1rem;
+    color: var(--color-text);
+    margin-bottom: 0.75rem;
+    font-weight: 600;
   }
 
   .section-description {
     color: var(--color-text-secondary);
     margin-bottom: 1.5rem;
     font-size: 0.95rem;
+  }
+
+  /* Expiration Settings Styles */
+  .expiration-types {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .expiration-option {
+    display: flex;
+    gap: 1rem;
+    padding: 1.25rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .expiration-option:hover {
+    border-color: #3b82f6;
+    background: #f8fafc;
+  }
+
+  .expiration-option:has(input:checked) {
+    border-color: #3b82f6;
+    background: #eff6ff;
+  }
+
+  .expiration-option input[type="radio"] {
+    width: auto;
+    margin-top: 0.25rem;
+    cursor: pointer;
+  }
+
+  .option-content {
+    flex: 1;
+  }
+
+  .option-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .option-icon {
+    font-size: 1.25rem;
+  }
+
+  .option-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: #1e293b;
+  }
+
+  .default-badge {
+    padding: 0.125rem 0.5rem;
+    background: #dcfce7;
+    color: #166534;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  .option-description {
+    color: #64748b;
+    font-size: 0.9rem;
+    margin: 0;
+  }
+
+  .option-settings {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+  }
+
+  .option-settings label {
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .duration-input {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .duration-number {
+    width: 100px;
+    padding: 0.5rem;
+  }
+
+  .month-selector {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+
+  .month-button {
+    padding: 0.5rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 6px;
+    background: white;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+  }
+
+  .month-button:hover {
+    border-color: #3b82f6;
+    background: #f8fafc;
+  }
+
+  .month-button.selected {
+    border-color: #3b82f6;
+    background: #3b82f6;
+    color: white;
+    font-weight: 600;
+  }
+
+  .hint {
+    font-size: 0.85rem;
+    color: #64748b;
+    margin-top: 0.5rem;
+    font-style: italic;
+  }
+
+  .hint.error {
+    color: #dc2626;
+  }
+
+  .settings-info {
+    padding: 1rem;
+    background: #f8fafc;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+  }
+
+  .text-sm {
+    font-size: 0.875rem;
+  }
+
+  .text-gray-600 {
+    color: #64748b;
+  }
+
+  @media (max-width: 768px) {
+    .month-selector {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  /* Category suggestion notice styles */
+  .suggestion-notice {
+    margin-top: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+  }
+
+  .suggestion-notice p {
+    margin: 0.5rem 0 0 0;
+    font-size: 0.9rem;
+    color: #0369a1;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .badge-success {
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  .badge-info {
+    background: #dbeafe;
+    color: #1e40af;
   }
 </style>

@@ -9,19 +9,19 @@
   let { data }: Props = $props();
 
   // Component state for map modes
-  let mapMode = $state<'view' | 'reposition' | 'draw'>('view');
+  let mapMode = $state<"view" | "reposition" | "draw">("view");
   let currentLocation = $state(data.initialLocation);
   let currentArea = $state<GeoJSON.Polygon | null>(null);
 
   // Event handlers for MapLocationPicker
   const handleLocationChange = (newLocation: { lat: number; lng: number }) => {
     currentLocation = newLocation;
-    console.log('Location updated:', newLocation);
+    console.log("Location updated:", newLocation);
   };
 
   const handleAreaChange = (area: GeoJSON.Polygon | null) => {
     currentArea = area;
-    console.log('Area updated:', area);
+    console.log("Area updated:", area);
   };
 
   // Get user's current location
@@ -48,9 +48,9 @@
       };
 
       currentLocation = newLocation;
-      console.log('Current location acquired:', newLocation);
+      console.log("Current location acquired:", newLocation);
     } catch (err: any) {
-      console.error('Failed to get location:', err.message);
+      console.error("Failed to get location:", err.message);
       // Keep default Boston location
     }
   };
@@ -58,7 +58,10 @@
 
 <svelte:head>
   <title>Map Location Picker - Development</title>
-  <meta name="description" content="Development testing for interactive map location picker" />
+  <meta
+    name="description"
+    content="Development testing for interactive map location picker"
+  />
 </svelte:head>
 
 <div class="dev-page">
@@ -67,36 +70,40 @@
     <p class="dev-description">
       Testing interactive map location and area drawing functionality
     </p>
-    
+
     <div class="dev-info">
-      <strong>Current Location:</strong> {currentLocation.lat.toFixed(4)}, {currentLocation.lng.toFixed(4)}
-      <br>
-      <strong>Has Area:</strong> {currentArea ? 'Yes' : 'No'}
+      <strong>Current Location:</strong>
+      {currentLocation.lat.toFixed(4)}, {currentLocation.lng.toFixed(4)}
+      <br />
+      <strong>Has Area:</strong>
+      {currentArea ? "Yes" : "No"}
       {#if currentArea}
-        <br>
-        <strong>Area Vertices:</strong> {currentArea.coordinates[0]?.length || 0}
+        <br />
+        <strong>Area Vertices:</strong>
+        {currentArea.coordinates[0]?.length || 0}
       {/if}
     </div>
   </div>
 
   <div class="location-controls">
-    <button
-      class="btn btn-secondary"
-      onclick={getCurrentLocation}
-    >
+    <button class="btn btn-secondary" onclick={getCurrentLocation}>
       📍 Get Current Location
     </button>
-    
+
     <button
       class="btn btn-primary"
-      onclick={() => console.log('Debug: Map element', document.querySelector('.map-container'))}
+      onclick={() =>
+        console.log(
+          "Debug: Map element",
+          document.querySelector(".map-container")
+        )}
     >
       🐛 Debug Map Container
     </button>
   </div>
 
   <div class="map-container">
-    <MapLocationPicker 
+    <MapLocationPicker
       initialLocation={currentLocation}
       initialArea={currentArea}
       height="600px"

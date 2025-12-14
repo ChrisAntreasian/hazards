@@ -1,6 +1,7 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import { logger } from '$lib/utils/logger';
+import { filterExpiredHazards } from '$lib/utils/expiration';
 
 export const load: PageServerLoad = async ({ locals: { supabase } }) => {
 	try {
@@ -25,7 +26,10 @@ export const load: PageServerLoad = async ({ locals: { supabase } }) => {
 				severity_level,
 				status,
 				created_at,
-				category_id
+				category_id,
+				expiration_type,
+				expires_at,
+				resolved_at
 			`)
 			.eq('status', 'approved')  // Only show approved hazards on the map
 			.not('latitude', 'is', null)  // Only hazards with location data
@@ -59,11 +63,12 @@ export const load: PageServerLoad = async ({ locals: { supabase } }) => {
 			categoryMap.set(category.id, category.name);
 		});
 
-		// Transform the data to include category name at the top level
-		const hazardsWithDetails = hazards?.map(hazard => ({
+		// Filter out expired hazards and add category names
+		const activeHazards = filterExpiredHazards(hazards || []);
+		const hazardsWithDetails = activeHazards.map(hazard => ({
 			...hazard,
 			category_name: categoryMap.get(hazard.category_id) || 'Unknown'
-		})) || [];
+		}));
 
 		return {
 			hazards: hazardsWithDetails

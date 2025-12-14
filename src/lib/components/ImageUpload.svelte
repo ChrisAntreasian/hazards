@@ -96,6 +96,8 @@
   let dragOver = $state(false);
   let uploadResults: Array<{ file: string; success: boolean; error?: string }> =
     $state([]);
+  let successfulUploads: Array<{ name: string; url: string; id: string }> =
+    $state([]);
   let showToast = $state(false);
   let toastMessage = $state("");
   let toastType: "success" | "error" | "info" = $state("info");
@@ -152,8 +154,9 @@
   const addFilesToQueue = (files: File[]) => {
     if (disabled || isUploading) return;
 
-    // Reset previous results
+    // Reset previous results and errors
     uploadResults = [];
+    showToast = false;
 
     // Validate file types and sizes
     const validFiles: File[] = [];
@@ -219,6 +222,7 @@
     isUploading = true;
     uploadProgress = {};
     uploadResults = [];
+    showToast = false; // Clear any previous errors/messages
 
     showToastMessage(
       `Starting upload of ${uploadQueue.length} image(s)...`,
@@ -231,7 +235,7 @@
     try {
       for (let i = 0; i < uploadQueue.length; i++) {
         const file = uploadQueue[i];
-        const fileId = `${file.name}-${Date.now()}`;
+        const fileId = `${file.name}-${i}`;
 
         try {
           // Reset progress for this file
@@ -271,6 +275,11 @@
           dispatch("upload", result);
 
           uploadResults.push({ file: file.name, success: true });
+          successfulUploads.push({
+            name: file.name,
+            url: result.thumbnailUrl || result.originalUrl,
+            id: result.id,
+          });
           successCount++;
         } catch (error) {
           console.error(`Failed to upload ${file.name}:`, error);
@@ -409,7 +418,7 @@
 
       <div class="queue-list">
         {#each uploadQueue as file, index}
-          {@const fileId = `${file.name}-${Date.now()}`}
+          {@const fileId = `${file.name}-${index}`}
           {@const progress = uploadProgress[fileId] || 0}
 
           <div class="queue-item">
@@ -453,29 +462,39 @@
     </div>
   {/if}
 
-  <!-- Upload Results -->
-  {#if uploadResults.length > 0}
+  <!-- Uploaded Images Gallery -->
+  {#if successfulUploads.length > 0}
+    <div class="uploaded-gallery">
+      <h4>Uploaded Images ({successfulUploads.length}):</h4>
+      <div class="uploaded-grid">
+        {#each successfulUploads as upload (upload.id)}
+          <div class="uploaded-item">
+            <div class="uploaded-preview">
+              <img src={upload.url} alt={upload.name} loading="lazy" />
+            </div>
+            <div class="uploaded-info">
+              <span class="uploaded-name">{upload.name}</span>
+              <span class="uploaded-status">✓ Uploaded</span>
+            </div>
+          </div>
+        {/each}
+      </div>
+    </div>
+  {/if}
+
+  <!-- Upload Errors Only -->
+  {#if uploadResults.some((r) => !r.success)}
     <div class="upload-results">
-      <h4>Upload Results:</h4>
+      <h4>Upload Errors:</h4>
       <div class="results-list">
-        {#each uploadResults as result}
-          <div
-            class="result-item"
-            class:success={result.success}
-            class:error={!result.success}
-          >
+        {#each uploadResults.filter((r) => !r.success) as result}
+          <div class="result-item error">
             <div class="result-icon">
-              {#if result.success}
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <polyline points="20,6 9,17 4,12" />
-                </svg>
-              {:else}
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="15" y1="9" x2="9" y2="15" />
-                  <line x1="9" y1="9" x2="15" y2="15" />
-                </svg>
-              {/if}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="15" y1="9" x2="9" y2="15" />
+                <line x1="9" y1="9" x2="15" y2="15" />
+              </svg>
             </div>
             <div class="result-details">
               <span class="file-name">{result.file}</span>
@@ -797,20 +816,96 @@
     }
   }
 
-  /* Upload Results */
+  /* Uploaded Images Gallery */
+  .uploaded-gallery {
+    margin-top: 1.5rem;
+  }
+
+  .uploaded-gallery h4 {
+    margin: 0 0 1rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #15803d;
+  }
+
+  .uploaded-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .uploaded-item {
+    background: white;
+    border-radius: 12px;
+    border: 2px solid #86efac;
+    overflow: hidden;
+    transition:
+      transform 0.2s,
+      box-shadow 0.2s;
+  }
+
+  .uploaded-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  }
+
+  .uploaded-preview {
+    width: 100%;
+    height: 200px;
+    overflow: hidden;
+    background: #f8fafc;
+  }
+
+  .uploaded-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .uploaded-info {
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    background: #f0fdf4;
+    border-top: 1px solid #86efac;
+  }
+
+  .uploaded-name {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .uploaded-status {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    text-align: center;
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  /* Upload Errors */
   .upload-results {
     margin-top: 1rem;
     padding: 1rem;
-    background: #f9fafb;
+    background: #fef2f2;
     border-radius: 8px;
-    border: 1px solid #e5e7eb;
+    border: 1px solid #fecaca;
   }
 
   .upload-results h4 {
     margin: 0 0 0.75rem 0;
     font-size: 0.875rem;
     font-weight: 600;
-    color: #374151;
+    color: #dc2626;
   }
 
   .results-list {
@@ -829,11 +924,6 @@
     border: 1px solid #e5e7eb;
   }
 
-  .result-item.success {
-    border-color: #10b981;
-    background: #ecfdf5;
-  }
-
   .result-item.error {
     border-color: #ef4444;
     background: #fef2f2;
@@ -843,13 +933,6 @@
     width: 1.25rem;
     height: 1.25rem;
     flex-shrink: 0;
-  }
-
-  .result-item.success .result-icon {
-    color: #10b981;
-  }
-
-  .result-item.error .result-icon {
     color: #ef4444;
   }
 
