@@ -19,7 +19,8 @@
     onCancel?: () => void;
   }
 
-  let { hazardId, userId, session, user, onSuccess, onCancel }: Props = $props();
+  let { hazardId, userId, session, user, onSuccess, onCancel }: Props =
+    $props();
 
   const supabase = createSupabaseLoadClient();
 

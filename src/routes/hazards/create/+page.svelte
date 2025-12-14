@@ -27,10 +27,10 @@
 
   // Categories from server-side load
   let categories = $derived(data.categories || []);
-  
+
   // User trust score for category suggestions
   let userTrustScore = $derived(data.userTrustScore || 0);
-  
+
   // Category suggestion state (for novel hazards)
   let pendingSuggestion = $state<CategorySuggestion | null>(null);
 
@@ -198,7 +198,7 @@
       );
     }
   }
-  
+
   // Handle category selection changes
   function handleCategoryChange(categoryId: string | null) {
     formData.category_id = categoryId || "";
@@ -207,7 +207,7 @@
       pendingSuggestion = null;
     }
   }
-  
+
   // Handle category suggestion (for novel hazards)
   function handleCategorySuggested(suggestion: CategorySuggestion) {
     pendingSuggestion = suggestion;
@@ -216,7 +216,7 @@
       formData.category_id = suggestion.provisionalCategoryId;
     } else {
       // Use the "Other" category as fallback for suggestions
-      const otherCategory = categories.find((c: any) => c.path === 'other');
+      const otherCategory = categories.find((c: any) => c.path === "other");
       if (otherCategory) {
         formData.category_id = otherCategory.id;
       }
@@ -274,17 +274,20 @@
             JSON.stringify({ active_months: selectedSeasonalMonths })
           );
         }
-        
+
         // Add suggested category data if present
         if (pendingSuggestion && !pendingSuggestion.provisionalCategoryId) {
-          fd.set("suggested_category", JSON.stringify({
-            name: pendingSuggestion.name,
-            path: pendingSuggestion.path,
-            parent_id: pendingSuggestion.parentId,
-            icon: pendingSuggestion.icon,
-            description: pendingSuggestion.description,
-            suggestion_id: pendingSuggestion.suggestionId
-          }));
+          fd.set(
+            "suggested_category",
+            JSON.stringify({
+              name: pendingSuggestion.name,
+              path: pendingSuggestion.path,
+              parent_id: pendingSuggestion.parentId,
+              icon: pendingSuggestion.icon,
+              description: pendingSuggestion.description,
+              suggestion_id: pendingSuggestion.suggestionId,
+            })
+          );
         }
 
         loading = true;
@@ -384,15 +387,28 @@
             <div class="suggestion-notice">
               {#if pendingSuggestion.provisionalCategoryId}
                 <span class="badge badge-success">✓ Category Created</span>
-                <p>Your suggested category "<strong>{pendingSuggestion.name}</strong>" has been provisionally created and will be reviewed by moderators.</p>
+                <p>
+                  Your suggested category "<strong
+                    >{pendingSuggestion.name}</strong
+                  >" has been provisionally created and will be reviewed by
+                  moderators.
+                </p>
               {:else}
                 <span class="badge badge-info">📝 Suggestion Pending</span>
-                <p>Your hazard will be filed under "Other" and linked to your suggested category "<strong>{pendingSuggestion.name}</strong>" for moderator review.</p>
+                <p>
+                  Your hazard will be filed under "Other" and linked to your
+                  suggested category "<strong>{pendingSuggestion.name}</strong>"
+                  for moderator review.
+                </p>
               {/if}
             </div>
           {/if}
           <!-- Hidden field for form submission -->
-          <input type="hidden" name="category_id" value={formData.category_id} />
+          <input
+            type="hidden"
+            name="category_id"
+            value={formData.category_id}
+          />
         </div>
 
         <div class="form-group">

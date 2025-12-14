@@ -1,72 +1,46 @@
 <script lang="ts">
   import type { PageData } from "./$types";
+  import { NavigationGrid, Breadcrumbs } from '$lib/components/learn';
+  import type { BreadcrumbItem } from '$lib/utils/learn-navigation';
   
-  export let data: PageData;
+  let { data }: { data: PageData } = $props();
   
-  const categories = [
-    {
-      id: "plants",
-      name: "Plants",
-      icon: "🌿",
-      description: "Poisonous plants, thorns, and allergenic species",
-      color: "from-green-500 to-emerald-600",
-      hazardCount: data.contentList?.plants ? Object.keys(data.contentList.plants).length : 0
-    },
-    {
-      id: "insects",
-      name: "Insects",
-      icon: "🐛",
-      description: "Biting, stinging, and disease-carrying insects",
-      color: "from-amber-500 to-orange-600",
-      hazardCount: data.contentList?.insects ? Object.keys(data.contentList.insects).length : 0
-    },
-    {
-      id: "animals",
-      name: "Animals",
-      icon: "🐻",
-      description: "Wildlife encounters and dangerous animals",
-      color: "from-red-500 to-rose-600",
-      hazardCount: data.contentList?.animals ? Object.keys(data.contentList.animals).length : 0
-    },
-    {
-      id: "terrain",
-      name: "Terrain",
-      icon: "⛰️",
-      description: "Unstable ground, cliffs, and terrain hazards",
-      color: "from-slate-500 to-gray-600",
-      hazardCount: data.contentList?.terrain ? Object.keys(data.contentList.terrain).length : 0
-    }
+  // Category color mapping for gradients
+  const categoryColors: Record<string, string> = {
+    plants: 'from-green-500 to-emerald-600',
+    insects: 'from-amber-500 to-orange-600',
+    animals: 'from-red-500 to-rose-600',
+    terrain: 'from-slate-500 to-gray-600',
+    weather: 'from-blue-500 to-cyan-600',
+    ice: 'from-cyan-400 to-blue-500',
+    other: 'from-purple-500 to-indigo-600'
+  };
+
+  // Breadcrumbs for root page
+  const breadcrumbs: BreadcrumbItem[] = [
+    { label: 'Learning Center', href: null, isCurrentPage: true }
   ];
-  
-  // Get featured hazards (first few from data)
-  const featuredHazards = [];
-  if (data.contentList) {
-    for (const [category, subcategories] of Object.entries(data.contentList)) {
-      for (const [subcategory, hazards] of Object.entries(subcategories as any)) {
-        if (Array.isArray(hazards) && hazards.length > 0) {
-          featuredHazards.push({
-            name: hazards[0],
-            category,
-            subcategory,
-            displayName: hazards[0].replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
-          });
-          if (featuredHazards.length >= 3) break;
-        }
-      }
-      if (featuredHazards.length >= 3) break;
-    }
-  }
+
+  // Enrich categories with colors
+  const enrichedCategories = $derived(
+    data.categories.map(cat => ({
+      ...cat,
+      color: categoryColors[cat.path] || 'from-blue-500 to-indigo-600'
+    }))
+  );
 </script>
 
 <svelte:head>
-  <title>Learn About Hazards - Educational Content</title>
-  <meta name="description" content="Browse comprehensive guides on outdoor hazards. Learn to identify, prevent, and respond to dangerous plants, insects, animals, and terrain." />
+  <title>Learning Center - Hazard Education</title>
+  <meta name="description" content="Browse comprehensive guides on outdoor hazards. Learn to identify, prevent, and respond to dangerous plants, insects, animals, terrain, and weather." />
 </svelte:head>
 
 <div class="learn-page">
+  <Breadcrumbs items={breadcrumbs} />
+
   <!-- Hero Section -->
   <section class="hero">
-    <h1>📚 Educational Content</h1>
+    <h1>📚 Learning Center</h1>
     <p class="hero-subtitle">
       Comprehensive guides to help you identify, prevent, and respond to outdoor hazards
     </p>
@@ -75,74 +49,66 @@
   <!-- Category Grid -->
   <section class="categories-section">
     <h2>Browse by Category</h2>
-    <div class="categories-grid">
-      {#each categories as category}
-        <a href="/learn/{category.id}" class="category-card">
-          <div class="category-header bg-gradient-to-br {category.color}">
-            <span class="category-icon">{category.icon}</span>
-          </div>
-          <div class="category-body">
-            <h3>{category.name}</h3>
-            <p>{category.description}</p>
-            <div class="category-meta">
-              <span class="hazard-count">{category.hazardCount} hazard{category.hazardCount !== 1 ? 's' : ''}</span>
-              <span class="view-link">View all →</span>
+    
+    {#if enrichedCategories.length > 0}
+      <div class="categories-grid">
+        {#each enrichedCategories as category}
+          <a href="/learn/{category.path}" class="category-card">
+            <div class="category-header bg-gradient-to-br {category.color}">
+              <span class="category-icon">{category.icon}</span>
             </div>
-          </div>
-        </a>
-      {/each}
-    </div>
-  </section>
-
-  <!-- Featured Hazards -->
-  {#if featuredHazards.length > 0}
-    <section class="featured-section">
-      <h2>Featured Guides</h2>
-      <div class="featured-grid">
-        {#each featuredHazards as hazard}
-          <a href="/learn/{hazard.category}/{hazard.subcategory}/{hazard.name}" class="featured-card">
-            <div class="featured-content">
-              <h3>{hazard.displayName}</h3>
-              <p class="featured-category">{hazard.category.charAt(0).toUpperCase() + hazard.category.slice(1)} → {hazard.subcategory.replace(/_/g, ' ')}</p>
-              <span class="read-more">Read guide →</span>
+            <div class="category-body">
+              <h3>{category.name}</h3>
+              <p>{category.short_description || category.description || `Learn about ${category.name.toLowerCase()} hazards`}</p>
+              <div class="category-meta">
+                <div class="counts">
+                  {#if category.child_count > 0}
+                    <span class="count">{category.child_count} subcategor{category.child_count === 1 ? 'y' : 'ies'}</span>
+                  {/if}
+                  {#if category.template_count > 0}
+                    <span class="count">{category.template_count} guide{category.template_count === 1 ? '' : 's'}</span>
+                  {/if}
+                </div>
+                <span class="view-link">Explore →</span>
+              </div>
             </div>
           </a>
         {/each}
       </div>
-    </section>
-  {/if}
+    {:else}
+      <div class="empty-state">
+        <p>No categories available yet.</p>
+      </div>
+    {/if}
+  </section>
 
   <!-- Quick Stats -->
-  <section class="stats-section">
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-value">{Object.keys(data.contentList || {}).length}</div>
-        <div class="stat-label">Categories</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value">
-          {Object.values(data.contentList || {}).reduce((total, subcats: any) => {
-            return total + Object.values(subcats).reduce((subtotal, hazards: any) => {
-              return subtotal + (Array.isArray(hazards) ? hazards.length : 0);
-            }, 0);
-          }, 0)}
+  {#if data.stats}
+    <section class="stats-section">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value">{data.stats.rootCategories}</div>
+          <div class="stat-label">Categories</div>
         </div>
-        <div class="stat-label">Hazard Guides</div>
+        <div class="stat-card">
+          <div class="stat-value">{data.stats.totalCategories}</div>
+          <div class="stat-label">Total Topics</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{data.stats.totalTemplates}</div>
+          <div class="stat-label">Hazard Guides</div>
+        </div>
       </div>
-      <div class="stat-card">
-        <div class="stat-value">6</div>
-        <div class="stat-label">Content Types</div>
-      </div>
-    </div>
-  </section>
+    </section>
+  {/if}
 
   <!-- Info Banner -->
   <section class="info-banner">
     <div class="info-content">
       <h3>🌍 Regional Content</h3>
       <p>
-        All guides include region-specific information for the Boston area and surrounding regions.
-        Learn about seasonal variations, local species, and area-specific safety tips.
+        All guides include region-specific information. Learn about seasonal variations, 
+        local species, and area-specific safety tips for your region.
       </p>
     </div>
   </section>
@@ -244,16 +210,37 @@
     border-top: 1px solid #e2e8f0;
   }
 
-  .hazard-count {
-    font-size: 0.875rem;
+  .counts {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .count {
+    font-size: 0.75rem;
     color: #64748b;
-    font-weight: 500;
+    background: #f1f5f9;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
   }
 
   .view-link {
     color: #2563eb;
     font-weight: 500;
     font-size: 0.875rem;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 3rem 2rem;
+    background: #f8fafc;
+    border-radius: 12px;
+    border: 2px dashed #e2e8f0;
+  }
+
+  .empty-state p {
+    color: #64748b;
+    font-size: 1.125rem;
+    margin: 0;
   }
 
   /* Featured Section */

@@ -14,7 +14,10 @@
   import EducationalLink from "$lib/components/EducationalLink.svelte";
   import HazardFlagButton from "$lib/components/HazardFlagButton.svelte";
   import FlagHazardModal from "$lib/components/FlagHazardModal.svelte";
-  import { getEducationalLinkSync, type EducationalLink as EduLinkType } from "$lib/utils/educational-links";
+  import {
+    getEducationalLinkSync,
+    type EducationalLink as EduLinkType,
+  } from "$lib/utils/educational-links";
   import type { PageData } from "./$types";
   import type { ExpirationStatusResponse } from "$lib/types/database";
 
@@ -42,7 +45,7 @@
       category_path: hazard.hazard_categories?.path,
       category_name: hazard.hazard_categories?.name,
       category_icon: hazard.hazard_categories?.icon,
-      title: hazard.title
+      title: hazard.title,
     })
   );
 
@@ -71,7 +74,7 @@
         userHasFlagged = data.hasFlagged;
       }
     } catch (error) {
-      console.error('Failed to load flag status:', error);
+      console.error("Failed to load flag status:", error);
     }
   }
 
@@ -124,10 +127,10 @@
 
       if (response.ok) {
         const data = await response.json();
-        
+
         // Reload page data to show updated expiration time
         await reloadPageData();
-        
+
         alert("Expiration extended by 24 hours");
       } else {
         const data = await response.json();
@@ -199,8 +202,8 @@
 
   function handleFlagClick() {
     if (!user) {
-      alert('Please log in to flag hazards');
-      goto('/auth/login');
+      alert("Please log in to flag hazards");
+      goto("/auth/login");
       return;
     }
     showFlagModal = true;
@@ -209,18 +212,18 @@
   async function handleFlagSubmit(data: { reason: string; notes: string }) {
     try {
       const response = await fetch(`/api/hazards/${hazard.id}/flag`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
       });
 
       if (!response.ok) {
         const result = await response.json();
-        throw new Error(result.error || 'Failed to submit flag');
+        throw new Error(result.error || "Failed to submit flag");
       }
 
       userHasFlagged = true;
-      alert('Flag submitted successfully. Our moderation team will review it.');
+      alert("Flag submitted successfully. Our moderation team will review it.");
     } catch (error) {
       throw error; // Re-throw to modal error handler
     }
@@ -340,7 +343,7 @@
         <div class="flag-section">
           <HazardFlagButton
             hazardId={hazard.id}
-            userHasFlagged={userHasFlagged}
+            {userHasFlagged}
             on:flag={handleFlagClick}
           />
         </div>
@@ -422,7 +425,7 @@
                   hazardId={hazard.id}
                   userId={user.id}
                   session={data.session}
-                  user={user}
+                  {user}
                   onSuccess={handleResolutionSuccess}
                   onCancel={() => (showResolutionForm = false)}
                 />
@@ -587,7 +590,7 @@
     {#if educationalContent}
       <section class="educational-section">
         <h2>Learn More About This Hazard</h2>
-        <EducationalContentCard 
+        <EducationalContentCard
           content={educationalContent}
           showImages={true}
           defaultTab="overview"
@@ -598,9 +601,10 @@
       <section class="educational-section educational-fallback">
         <h2>Safety Information</h2>
         <p class="educational-prompt">
-          Want to learn more about how to identify, avoid, and respond to hazards like this one?
+          Want to learn more about how to identify, avoid, and respond to
+          hazards like this one?
         </p>
-        <EducationalLink 
+        <EducationalLink
           link={educationalLink}
           variant="card"
           showDescription={true}
@@ -653,7 +657,7 @@
 <FlagHazardModal
   hazardId={hazard.id}
   isOpen={showFlagModal}
-  onClose={() => showFlagModal = false}
+  onClose={() => (showFlagModal = false)}
   onSubmit={handleFlagSubmit}
 />
 
