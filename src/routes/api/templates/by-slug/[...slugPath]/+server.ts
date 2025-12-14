@@ -1,14 +1,18 @@
 import { json, error } from '@sveltejs/kit';
+import { setCacheHeaders } from '$lib/utils/cache';
 import type { RequestHandler } from './$types';
 
 const BUCKET_NAME = 'hazard-educational-content';
 
-export const GET: RequestHandler = async ({ params, locals }) => {
+export const GET: RequestHandler = async ({ params, locals, setHeaders }) => {
   const supabase = locals.supabase;
   
   if (!supabase) {
     throw error(500, 'Database connection failed');
   }
+
+  // Cache templates for 1 day
+  setCacheHeaders(setHeaders, 'templates');
 
   const slugPath = params.slugPath;
   
