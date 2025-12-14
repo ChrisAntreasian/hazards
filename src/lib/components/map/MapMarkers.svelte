@@ -293,12 +293,17 @@
         // Check if markerClusterGroup is available
         if ((L as any).markerClusterGroup) {
           const defaultClusterOptions = {
-            maxClusterRadius: 60,
-            disableClusteringAtZoom: 16,
+            maxClusterRadius: 80,           // Increased for better grouping
+            disableClusteringAtZoom: 17,    // Show individual at higher zoom
             spiderfyOnMaxZoom: true,
-            showCoverageOnHover: true,
+            showCoverageOnHover: false,     // Disabled for cleaner UI
             zoomToBoundsOnClick: true,
-            spiderfyDistanceMultiplier: 1.2,
+            spiderfyDistanceMultiplier: 1.5, // More spacing for spiderfied markers
+            animate: true,
+            animateAddingMarkers: false,    // Disable for performance
+            chunkedLoading: true,           // Load markers in chunks
+            chunkInterval: 50,              // Interval between chunks (ms)
+            chunkDelay: 100,                // Delay before starting chunks
             iconCreateFunction: function (cluster: any) {
               const childCount = cluster.getChildCount();
               let className = "marker-cluster-";

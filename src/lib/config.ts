@@ -1,4 +1,4 @@
-import type { GeoBounds, GeoPoint } from './types/database.js';
+﻿import type { GeoBounds, GeoPoint } from './types/database.js';
 
 export const APP_CONFIG = {
   name: 'Hazards App',
@@ -31,9 +31,15 @@ export const PERFORMANCE_CONFIG = {
   },
   maps: {
     initialZoom: 13,
-    maxHazardsPerView: 50,
-    clusteringThreshold: 10,
-    preloadRadius: 2000 // meters
+    maxHazardsPerView: 200,      // Increased from 50, capped for performance
+    clusteringThreshold: 8,      // Lowered from 10 - cluster earlier
+    preloadRadius: 3000,         // Increased from 2000 meters
+    // Viewport-based loading
+    viewportBuffer: 0.2,         // Load 20% beyond visible area
+    debounceMs: 150,             // Debounce map move events
+    // Cluster visual settings
+    clusterRadius: 80,           // Pixels for clustering
+    disableClusteringAtZoom: 17  // Show individual markers when zoomed in
   },
   caching: {
     staticContent: '1y',
