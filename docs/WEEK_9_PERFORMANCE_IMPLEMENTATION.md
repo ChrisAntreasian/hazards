@@ -237,17 +237,46 @@ GET /api/hazards?fields=id,title,latitude,longitude&bounds=42.5,42.2,-70.8,-71.3
 
 ---
 
-## Phase 5: Image Delivery ⏳ Pending
+## Phase 5: Image Delivery ✅ Complete
 
-### Planned Work
+**Commit:** `077f848`
 
-1. **Lazy Loading**
-   - Intersection Observer for images
-   - Placeholder blur-up effect
+### What Was Added
 
-2. **Responsive Images**
-   - srcset for different screen sizes
-   - WebP format with fallbacks
+Enhanced `OptimizedImage` component (v1.0 → v2.0):
+
+1. **Responsive srcset Generation**
+   - Automatic srcset for Supabase storage images
+   - Width transforms: 320, 640, 960, 1200px
+   - CSS sizes attribute for browser optimization
+
+2. **Blur-Up Effect**
+   - Images load with blur filter
+   - Smooth transition to sharp on load
+   - Better perceived performance
+
+3. **Performance Attributes**
+   - `decoding="async"` - Non-blocking decode
+   - `fetchpriority` - High for eager, low for lazy
+   - Increased rootMargin to 100px for earlier loading
+
+### New Props
+
+```svelte
+<OptimizedImage
+  src="..."
+  alt="..."
+  responsive={true}        <!-- Enable srcset -->
+  sizes={[320, 640, 960, 1200]}  <!-- Widths for srcset -->
+  sizesAttr="(max-width: 640px) 100vw, 50vw"  <!-- CSS sizes -->
+/>
+```
+
+### Expected Impact
+
+- **Smaller images on mobile** - appropriate size served
+- **Smoother loading** - blur-up effect masks loading
+- **Non-blocking** - async decoding doesn't block main thread
 
 ---
 
@@ -283,6 +312,7 @@ GET /api/hazards?fields=id,title,latitude,longitude&bounds=42.5,42.2,-70.8,-71.3
 | `685527e` | docs: Add Week 9 Performance implementation summary |
 | `6d5968c` | feat: Add map performance optimizations (Phase 3) |
 | `1d0b7eb` | feat: Add hazards list API with pagination (Phase 4) |
+| `077f848` | feat: Enhance OptimizedImage with responsive srcset (Phase 5) |
 
 ---
 
