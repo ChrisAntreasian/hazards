@@ -84,6 +84,65 @@ User revisits /map (30 seconds later):
 
 ---
 
+## Cache Invalidation Strategy
+
+### How Caches Stay Fresh
+
+The implementation uses **time-based expiration with `stale-while-revalidate`** - no manual cache busting required.
+
+### The `stale-while-revalidate` Pattern
+
+```
+Cache-Control: public, max-age=120, stale-while-revalidate=60
+```
+
+This directive creates three time windows:
+
+| Time After Initial Request | Behavior |
+|---------------------------|----------|
+| 0 - 2 minutes (max-age) | Browser serves cached data instantly |
+| 2 - 3 minutes (stale window) | Browser serves stale data immediately, fetches fresh in background |
+| After 3 minutes | Browser must wait for fresh data from server |
+
+### Why This Works for Our App
+
+1. **Map Hazards (2 min cache)**
+   - Acceptable for users to see data up to 2 minutes old
+   - New hazards don't need to appear instantly for other users
+   - The reporting user sees their submission immediately (via mutation response)
+
+2. **Categories/Templates (1 day cache)**
+   - Admin changes are rare (maybe weekly)
+   - Educational content is stable
+   - Users can hard-refresh (Ctrl+F5) if needed
+
+3. **User-Specific Data (no cache)**
+   - Moderation queues always fresh
+   - Profile updates visible immediately
+
+### When Fresh Data is Required
+
+For mutations (creating/editing hazards), the flow ensures immediate feedback:
+
+```
+User creates hazard → POST returns new hazard data → UI updates instantly
+                                                    ↓
+                           Background: Next GET will refresh cache
+```
+
+The user who performed the action always sees immediate results because:
+- POST/PUT/PATCH responses return the fresh data directly
+- The cache is only for GET requests from other users
+
+### No Manual Invalidation Needed
+
+We don't need cache-busting URLs or invalidation endpoints because:
+- Cache durations are short enough for acceptable staleness
+- `stale-while-revalidate` smooths over the transition
+- Critical user actions bypass the cache entirely
+
+---
+
 ## Files Modified
 
 1. src/lib/utils/cache.ts - Cache utilities
