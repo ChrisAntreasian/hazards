@@ -177,19 +177,63 @@ The Map component now:
 
 ---
 
-## Phase 4: API Optimization ⏳ Pending
+## Phase 4: API Optimization ✅ Complete
 
-### Planned Work
+**Commit:** `1d0b7eb`
 
-1. **Query Optimization**
-   - Review and optimize slow queries
-   - Add missing database indexes
+### What Was Added
 
-2. **Response Compression**
-   - Enable gzip/brotli for API responses
+Created `/api/hazards` list endpoint with:
+- **Field selection**: Request only needed fields for reduced payload
+- **Cursor-based pagination**: Efficient pagination for large datasets
+- **Viewport filtering**: Request hazards within specific bounds
+- **Category filtering**: Filter by hazard category
+- **HTTP caching**: 2-minute cache with stale-while-revalidate
 
-3. **Pagination**
-   - Cursor-based pagination for large lists
+### API Usage Examples
+
+```bash
+# Basic list (default 50 results, minimal fields)
+GET /api/hazards
+
+# Custom fields
+GET /api/hazards?fields=id,title,latitude,longitude,severity_level
+
+# Pagination
+GET /api/hazards?limit=100&cursor=2025-01-01T00:00:00Z
+
+# Viewport filtering
+GET /api/hazards?bounds=42.5,42.2,-70.8,-71.3
+
+# Combined
+GET /api/hazards?fields=id,title,latitude,longitude&bounds=42.5,42.2,-70.8,-71.3&limit=100
+```
+
+### Response Format
+
+```json
+{
+  "data": [...],
+  "meta": {
+    "count": 50,
+    "limit": 50,
+    "nextCursor": "2025-01-15T10:30:00Z",
+    "hasMore": true
+  }
+}
+```
+
+### Default Fields (Minimal for Performance)
+
+- id, title, latitude, longitude
+- severity_level, status, created_at
+- category_id, expiration_type, expires_at, resolved_at
+
+### Expected Impact
+
+- **Smaller payloads** when requesting specific fields
+- **Efficient pagination** for mobile apps
+- **Reduced data transfer** for viewport-limited requests
 
 ---
 
@@ -238,6 +282,7 @@ The Map component now:
 | `9427d92` | feat: Add Service Worker and PWA support (Phase 2) |
 | `685527e` | docs: Add Week 9 Performance implementation summary |
 | `6d5968c` | feat: Add map performance optimizations (Phase 3) |
+| `1d0b7eb` | feat: Add hazards list API with pagination (Phase 4) |
 
 ---
 
