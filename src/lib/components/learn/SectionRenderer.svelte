@@ -33,8 +33,10 @@
     section.content.trim().length > 0
   );
 
+  // Show all sections - universal ones always, and required ones with Coming Soon
+  // This helps users understand what content will be available
   const shouldShowSection = $derived(
-    section.isUniversal || shouldShowContent
+    section.isUniversal || section.isRequired || shouldShowContent
   );
 </script>
 
@@ -46,7 +48,7 @@
       <div class="markdown-content">
         {@html renderMarkdown(section.content)}
       </div>
-    {:else if section.isUniversal}
+    {:else}
       <ComingSoon 
         message="This section is being developed. Check back soon for detailed information." 
       />
