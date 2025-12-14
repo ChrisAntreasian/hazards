@@ -66,14 +66,17 @@
 
 ### 🔄 **IN PROGRESS FEATURES**
 
-#### **Week 8: CMS Integration** (40% Complete) 🔄
+#### **Week 8: CMS Integration** (70% Complete) 🔄
 - ✅ **Educational content types** (database schema)
 - ✅ **Educational linking component** (EducationalLink.svelte)
 - ✅ **Educational links utility** (template_id to storage lookup)
 - ✅ **Category management system** (suggestions, review, provisional creation)
-- 🔄 **Supawald CMS** (actively in development - separate agent)
-- ⚠️ **Educational content page** (placeholder only)
-- ❌ **Hazard templates & guides** (pending CMS completion)
+- ✅ **Database-driven learn pages** (recursive [...path] routes with breadcrumbs)
+- ✅ **Learn page components** (7 components: Breadcrumbs, ContentHeader, NavigationGrid, DangerBadge, ComingSoon, SectionRenderer, SiblingHazards)
+- ✅ **Category section configuration** (section definitions per category type)
+- ✅ **Educational content seeding** (admin API + seed script ready)
+- 🔄 **Actual educational content** (Poison Ivy content ready, needs storage upload)
+- ❌ **Hazard templates & guides** (content seeding pending service role key)
 - ❌ **Regional content management** (pending CMS completion)
 
 #### **Week 9: Performance** (60% Complete) 🔄
@@ -264,8 +267,8 @@ The community reporting workflow encompasses the complete lifecycle of hazard ma
 | Hazard Voting | 60% | 100% | +40% ✅ |
 | Community Reporting | 60% | 100% | +40% ✅ |
 | Category Management | 0% | 100% | +100% ✅ |
-| CMS Integration | 10% | 40% | +30% 🔄 |
-| Educational Links | 0% | 50% | +50% 🔄 |
+| CMS Integration | 10% | 70% | +60% 🔄 |
+| Educational Links | 0% | 80% | +80% 🔄 |
 | Performance | 60% | 60% | 0% |
 | Testing | 50% | 50% | 0% |
 | Deployment | 20% | 20% | 0% |
