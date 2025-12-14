@@ -243,57 +243,6 @@
     margin: 0;
   }
 
-  /* Featured Section */
-  .featured-section {
-    margin-bottom: 4rem;
-  }
-
-  .featured-section h2 {
-    font-size: 2rem;
-    font-weight: 600;
-    color: #1e293b;
-    margin-bottom: 2rem;
-  }
-
-  .featured-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 1.5rem;
-  }
-
-  .featured-card {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 12px;
-    padding: 2rem;
-    text-decoration: none;
-    color: white;
-    transition: transform 0.3s ease;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  }
-
-  .featured-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-  }
-
-  .featured-content h3 {
-    font-size: 1.5rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-  }
-
-  .featured-category {
-    font-size: 0.875rem;
-    opacity: 0.9;
-    margin-bottom: 1rem;
-    display: block;
-  }
-
-  .read-more {
-    font-weight: 500;
-    opacity: 0.95;
-  }
-
   /* Stats Section */
   .stats-section {
     margin-bottom: 4rem;
