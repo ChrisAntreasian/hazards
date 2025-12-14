@@ -4,10 +4,7 @@
     title?: string;
   }
 
-  let { 
-    message = 'Content coming soon.',
-    title = ''
-  }: Props = $props();
+  let { message = "Content coming soon.", title = "" }: Props = $props();
 </script>
 
 <div class="coming-soon">

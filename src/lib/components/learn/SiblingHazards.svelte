@@ -1,5 +1,5 @@
 <script lang="ts">
-  import DangerBadge from './DangerBadge.svelte';
+  import DangerBadge from "./DangerBadge.svelte";
 
   interface SiblingTemplate {
     id: string;
@@ -16,16 +16,16 @@
     title?: string;
   }
 
-  let { 
-    siblings, 
+  let {
+    siblings,
     currentSlug,
     basePath,
-    title = 'Related Hazards'
+    title = "Related Hazards",
   }: Props = $props();
 
   // Filter out current hazard
   const otherSiblings = $derived(
-    siblings.filter(s => s.slug !== currentSlug)
+    siblings.filter((s) => s.slug !== currentSlug)
   );
 </script>
 
@@ -38,7 +38,11 @@
           <div class="sibling-header">
             <h3>{sibling.name}</h3>
             {#if sibling.danger_level}
-              <DangerBadge level={sibling.danger_level} size="small" showLabel={false} />
+              <DangerBadge
+                level={sibling.danger_level}
+                size="small"
+                showLabel={false}
+              />
             {/if}
           </div>
           {#if sibling.short_description}

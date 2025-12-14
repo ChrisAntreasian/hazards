@@ -1,18 +1,21 @@
 <script lang="ts">
-  import { getDangerLevel, type DangerLevelInfo } from '$lib/utils/learn-navigation';
+  import {
+    getDangerLevel,
+    type DangerLevelInfo,
+  } from "$lib/utils/learn-navigation";
 
   interface Props {
     level: number | null;
-    size?: 'small' | 'medium' | 'large';
+    size?: "small" | "medium" | "large";
     showLabel?: boolean;
     showDescription?: boolean;
   }
 
-  let { 
-    level, 
-    size = 'medium',
+  let {
+    level,
+    size = "medium",
     showLabel = true,
-    showDescription = false
+    showDescription = false,
   }: Props = $props();
 
   const info = $derived(getDangerLevel(level));
@@ -77,15 +80,35 @@
   }
 
   /* Tailwind-like colors */
-  :global(.bg-green-100) { background-color: #dcfce7; }
-  :global(.bg-yellow-100) { background-color: #fef9c3; }
-  :global(.bg-orange-100) { background-color: #ffedd5; }
-  :global(.bg-red-100) { background-color: #fee2e2; }
-  :global(.bg-red-200) { background-color: #fecaca; }
+  :global(.bg-green-100) {
+    background-color: #dcfce7;
+  }
+  :global(.bg-yellow-100) {
+    background-color: #fef9c3;
+  }
+  :global(.bg-orange-100) {
+    background-color: #ffedd5;
+  }
+  :global(.bg-red-100) {
+    background-color: #fee2e2;
+  }
+  :global(.bg-red-200) {
+    background-color: #fecaca;
+  }
 
-  :global(.text-green-700) { color: #15803d; }
-  :global(.text-yellow-700) { color: #a16207; }
-  :global(.text-orange-700) { color: #c2410c; }
-  :global(.text-red-700) { color: #b91c1c; }
-  :global(.text-red-900) { color: #7f1d1d; }
+  :global(.text-green-700) {
+    color: #15803d;
+  }
+  :global(.text-yellow-700) {
+    color: #a16207;
+  }
+  :global(.text-orange-700) {
+    color: #c2410c;
+  }
+  :global(.text-red-700) {
+    color: #b91c1c;
+  }
+  :global(.text-red-900) {
+    color: #7f1d1d;
+  }
 </style>

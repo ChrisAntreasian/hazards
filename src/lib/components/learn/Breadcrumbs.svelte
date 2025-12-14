@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { BreadcrumbItem } from '$lib/utils/learn-navigation';
+  import type { BreadcrumbItem } from "$lib/utils/learn-navigation";
 
   interface Props {
     items: BreadcrumbItem[];

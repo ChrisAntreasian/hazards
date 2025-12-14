@@ -7,12 +7,12 @@
     color?: string;
   }
 
-  let { 
-    icon = '', 
-    title, 
+  let {
+    icon = "",
+    title,
     description = null,
     shortDescription = null,
-    color = 'from-blue-500 to-indigo-600'
+    color = "from-blue-500 to-indigo-600",
   }: Props = $props();
 
   // Use short description if available, otherwise full description

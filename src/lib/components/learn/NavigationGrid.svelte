@@ -1,5 +1,5 @@
 <script lang="ts">
-  import DangerBadge from './DangerBadge.svelte';
+  import DangerBadge from "./DangerBadge.svelte";
 
   interface NavigationItem {
     id: string;
@@ -17,29 +17,29 @@
   interface Props {
     items: NavigationItem[];
     basePath: string;
-    type: 'category' | 'template';
+    type: "category" | "template";
     emptyMessage?: string;
   }
 
-  let { 
-    items, 
-    basePath, 
+  let {
+    items,
+    basePath,
     type,
-    emptyMessage = 'No items available yet.'
+    emptyMessage = "No items available yet.",
   }: Props = $props();
 
   function getHref(item: NavigationItem): string {
-    if (type === 'category' && item.path) {
+    if (type === "category" && item.path) {
       return `/learn/${item.path}`;
     }
-    if (type === 'template' && item.slug) {
+    if (type === "template" && item.slug) {
       return `${basePath}/${item.slug}`;
     }
     return basePath;
   }
 
   function getDescription(item: NavigationItem): string {
-    return item.short_description || item.description || '';
+    return item.short_description || item.description || "";
   }
 </script>
 
@@ -57,26 +57,34 @@
               <span class="item-icon">{item.icon}</span>
             {/if}
             <h3>{item.name}</h3>
-            {#if type === 'template' && item.danger_level}
+            {#if type === "template" && item.danger_level}
               <DangerBadge level={item.danger_level} size="small" />
             {/if}
           </div>
-          
+
           {#if getDescription(item)}
             <p class="item-description">{getDescription(item)}</p>
           {/if}
-          
+
           <div class="card-footer">
-            {#if type === 'category'}
+            {#if type === "category"}
               {#if item.child_count && item.child_count > 0}
-                <span class="count">{item.child_count} subcategor{item.child_count === 1 ? 'y' : 'ies'}</span>
+                <span class="count"
+                  >{item.child_count} subcategor{item.child_count === 1
+                    ? "y"
+                    : "ies"}</span
+                >
               {/if}
               {#if item.template_count && item.template_count > 0}
-                <span class="count">{item.template_count} hazard{item.template_count === 1 ? '' : 's'}</span>
+                <span class="count"
+                  >{item.template_count} hazard{item.template_count === 1
+                    ? ""
+                    : "s"}</span
+                >
               {/if}
             {/if}
             <span class="view-link">
-              {type === 'category' ? 'Browse →' : 'Learn more →'}
+              {type === "category" ? "Browse →" : "Learn more →"}
             </span>
           </div>
         </div>

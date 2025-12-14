@@ -2,7 +2,7 @@
   import CategoryManagement from "$lib/components/admin/CategoryManagement.svelte";
   import CategorySuggestionReview from "$lib/components/admin/CategorySuggestionReview.svelte";
 
-  let activeTab = $state<'manage' | 'suggestions'>('manage');
+  let activeTab = $state<"manage" | "suggestions">("manage");
 </script>
 
 <svelte:head>
@@ -11,26 +11,26 @@
 
 <div class="admin-categories">
   <div class="tabs">
-    <button 
+    <button
       type="button"
-      class="tab" 
-      class:active={activeTab === 'manage'}
-      onclick={() => activeTab = 'manage'}
+      class="tab"
+      class:active={activeTab === "manage"}
+      onclick={() => (activeTab = "manage")}
     >
       📁 Manage Categories
     </button>
-    <button 
+    <button
       type="button"
-      class="tab" 
-      class:active={activeTab === 'suggestions'}
-      onclick={() => activeTab = 'suggestions'}
+      class="tab"
+      class:active={activeTab === "suggestions"}
+      onclick={() => (activeTab = "suggestions")}
     >
       📝 Review Suggestions
     </button>
   </div>
 
   <div class="tab-content">
-    {#if activeTab === 'manage'}
+    {#if activeTab === "manage"}
       <CategoryManagement />
     {:else}
       <CategorySuggestionReview />

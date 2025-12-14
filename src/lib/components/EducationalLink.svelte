@@ -1,11 +1,11 @@
 <script lang="ts">
-  import type { EducationalLink } from '$lib/utils/educational-links';
+  import type { EducationalLink } from "$lib/utils/educational-links";
 
   interface Props {
     /** The educational link data */
     link: EducationalLink;
     /** Display variant */
-    variant?: 'inline' | 'card' | 'button';
+    variant?: "inline" | "card" | "button";
     /** Additional CSS classes */
     class?: string;
     /** Show description text */
@@ -14,39 +14,41 @@
 
   let {
     link,
-    variant = 'inline',
-    class: className = '',
-    showDescription = false
+    variant = "inline",
+    class: className = "",
+    showDescription = false,
   }: Props = $props();
 
   // Determine styling based on link type
-  const typeStyles = $derived({
-    specific: {
-      bgColor: 'bg-green-50',
-      borderColor: 'border-green-200',
-      textColor: 'text-green-800',
-      hoverBg: 'hover:bg-green-100',
-      badge: '📖 Learn More'
-    },
-    category: {
-      bgColor: 'bg-blue-50',
-      borderColor: 'border-blue-200',
-      textColor: 'text-blue-800',
-      hoverBg: 'hover:bg-blue-100',
-      badge: '📚 Browse Guides'
-    },
-    general: {
-      bgColor: 'bg-gray-50',
-      borderColor: 'border-gray-200',
-      textColor: 'text-gray-700',
-      hoverBg: 'hover:bg-gray-100',
-      badge: '🔍 Explore'
-    }
-  }[link.type]);
+  const typeStyles = $derived(
+    {
+      specific: {
+        bgColor: "bg-green-50",
+        borderColor: "border-green-200",
+        textColor: "text-green-800",
+        hoverBg: "hover:bg-green-100",
+        badge: "📖 Learn More",
+      },
+      category: {
+        bgColor: "bg-blue-50",
+        borderColor: "border-blue-200",
+        textColor: "text-blue-800",
+        hoverBg: "hover:bg-blue-100",
+        badge: "📚 Browse Guides",
+      },
+      general: {
+        bgColor: "bg-gray-50",
+        borderColor: "border-gray-200",
+        textColor: "text-gray-700",
+        hoverBg: "hover:bg-gray-100",
+        badge: "🔍 Explore",
+      },
+    }[link.type]
+  );
 </script>
 
-{#if variant === 'inline'}
-  <a 
+{#if variant === "inline"}
+  <a
     href={link.href}
     class="educational-link-inline {typeStyles.textColor} {className}"
     title={link.description}
@@ -55,9 +57,8 @@
     <span class="link-text">{link.label}</span>
     <span class="link-arrow">→</span>
   </a>
-
-{:else if variant === 'card'}
-  <a 
+{:else if variant === "card"}
+  <a
     href={link.href}
     class="educational-link-card {typeStyles.bgColor} {typeStyles.borderColor} {typeStyles.hoverBg} {className}"
   >
@@ -70,18 +71,17 @@
       <p class="card-description">{link.description}</p>
     {/if}
     <span class="card-cta {typeStyles.textColor}">
-      {#if link.type === 'specific'}
+      {#if link.type === "specific"}
         View detailed guide →
-      {:else if link.type === 'category'}
+      {:else if link.type === "category"}
         Browse all guides →
       {:else}
         Explore guides →
       {/if}
     </span>
   </a>
-
-{:else if variant === 'button'}
-  <a 
+{:else if variant === "button"}
+  <a
     href={link.href}
     class="educational-link-button {typeStyles.bgColor} {typeStyles.borderColor} {typeStyles.textColor} {typeStyles.hoverBg} {className}"
   >

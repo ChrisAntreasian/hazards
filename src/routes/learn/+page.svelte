@@ -1,38 +1,41 @@
 <script lang="ts">
   import type { PageData } from "./$types";
-  import { NavigationGrid, Breadcrumbs } from '$lib/components/learn';
-  import type { BreadcrumbItem } from '$lib/utils/learn-navigation';
-  
+  import { NavigationGrid, Breadcrumbs } from "$lib/components/learn";
+  import type { BreadcrumbItem } from "$lib/utils/learn-navigation";
+
   let { data }: { data: PageData } = $props();
-  
+
   // Category color mapping for gradients
   const categoryColors: Record<string, string> = {
-    plants: 'from-green-500 to-emerald-600',
-    insects: 'from-amber-500 to-orange-600',
-    animals: 'from-red-500 to-rose-600',
-    terrain: 'from-slate-500 to-gray-600',
-    weather: 'from-blue-500 to-cyan-600',
-    ice: 'from-cyan-400 to-blue-500',
-    other: 'from-purple-500 to-indigo-600'
+    plants: "from-green-500 to-emerald-600",
+    insects: "from-amber-500 to-orange-600",
+    animals: "from-red-500 to-rose-600",
+    terrain: "from-slate-500 to-gray-600",
+    weather: "from-blue-500 to-cyan-600",
+    ice: "from-cyan-400 to-blue-500",
+    other: "from-purple-500 to-indigo-600",
   };
 
   // Breadcrumbs for root page
   const breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Learning Center', href: null, isCurrentPage: true }
+    { label: "Learning Center", href: null, isCurrentPage: true },
   ];
 
   // Enrich categories with colors
   const enrichedCategories = $derived(
-    data.categories.map(cat => ({
+    data.categories.map((cat) => ({
       ...cat,
-      color: categoryColors[cat.path] || 'from-blue-500 to-indigo-600'
+      color: categoryColors[cat.path] || "from-blue-500 to-indigo-600",
     }))
   );
 </script>
 
 <svelte:head>
   <title>Learning Center - Hazard Education</title>
-  <meta name="description" content="Browse comprehensive guides on outdoor hazards. Learn to identify, prevent, and respond to dangerous plants, insects, animals, terrain, and weather." />
+  <meta
+    name="description"
+    content="Browse comprehensive guides on outdoor hazards. Learn to identify, prevent, and respond to dangerous plants, insects, animals, terrain, and weather."
+  />
 </svelte:head>
 
 <div class="learn-page">
@@ -42,14 +45,15 @@
   <section class="hero">
     <h1>📚 Learning Center</h1>
     <p class="hero-subtitle">
-      Comprehensive guides to help you identify, prevent, and respond to outdoor hazards
+      Comprehensive guides to help you identify, prevent, and respond to outdoor
+      hazards
     </p>
   </section>
 
   <!-- Category Grid -->
   <section class="categories-section">
     <h2>Browse by Category</h2>
-    
+
     {#if enrichedCategories.length > 0}
       <div class="categories-grid">
         {#each enrichedCategories as category}
@@ -59,14 +63,28 @@
             </div>
             <div class="category-body">
               <h3>{category.name}</h3>
-              <p>{category.short_description || category.description || `Learn about ${category.name.toLowerCase()} hazards`}</p>
+              <p>
+                {category.short_description ||
+                  category.description ||
+                  `Learn about ${category.name.toLowerCase()} hazards`}
+              </p>
               <div class="category-meta">
                 <div class="counts">
                   {#if category.child_count > 0}
-                    <span class="count">{category.child_count} subcategor{category.child_count === 1 ? 'y' : 'ies'}</span>
+                    <span class="count"
+                      >{category.child_count} subcategor{category.child_count ===
+                      1
+                        ? "y"
+                        : "ies"}</span
+                    >
                   {/if}
                   {#if category.template_count > 0}
-                    <span class="count">{category.template_count} guide{category.template_count === 1 ? '' : 's'}</span>
+                    <span class="count"
+                      >{category.template_count} guide{category.template_count ===
+                      1
+                        ? ""
+                        : "s"}</span
+                    >
                   {/if}
                 </div>
                 <span class="view-link">Explore →</span>
@@ -107,8 +125,9 @@
     <div class="info-content">
       <h3>🌍 Regional Content</h3>
       <p>
-        All guides include region-specific information. Learn about seasonal variations, 
-        local species, and area-specific safety tips for your region.
+        All guides include region-specific information. Learn about seasonal
+        variations, local species, and area-specific safety tips for your
+        region.
       </p>
     </div>
   </section>

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  
+  import { onMount } from "svelte";
+
   interface CategorySuggestion {
     id: string;
     suggested_name: string;
@@ -11,7 +11,7 @@
     reason: string;
     suggested_by: string;
     user_trust_score: number;
-    status: 'pending' | 'provisional' | 'active' | 'rejected' | 'archived';
+    status: "pending" | "provisional" | "active" | "rejected" | "archived";
     reviewed_by: string | null;
     reviewed_at: string | null;
     review_notes: string | null;
@@ -35,8 +35,8 @@
   let isLoading = $state(false);
   let error = $state<string | null>(null);
   let selectedSuggestion = $state<CategorySuggestion | null>(null);
-  let reviewNotes = $state('');
-  let statusFilter = $state('pending,provisional');
+  let reviewNotes = $state("");
+  let statusFilter = $state("pending,provisional");
 
   onMount(async () => {
     await loadSuggestions();
@@ -47,25 +47,27 @@
     error = null;
 
     try {
-      const response = await fetch(`/api/categories/suggest?status=${statusFilter}`);
+      const response = await fetch(
+        `/api/categories/suggest?status=${statusFilter}`
+      );
       const result = await response.json();
 
       if (result.success) {
         suggestions = result.suggestions || [];
       } else {
-        error = result.error || 'Failed to load suggestions';
+        error = result.error || "Failed to load suggestions";
       }
     } catch (err) {
-      error = 'Network error loading suggestions';
-      console.error('Error loading suggestions:', err);
+      error = "Network error loading suggestions";
+      console.error("Error loading suggestions:", err);
     } finally {
       isLoading = false;
     }
   }
 
-  async function reviewSuggestion(action: 'approve' | 'reject') {
+  async function reviewSuggestion(action: "approve" | "reject") {
     if (!selectedSuggestion) {
-      error = 'No suggestion selected';
+      error = "No suggestion selected";
       return;
     }
 
@@ -77,19 +79,22 @@
       const suggestionId = selectedSuggestion.id;
 
       const response = await fetch(`/api/categories/review/${suggestionId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action,
-          notes: reviewNotes
-        })
+          notes: reviewNotes,
+        }),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
         try {
           const errorJson = JSON.parse(errorText);
-          error = errorJson.message || errorJson.error || `Failed to ${action} category (${response.status})`;
+          error =
+            errorJson.message ||
+            errorJson.error ||
+            `Failed to ${action} category (${response.status})`;
         } catch {
           error = `Failed to ${action} category: ${response.status} ${errorText.substring(0, 100)}`;
         }
@@ -100,7 +105,7 @@
 
       if (result.success) {
         selectedSuggestion = null;
-        reviewNotes = '';
+        reviewNotes = "";
         await loadSuggestions();
       } else {
         error = result.error || `Failed to ${action} category`;
@@ -115,26 +120,31 @@
 
   function selectSuggestion(suggestion: CategorySuggestion) {
     selectedSuggestion = suggestion;
-    reviewNotes = '';
+    reviewNotes = "";
   }
 
   function formatDate(dateString: string) {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   }
 
   function getStatusBadgeClass(status: string) {
     switch (status) {
-      case 'pending': return 'badge-pending';
-      case 'provisional': return 'badge-provisional';
-      case 'active': return 'badge-active';
-      case 'rejected': return 'badge-rejected';
-      default: return 'badge-default';
+      case "pending":
+        return "badge-pending";
+      case "provisional":
+        return "badge-provisional";
+      case "active":
+        return "badge-active";
+      case "rejected":
+        return "badge-rejected";
+      default:
+        return "badge-default";
     }
   }
 </script>
@@ -144,9 +154,9 @@
     <h2>Category Suggestions</h2>
     <div class="filter-controls">
       <label for="status-filter">Filter:</label>
-      <select 
-        id="status-filter" 
-        bind:value={statusFilter} 
+      <select
+        id="status-filter"
+        bind:value={statusFilter}
         onchange={() => loadSuggestions()}
       >
         <option value="pending,provisional">Pending Review</option>
@@ -162,7 +172,7 @@
   {#if error}
     <div class="alert alert-error">
       {error}
-      <button onclick={() => error = null} class="alert-close">×</button>
+      <button onclick={() => (error = null)} class="alert-close">×</button>
     </div>
   {/if}
 
@@ -180,7 +190,7 @@
       {:else}
         <div class="list-container">
           {#each suggestions as suggestion (suggestion.id)}
-            <button 
+            <button
               type="button"
               class="suggestion-item"
               class:selected={selectedSuggestion?.id === suggestion.id}
@@ -195,7 +205,9 @@
               </div>
               <div class="suggestion-meta">
                 <span class="suggestion-path">{suggestion.suggested_path}</span>
-                <span class="suggestion-date">{formatDate(suggestion.created_at)}</span>
+                <span class="suggestion-date"
+                  >{formatDate(suggestion.created_at)}</span
+                >
               </div>
               {#if suggestion.users}
                 <div class="suggestion-user">
@@ -218,7 +230,9 @@
             <span class="detail-icon">{selectedSuggestion.suggested_icon}</span>
             <div class="detail-title">
               <h4>{selectedSuggestion.suggested_name}</h4>
-              <span class="badge {getStatusBadgeClass(selectedSuggestion.status)}">
+              <span
+                class="badge {getStatusBadgeClass(selectedSuggestion.status)}"
+              >
                 {selectedSuggestion.status}
               </span>
             </div>
@@ -226,14 +240,16 @@
 
           <div class="detail-section">
             <span class="field-label">Path:</span>
-            <span class="detail-value">{selectedSuggestion.suggested_path}</span>
+            <span class="detail-value">{selectedSuggestion.suggested_path}</span
+            >
           </div>
 
           {#if selectedSuggestion.hazard_categories}
             <div class="detail-section">
               <span class="field-label">Parent Category:</span>
               <span class="detail-value">
-                {selectedSuggestion.hazard_categories.icon} {selectedSuggestion.hazard_categories.name}
+                {selectedSuggestion.hazard_categories.icon}
+                {selectedSuggestion.hazard_categories.name}
               </span>
             </div>
           {/if}
@@ -248,27 +264,33 @@
           <div class="detail-section">
             <span class="field-label">Submitted by:</span>
             <div class="user-info">
-              <span>{selectedSuggestion.users?.email || 'Unknown'}</span>
-              <span class="trust-badge">Trust Score: {selectedSuggestion.user_trust_score}</span>
+              <span>{selectedSuggestion.users?.email || "Unknown"}</span>
+              <span class="trust-badge"
+                >Trust Score: {selectedSuggestion.user_trust_score}</span
+              >
             </div>
           </div>
 
           <div class="detail-section">
             <span class="field-label">Submitted:</span>
-            <span class="detail-value">{formatDate(selectedSuggestion.created_at)}</span>
+            <span class="detail-value"
+              >{formatDate(selectedSuggestion.created_at)}</span
+            >
           </div>
 
           {#if selectedSuggestion.reviewed_at}
             <div class="detail-section reviewed">
               <span class="field-label">Reviewed:</span>
-              <span class="detail-value">{formatDate(selectedSuggestion.reviewed_at)}</span>
+              <span class="detail-value"
+                >{formatDate(selectedSuggestion.reviewed_at)}</span
+              >
               {#if selectedSuggestion.review_notes}
                 <p class="review-notes">{selectedSuggestion.review_notes}</p>
               {/if}
             </div>
           {/if}
 
-          {#if selectedSuggestion.status === 'pending' || selectedSuggestion.status === 'provisional'}
+          {#if selectedSuggestion.status === "pending" || selectedSuggestion.status === "provisional"}
             <div class="review-form">
               <div class="form-group">
                 <label for="review-notes">Review Notes (optional):</label>
@@ -281,18 +303,18 @@
               </div>
 
               <div class="review-actions">
-                <button 
+                <button
                   type="button"
-                  class="btn btn-reject" 
-                  onclick={() => reviewSuggestion('reject')}
+                  class="btn btn-reject"
+                  onclick={() => reviewSuggestion("reject")}
                   disabled={isLoading}
                 >
                   ❌ Reject
                 </button>
-                <button 
+                <button
                   type="button"
-                  class="btn btn-approve" 
-                  onclick={() => reviewSuggestion('approve')}
+                  class="btn btn-approve"
+                  onclick={() => reviewSuggestion("approve")}
                   disabled={isLoading}
                 >
                   ✅ Approve

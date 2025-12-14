@@ -11,7 +11,7 @@
 </script>
 
 <script lang="ts">
-  import type { HazardCategory } from '$lib/types/database';
+  import type { HazardCategory } from "$lib/types/database";
 
   interface Props {
     /** Current categories */
@@ -34,27 +34,44 @@
     onCategoryChange,
     onCategorySuggested,
     userTrustScore = 0,
-    disabled = false
+    disabled = false,
   }: Props = $props();
 
   // Track if user wants to suggest a new category
   let showSuggestionForm = $state(false);
   let submittingSuggestion = $state(false);
-  let suggestionError = $state('');
-  
+  let suggestionError = $state("");
+
   // Suggestion form data
   let suggestionData = $state({
-    name: '',
+    name: "",
     parentId: null as string | null,
-    description: '',
-    icon: '📌'
+    description: "",
+    icon: "📌",
   });
 
   // Common emoji icons for categories
-  const commonIcons = ['📌', '⚠️', '🔴', '🌿', '🐛', '🐻', '🏔️', '⛈️', '💀', '🦠', '🔥', '💧', '⚡', '🌊', '❄️', '🌪️'];
+  const commonIcons = [
+    "📌",
+    "⚠️",
+    "🔴",
+    "🌿",
+    "🐛",
+    "🐻",
+    "🏔️",
+    "⛈️",
+    "💀",
+    "🦠",
+    "🔥",
+    "💧",
+    "⚡",
+    "🌊",
+    "❄️",
+    "🌪️",
+  ];
 
   // Get root categories for parent selection
-  const rootCategories = $derived(categories.filter(c => c.level === 0));
+  const rootCategories = $derived(categories.filter((c) => c.level === 0));
 
   // Check if user can create provisional categories
   const canCreateProvisional = $derived(userTrustScore >= 500);
@@ -63,11 +80,13 @@
   function handleSelect(e: Event) {
     const target = e.target as HTMLSelectElement;
     const value = target.value;
-    
-    if (value === '__suggest__') {
+
+    if (value === "__suggest__") {
       showSuggestionForm = true;
       // Reset to "Other" category temporarily
-      const otherCategory = categories.find(c => c.path === 'other' || c.path === 'other/uncategorized');
+      const otherCategory = categories.find(
+        (c) => c.path === "other" || c.path === "other/uncategorized"
+      );
       if (otherCategory) {
         onCategoryChange(otherCategory.id);
       }
@@ -79,9 +98,12 @@
 
   // Generate path from name
   function generatePath(name: string, parentId: string | null): string {
-    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const slug = name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
     if (parentId) {
-      const parent = categories.find(c => c.id === parentId);
+      const parent = categories.find((c) => c.id === parentId);
       return parent ? `${parent.path}/${slug}` : slug;
     }
     return slug;
@@ -90,30 +112,30 @@
   // Handle suggestion submission
   async function handleSubmitSuggestion() {
     if (!suggestionData.name.trim()) {
-      suggestionError = 'Please enter a category name';
+      suggestionError = "Please enter a category name";
       return;
     }
 
-    suggestionError = '';
+    suggestionError = "";
     submittingSuggestion = true;
 
     try {
-      const response = await fetch('/api/categories/suggest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/categories/suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: suggestionData.name.trim(),
           path: generatePath(suggestionData.name, suggestionData.parentId),
           parent_id: suggestionData.parentId,
           icon: suggestionData.icon,
-          description: suggestionData.description.trim() || null
-        })
+          description: suggestionData.description.trim() || null,
+        }),
       });
 
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to submit suggestion');
+        throw new Error(result.error || "Failed to submit suggestion");
       }
 
       // Build suggestion result
@@ -124,22 +146,23 @@
         description: suggestionData.description.trim(),
         icon: suggestionData.icon,
         suggestionId: result.suggestion?.id,
-        provisionalCategoryId: result.category?.id
+        provisionalCategoryId: result.category?.id,
       };
 
       // Call the callback
       onCategorySuggested?.(suggestion);
-      
+
       // Reset form but keep it visible to show success
       showSuggestionForm = false;
       suggestionData = {
-        name: '',
+        name: "",
         parentId: null,
-        description: '',
-        icon: '📌'
+        description: "",
+        icon: "📌",
       };
     } catch (err) {
-      suggestionError = err instanceof Error ? err.message : 'Failed to submit suggestion';
+      suggestionError =
+        err instanceof Error ? err.message : "Failed to submit suggestion";
     } finally {
       submittingSuggestion = false;
     }
@@ -148,12 +171,12 @@
   // Cancel suggestion
   function handleCancel() {
     showSuggestionForm = false;
-    suggestionError = '';
+    suggestionError = "";
     suggestionData = {
-      name: '',
+      name: "",
       parentId: null,
-      description: '',
-      icon: '📌'
+      description: "",
+      icon: "📌",
     };
   }
 </script>
@@ -167,29 +190,34 @@
     required
     {disabled}
   >
-    <option value="">Select a category... ({categories.length} available)</option>
-    
+    <option value=""
+      >Select a category... ({categories.length} available)</option
+    >
+
     <!-- Level 0 categories (main categories) -->
-    {#each categories.filter(cat => cat.level === 0) as mainCategory (mainCategory.id)}
+    {#each categories.filter((cat) => cat.level === 0) as mainCategory (mainCategory.id)}
       <option value={mainCategory.id}>
-        {mainCategory.icon} {mainCategory.name}
+        {mainCategory.icon}
+        {mainCategory.name}
       </option>
-      
+
       <!-- Level 1 subcategories -->
-      {#each categories.filter(cat => cat.level === 1 && cat.path.startsWith(mainCategory.path + '/')) as subCategory (subCategory.id)}
+      {#each categories.filter((cat) => cat.level === 1 && cat.path.startsWith(mainCategory.path + "/")) as subCategory (subCategory.id)}
         <option value={subCategory.id}>
-          &nbsp;&nbsp;↳ {subCategory.icon} {subCategory.name}
+          &nbsp;&nbsp;↳ {subCategory.icon}
+          {subCategory.name}
         </option>
-        
+
         <!-- Level 2 sub-subcategories -->
-        {#each categories.filter(cat => cat.level === 2 && cat.path.startsWith(subCategory.path + '/')) as subSubCategory (subSubCategory.id)}
+        {#each categories.filter((cat) => cat.level === 2 && cat.path.startsWith(subCategory.path + "/")) as subSubCategory (subSubCategory.id)}
           <option value={subSubCategory.id}>
-            &nbsp;&nbsp;&nbsp;&nbsp;↳ {subSubCategory.icon} {subSubCategory.name}
+            &nbsp;&nbsp;&nbsp;&nbsp;↳ {subSubCategory.icon}
+            {subSubCategory.name}
           </option>
         {/each}
       {/each}
     {/each}
-    
+
     <!-- Suggest new category option -->
     <option disabled>──────────────</option>
     <option value="__suggest__">➕ Suggest a New Category...</option>
@@ -203,7 +231,10 @@
         <p class="suggestion-note">
           Can't find the right category? Suggest a new one and we'll review it.
           {#if canCreateProvisional}
-            <strong>As a trusted user, your category will be available immediately for provisional use.</strong>
+            <strong
+              >As a trusted user, your category will be available immediately
+              for provisional use.</strong
+            >
           {/if}
         </p>
       </div>
@@ -218,14 +249,14 @@
                   type="button"
                   class="icon-option"
                   class:selected={suggestionData.icon === icon}
-                  onclick={() => suggestionData.icon = icon}
+                  onclick={() => (suggestionData.icon = icon)}
                 >
                   {icon}
                 </button>
               {/each}
             </div>
           </div>
-          
+
           <div class="field name-field">
             <label for="suggestion-name">Category Name *</label>
             <input
@@ -268,10 +299,20 @@
       {/if}
 
       <div class="suggestion-actions">
-        <button type="button" class="btn btn-secondary" onclick={handleCancel} disabled={submittingSuggestion}>
+        <button
+          type="button"
+          class="btn btn-secondary"
+          onclick={handleCancel}
+          disabled={submittingSuggestion}
+        >
           Cancel
         </button>
-        <button type="button" class="btn btn-primary" onclick={handleSubmitSuggestion} disabled={submittingSuggestion}>
+        <button
+          type="button"
+          class="btn btn-primary"
+          onclick={handleSubmitSuggestion}
+          disabled={submittingSuggestion}
+        >
           {#if submittingSuggestion}
             Submitting...
           {:else if canCreateProvisional}
@@ -284,11 +325,13 @@
 
       <p class="info-text">
         {#if canCreateProvisional}
-          ✅ Your trust score ({userTrustScore}) allows you to create provisional categories.
-          The category will be available immediately but will be reviewed by moderators.
+          ✅ Your trust score ({userTrustScore}) allows you to create
+          provisional categories. The category will be available immediately but
+          will be reviewed by moderators.
         {:else}
-          ℹ️ Your suggestion will be reviewed by moderators. Your hazard will be filed under 
-          "Other" until the category is approved. Build trust to unlock provisional category creation!
+          ℹ️ Your suggestion will be reviewed by moderators. Your hazard will be
+          filed under "Other" until the category is approved. Build trust to
+          unlock provisional category creation!
         {/if}
       </p>
     </div>

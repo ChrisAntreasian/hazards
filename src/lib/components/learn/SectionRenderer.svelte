@@ -1,8 +1,8 @@
 <script lang="ts">
-  import ComingSoon from './ComingSoon.svelte';
-  import { marked } from 'marked';
-  import DOMPurify from 'dompurify';
-  import { browser } from '$app/environment';
+  import ComingSoon from "./ComingSoon.svelte";
+  import { marked } from "marked";
+  import DOMPurify from "dompurify";
+  import { browser } from "$app/environment";
 
   interface SectionData {
     sectionId: string;
@@ -28,9 +28,9 @@
 
   // Determine if we should show content or placeholder
   const shouldShowContent = $derived(
-    section.content && 
-    !section.isPlaceholder && 
-    section.content.trim().length > 0
+    section.content &&
+      !section.isPlaceholder &&
+      section.content.trim().length > 0
   );
 
   // Show all sections - universal ones always, and required ones with Coming Soon
@@ -43,14 +43,14 @@
 {#if shouldShowSection}
   <section class="content-section" id={section.sectionId}>
     <h2>{section.sectionTitle}</h2>
-    
+
     {#if shouldShowContent && section.content}
       <div class="markdown-content">
         {@html renderMarkdown(section.content)}
       </div>
     {:else}
-      <ComingSoon 
-        message="This section is being developed. Check back soon for detailed information." 
+      <ComingSoon
+        message="This section is being developed. Check back soon for detailed information."
       />
     {/if}
   </section>

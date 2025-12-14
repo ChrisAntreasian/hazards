@@ -448,8 +448,10 @@
               <!-- Prompt unauthenticated users to log in -->
               <div class="login-prompt">
                 <p class="text-gray-700 mb-3">
-                  Know this hazard has been resolved? 
-                  <a href="/auth/log-in" class="text-blue-600 hover:underline">Log in</a> 
+                  Know this hazard has been resolved?
+                  <a href="/auth/log-in" class="text-blue-600 hover:underline"
+                    >Log in</a
+                  >
                   to submit a resolution report.
                 </p>
               </div>
