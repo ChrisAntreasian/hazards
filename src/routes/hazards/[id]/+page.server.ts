@@ -94,12 +94,8 @@ export const load: PageServerLoad = async (event) => {
   }
 
   try {
-    // Get current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
-    if (userError || !user) {
-      throw error(401, 'Authentication required');
-    }
+    // Get current user (may be null for unauthenticated visitors)
+    const { data: { user } } = await supabase.auth.getUser();
 
     // Fetch hazard details
     const { data: hazard, error: hazardError } = await supabase
@@ -131,6 +127,20 @@ export const load: PageServerLoad = async (event) => {
       throw error(404, 'Hazard not found');
     }
 
+    // Check if user has permission to view this hazard
+    // Allow viewing if: public approved hazard OR user owns the hazard OR user is moderator/admin
+    const isPublicApproved = hazard.status === 'approved';
+    const isOwner = user && hazard.user_id === user.id;
+    const isModerator = user && ['moderator', 'admin', 'content_editor'].includes(user.user_metadata?.role);
+    const canView = isPublicApproved || isOwner || isModerator;
+
+    if (!canView) {
+      if (!user) {
+        throw error(401, 'Authentication required to view this hazard');
+      }
+      throw error(403, 'You do not have permission to view this hazard');
+    }
+
     // Lazy expiration: Auto-expire if needed (eliminates need for cron)
     await expireHazardIfNeeded(supabase, hazard);
 
@@ -157,16 +167,6 @@ export const load: PageServerLoad = async (event) => {
       moderation_status: 'approved', // TODO: Add this column to the database
       metadata: img.metadata
     }));
-
-    // Check if user has permission to view this hazard
-    // Allow viewing if: public approved hazard OR user owns the hazard OR user is moderator/admin
-    const canView = hazard.status === 'approved' || 
-                   hazard.user_id === user.id ||
-                   ['moderator', 'admin', 'content_editor'].includes(user.user_metadata?.role);
-
-    if (!canView) {
-      throw error(403, 'You do not have permission to view this hazard');
-    }
 
     // Get hazard ratings
     const { data: ratings, error: ratingsError } = await supabase
@@ -208,10 +208,10 @@ export const load: PageServerLoad = async (event) => {
       const status = calculateExpirationStatus(hazard, confirmationsList);
       const timeRemaining = calculateTimeRemaining(hazard);
 
-      // Determine user permissions
-      const isOwner = hazard.user_id === user.id;
+      // Determine user permissions (user may be null for anonymous visitors)
+      const isOwner = user && hazard.user_id === user.id;
       const userRole = hazard.users?.role;
-      const isModerator = userRole && ['moderator', 'admin'].includes(userRole);
+      const isModerator = user && userRole && ['moderator', 'admin'].includes(userRole);
 
       // Can extend if owner or moderator, for auto_expire or user_resolvable types
       const canExtend = (isOwner || isModerator) && 
