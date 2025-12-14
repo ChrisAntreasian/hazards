@@ -128,23 +128,52 @@ precache  117 entries (1196.18 KiB)
 
 ---
 
-## Phase 3: Map Performance Tuning ⏳ Pending
+## Phase 3: Map Performance Tuning ✅ Complete
 
-### Planned Work
+**Commit:** `6d5968c`
 
-1. **Viewport-based Loading**
-   - Only fetch hazards visible on screen
-   - Load 20% buffer beyond visible area
-   - Debounce map move events (150ms)
+### What Was Added
 
-2. **Clustering Optimization**
-   - Lower clustering threshold from 10 to 8
-   - Increase cluster radius to 80px
-   - Disable clustering at zoom level 17+
+Created `src/lib/utils/mapPerformance.ts` with:
+- Viewport-based marker filtering
+- Debounce/throttle utilities for map events
+- Distance calculations for marker prioritization
+- Dynamic cluster radius based on zoom level
 
-3. **Preload Strategy**
-   - Increase preload radius to 3000m
-   - Smarter tile prefetching
+### Configuration Changes
+
+Updated `PERFORMANCE_CONFIG.maps`:
+
+| Setting | Before | After | Purpose |
+|---------|--------|-------|---------|
+| maxHazardsPerView | 50 | 200 | Allow more markers, capped for performance |
+| clusteringThreshold | 10 | 8 | Cluster earlier for cleaner view |
+| preloadRadius | 2000m | 3000m | Preload larger area |
+| viewportBuffer | - | 0.2 | Load 20% beyond visible area |
+| debounceMs | - | 150ms | Debounce map move events |
+| clusterRadius | - | 80px | Better visual grouping |
+| disableClusteringAtZoom | 16 | 17 | Show individual markers later |
+
+### Clustering Improvements
+
+- **Chunked loading**: Markers load in batches for smooth UI
+- **No coverage hover**: Cleaner visual experience
+- **Increased spiderfy distance**: Better separation when clicking clusters
+
+### Viewport Filtering
+
+The Map component now:
+1. Only renders markers visible in the current viewport + 20% buffer
+2. Debounces updates when panning (150ms)
+3. Skips updates for insignificant movement (<5%)
+4. Caps visible markers at 200 for performance
+
+### Expected Impact
+
+- **Smoother panning** with large datasets
+- **Fewer DOM nodes** when viewing partial map
+- **Better visual grouping** with optimized clustering
+- **Reduced CPU usage** from debounced updates
 
 ---
 
@@ -207,6 +236,8 @@ precache  117 entries (1196.18 KiB)
 | `5590efb` | docs: Add HTTP caching strategy documentation |
 | `1c94521` | docs: Add cache invalidation strategy section |
 | `9427d92` | feat: Add Service Worker and PWA support (Phase 2) |
+| `685527e` | docs: Add Week 9 Performance implementation summary |
+| `6d5968c` | feat: Add map performance optimizations (Phase 3) |
 
 ---
 

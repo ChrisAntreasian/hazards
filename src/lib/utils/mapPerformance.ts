@@ -110,8 +110,8 @@ export function filterMarkersInViewport<T extends MarkerLocation>(
 
 		return filtered
 			.map(marker => {
-				const lat = typeof marker.latitude === 'string' ? parseFloat(marker.latitude) : marker.latitude;
-				const lng = typeof marker.longitude === 'string' ? parseFloat(marker.longitude) : marker.longitude;
+				const lat = typeof marker.latitude === 'string' ? parseFloat(marker.latitude) : (marker.latitude ?? 0);
+				const lng = typeof marker.longitude === 'string' ? parseFloat(marker.longitude) : (marker.longitude ?? 0);
 				const distance = Math.sqrt(Math.pow(lat - centerLat, 2) + Math.pow(lng - centerLng, 2));
 				return { marker, distance };
 			})
