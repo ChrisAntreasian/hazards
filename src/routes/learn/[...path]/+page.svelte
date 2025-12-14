@@ -133,50 +133,67 @@
     {/if}
   {:else}
     <!-- Template/Hazard Page -->
-    <div class="template-header">
-      <ContentHeader
-        icon={data.category.icon}
-        title={data.template.name}
-        description={data.template.short_description}
-        color={headerColor}
-      />
-
-      {#if data.template.danger_level}
-        <div class="danger-info">
-          <DangerBadge
-            level={data.template.danger_level}
-            size="large"
-            showLabel={true}
-            showDescription={true}
+    <div class="template-layout">
+      <div class="template-main">
+        <div class="template-header">
+          <ContentHeader
+            icon={data.category.icon}
+            title={data.template.name}
+            description={data.template.short_description}
+            color={headerColor}
           />
+
+          {#if data.template.danger_level}
+            <div class="danger-info">
+              <DangerBadge
+                level={data.template.danger_level}
+                size="large"
+                showLabel={true}
+                showDescription={true}
+              />
+            </div>
+          {/if}
+
+          {#if data.template.scientific_name}
+            <p class="scientific-name">
+              <em>{data.template.scientific_name}</em>
+            </p>
+          {/if}
         </div>
-      {/if}
 
-      {#if data.template.scientific_name}
-        <p class="scientific-name">
-          <em>{data.template.scientific_name}</em>
-        </p>
+        <div class="content-sections">
+          {#each data.sections as section}
+            <SectionRenderer {section} />
+          {/each}
+        </div>
+
+        <SiblingHazards
+          siblings={data.siblings}
+          currentSlug={data.template.slug}
+          basePath={siblingBasePath}
+          title="Related Hazards in {data.category.name}"
+        />
+      </div>
+
+      {#if data.template.image_url}
+        <aside class="template-sidebar">
+          <div class="hazard-image-card">
+            <img 
+              src={data.template.image_url} 
+              alt={data.template.image_alt || `${data.template.name} hazard`}
+              class="hazard-image"
+            />
+            <p class="image-caption">{data.template.name}</p>
+          </div>
+        </aside>
       {/if}
     </div>
-
-    <div class="content-sections">
-      {#each data.sections as section}
-        <SectionRenderer {section} />
-      {/each}
-    </div>
-
-    <SiblingHazards
-      siblings={data.siblings}
-      currentSlug={data.template.slug}
-      basePath={siblingBasePath}
-      title="Related Hazards in {data.category.name}"
-    />
   {/if}
 </div>
 
 <style>
   .learn-page {
-    max-width: 900px;
+    max-width: 1200px;
     margin: 0 auto;
     padding: 1rem 2rem 3rem;
   }
@@ -190,6 +207,17 @@
     font-weight: 600;
     color: #1e293b;
     margin: 0 0 1.5rem 0;
+  }
+
+  .template-layout {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 2rem;
+    align-items: start;
+  }
+
+  .template-main {
+    min-width: 0;
   }
 
   .template-header {
@@ -212,6 +240,52 @@
     border: 1px solid #e2e8f0;
     padding: 2rem;
     margin-bottom: 2rem;
+  }
+
+  .template-sidebar {
+    position: sticky;
+    top: 1rem;
+  }
+
+  .hazard-image-card {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  .hazard-image {
+    width: 100%;
+    height: 220px;
+    object-fit: cover;
+    display: block;
+  }
+
+  .image-caption {
+    padding: 0.75rem 1rem;
+    margin: 0;
+    font-size: 0.875rem;
+    color: #475569;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    text-align: center;
+    font-weight: 500;
+  }
+
+  @media (max-width: 900px) {
+    .template-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .template-sidebar {
+      position: static;
+      order: -1;
+    }
+
+    .hazard-image {
+      height: 200px;
+    }
   }
 
   @media (max-width: 768px) {

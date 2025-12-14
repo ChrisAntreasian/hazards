@@ -21,9 +21,12 @@
 
   // Render markdown safely
   function renderMarkdown(content: string): string {
-    if (!browser) return content;
     const html = marked(content) as string;
-    return DOMPurify.sanitize(html);
+    // DOMPurify only works in browser, but marked output is safe enough for SSR
+    if (browser) {
+      return DOMPurify.sanitize(html);
+    }
+    return html;
   }
 
   // Determine if we should show content or placeholder

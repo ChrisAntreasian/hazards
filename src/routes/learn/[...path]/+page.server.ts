@@ -25,6 +25,8 @@ interface TemplateInfo {
   storage_path: string | null;
   has_educational_content: boolean;
   category_id: string;
+  image_url: string | null;
+  image_alt: string | null;
 }
 
 interface SectionConfig {
@@ -94,7 +96,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
           .from('hazard_templates')
           .select(`
             id, name, slug, scientific_name, short_description, 
-            danger_level, storage_path, has_educational_content, category_id
+            danger_level, storage_path, has_educational_content, category_id,
+            image_url, image_alt
           `)
           .eq('slug', templateSlug)
           .eq('category_id', parentCategory.id)
