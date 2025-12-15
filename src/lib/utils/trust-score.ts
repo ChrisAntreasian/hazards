@@ -246,7 +246,7 @@ export async function getTrustScoreBreakdown(
       (config || []).map(c => [c.action_key, c.description])
     );
 
-    return (data || []).map(item => ({
+    return (data || []).map((item: { event_type: string; event_count: number; total_points: number }) => ({
       eventType: item.event_type,
       eventCount: Number(item.event_count),
       totalPoints: Number(item.total_points),

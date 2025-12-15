@@ -130,13 +130,22 @@ export const GET: RequestHandler = async ({ url, locals: { supabase }, setHeader
 			fields.includes('expires_at') || 
 			fields.includes('resolved_at');
 		
+		// Type assertion needed because hazards come from dynamic field selection
+		type HazardWithExpiration = {
+			resolved_at?: string | null;
+			expiration_type?: string | null;
+			expires_at?: string | null;
+			created_at?: string;
+			[key: string]: unknown;
+		};
+		
 		const activeHazards = hasExpirationFields 
-			? filterExpiredHazards(hazards || [])
+			? filterExpiredHazards((hazards || []) as unknown as HazardWithExpiration[])
 			: hazards || [];
 
 		// Calculate next cursor
 		const nextCursor = activeHazards.length === limit 
-			? activeHazards[activeHazards.length - 1]?.created_at 
+			? (activeHazards[activeHazards.length - 1] as HazardWithExpiration)?.created_at 
 			: null;
 
 		// Set cache headers (short cache for list)

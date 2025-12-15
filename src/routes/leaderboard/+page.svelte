@@ -15,7 +15,7 @@
       : data.leaderboard
   );
 
-  function changeTimeframe(timeframe: string) {
+  function changeTimeframe(timeframe: 'all_time' | 'month' | 'week') {
     goto(`?timeframe=${timeframe}`);
   }
 </script>
@@ -42,8 +42,8 @@
       <div class="timeframe-tabs">
         <button
           class="tab"
-          class:active={data.timeframe === "all"}
-          onclick={() => changeTimeframe("all")}
+          class:active={data.timeframe === "all_time"}
+          onclick={() => changeTimeframe("all_time")}
         >
           All Time
         </button>

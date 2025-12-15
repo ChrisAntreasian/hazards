@@ -74,14 +74,20 @@ export const GET: RequestHandler = async (event) => {
 		}));
 
 		// Format templates with category path
-		const formattedTemplates = (templates || []).map(t => ({
-			name: t.name,
-			slug: t.slug,
-			short_description: t.short_description,
-			danger_level: t.danger_level,
-			category_path: (t.hazard_categories as { path: string; name: string })?.path || '',
-			category_name: (t.hazard_categories as { path: string; name: string })?.name || ''
-		}));
+		const formattedTemplates = (templates || []).map(t => {
+			// hazard_categories can be an object or array depending on the join
+			const category = Array.isArray(t.hazard_categories) 
+				? t.hazard_categories[0] 
+				: t.hazard_categories;
+			return {
+				name: t.name,
+				slug: t.slug,
+				short_description: t.short_description,
+				danger_level: t.danger_level,
+				category_path: (category as { path: string; name: string } | null)?.path || '',
+				category_name: (category as { path: string; name: string } | null)?.name || ''
+			};
+		});
 
 		return json({
 			success: true,

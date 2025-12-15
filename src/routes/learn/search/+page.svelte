@@ -10,7 +10,7 @@
   let searchInput = $state(data.query);
 
   // Parse the "from" path to build meaningful breadcrumbs
-  const breadcrumbs = $derived<BreadcrumbItem[]>(() => {
+  const breadcrumbs = $derived.by<BreadcrumbItem[]>(() => {
     const items: BreadcrumbItem[] = [
       { label: "Learning Center", href: "/learn", isCurrentPage: false },
     ];
@@ -105,7 +105,7 @@
 </svelte:head>
 
 <div class="search-page">
-  <Breadcrumbs items={breadcrumbs()} />
+  <Breadcrumbs items={breadcrumbs} />
 
   <!-- Search Header -->
   <section class="search-header">

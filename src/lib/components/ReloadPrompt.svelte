@@ -9,6 +9,7 @@ onMount(async () => {
 if (typeof window === 'undefined') return;
 
 try {
+// @ts-ignore - virtual:pwa-register is a Vite virtual module only available at runtime
 const { registerSW } = await import('virtual:pwa-register');
 
 const updateSW = registerSW({
@@ -71,8 +72,8 @@ Update Now
 <span class="pwa-icon"></span>
 <span>App ready for offline use</span>
 </div>
-<button onclick={dismissOfflineReady} class="pwa-button dismiss">
-
+<button onclick={dismissOfflineReady} class="pwa-button dismiss" aria-label="Dismiss offline ready notification">
+✕
 </button>
 </div>
 {/if}

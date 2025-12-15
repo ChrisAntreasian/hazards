@@ -1,7 +1,7 @@
-<script>
+<script lang="ts">
   import { onMount } from "svelte";
 
-  let mapElement;
+  let mapElement: HTMLDivElement;
 
   onMount(async () => {
     console.log("Simple map test starting");
