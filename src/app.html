@@ -1,26 +1,34 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" href="%sveltekit.assets%/favicon.svg" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		
-		<!-- Performance optimizations -->
-		<link rel="preconnect" href="https://unpkg.com" crossorigin>
-		<link rel="dns-prefetch" href="https://fonts.gstatic.com">
-		
-		<!-- Leaflet CSS with optimized loading -->
-		<link rel="preload" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
-			  as="style" onload="this.onload=null;this.rel='stylesheet'">
-		<noscript>
-			<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
-				  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" 
-				  crossorigin="">
-		</noscript>
-		
-		%sveltekit.head%
-	</head>
-	<body data-sveltekit-preload-data="hover">
-		<div style="display: contents">%sveltekit.body%</div>
-	</body>
+<head>
+<meta charset="utf-8" />
+<link rel="icon" href="%sveltekit.assets%/favicon.svg" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<!-- PWA Meta Tags -->
+<meta name="theme-color" content="#3b82f6" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.svg" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="description" content="Community hazard reporting for outdoor safety" />
+
+<!-- Performance optimizations -->
+<link rel="preconnect" href="https://unpkg.com" crossorigin>
+<link rel="dns-prefetch" href="https://fonts.gstatic.com">
+
+<!-- Leaflet CSS with optimized loading -->
+<link rel="preload" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+as="style" onload="this.onload=null;this.rel='stylesheet'">
+<noscript>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+crossorigin="">
+</noscript>
+
+%sveltekit.head%
+</head>
+<body data-sveltekit-preload-data="hover">
+<div style="display: contents">%sveltekit.body%</div>
+</body>
 </html>

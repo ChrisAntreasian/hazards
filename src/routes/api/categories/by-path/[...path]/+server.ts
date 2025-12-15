@@ -1,7 +1,8 @@
 import { json, error } from '@sveltejs/kit';
+import { setCacheHeaders } from '$lib/utils/cache';
 import type { RequestHandler } from './$types';
 
-export const GET: RequestHandler = async ({ params, locals }) => {
+export const GET: RequestHandler = async ({ params, locals, setHeaders }) => {
   const supabase = locals.supabase;
   
   if (!supabase) {

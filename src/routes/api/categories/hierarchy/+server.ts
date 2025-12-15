@@ -1,7 +1,8 @@
 import { json, error } from '@sveltejs/kit';
+import { setCacheHeaders } from '$lib/utils/cache';
 import type { RequestHandler } from './$types';
 
-export const GET: RequestHandler = async ({ locals }) => {
+export const GET: RequestHandler = async ({ locals, setHeaders }) => {
   const supabase = locals.supabase;
   
   if (!supabase) {
@@ -78,7 +79,10 @@ export const GET: RequestHandler = async ({ locals }) => {
       (cat as any).children = enrichedCategories.filter(c => c.parent_id === cat.id);
     }
 
-    return json({
+      // Cache categories for 1 day (they rarely change)
+  setCacheHeaders(setHeaders, 'categories');
+
+  return json({
       success: true,
       categories: rootCategories,
       stats: {

@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
   import "../app.css";
   import { invalidate } from "$app/navigation";
   import { goto } from "$app/navigation";
@@ -14,6 +14,7 @@
   } from "$lib/stores/auth.js";
   import { preserveAuthState } from "$lib/utils/sessionUtils.js";
   import { detectPasswordResetContext } from "$lib/utils/routeProtection.js";
+  import ReloadPrompt from "$lib/components/ReloadPrompt.svelte";
 
   let { children, data } = $props();
   const supabase = createSupabaseLoadClient();
@@ -62,6 +63,8 @@
   }
 </script>
 
+<ReloadPrompt />
+
 <div class="app">
   <header>
     <nav class="navbar">
@@ -73,13 +76,13 @@
           <a href="/dashboard">Dashboard</a>
           <a href="/profile">Profile</a>
           {#if userRole === "admin" || userRole === "moderator"}
-            <a href="/moderation" class="mod-link">⚖️ Moderation</a>
+            <a href="/moderation" class="mod-link">âšï Moderation</a>
           {/if}
           {#if userRole === "admin"}
-            <a href="/admin" class="admin-link">👑 Admin</a>
+            <a href="/admin" class="admin-link">ðŸ'' Admin</a>
           {/if}
           {#if dev}
-            <a href="/dev" class="dev-link">🔧 Dev</a>
+            <a href="/dev" class="dev-link">ðŸ" Dev</a>
           {/if}
           <button onclick={handleSignOut}>Sign Out</button>
         {:else}
@@ -179,7 +182,7 @@
     flex: 1;
     padding: 2rem;
     width: 100%;
-    max-width: none; /* Full width for map */
+    max-width: none;
     margin: 0;
     box-sizing: border-box;
   }
