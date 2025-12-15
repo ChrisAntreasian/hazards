@@ -1,4 +1,4 @@
-﻿import { sveltekit } from '@sveltejs/kit/vite';
+import { sveltekit } from '@sveltejs/kit/vite';
 import { SvelteKitPWA } from '@vite-pwa/sveltekit';
 import { defineConfig } from 'vite';
 
@@ -108,7 +108,7 @@ maxAgeSeconds: 31536000 // 1 year
 ]
 },
 devOptions: {
-enabled: true,
+enabled: false,
 type: 'module'
 }
 })
