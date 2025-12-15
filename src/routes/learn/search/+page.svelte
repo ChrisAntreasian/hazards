@@ -23,7 +23,8 @@
         if (part) {
           currentPath += `/${part}`;
           items.push({
-            label: part.charAt(0).toUpperCase() + part.slice(1).replace(/-/g, " "),
+            label:
+              part.charAt(0).toUpperCase() + part.slice(1).replace(/-/g, " "),
             href: currentPath,
             isCurrentPage: false,
           });
@@ -70,16 +71,19 @@
 
   // Format path for display
   function formatPath(path: string): string {
-    return path.split("/").map(p => 
-      p.charAt(0).toUpperCase() + p.slice(1).replace(/-/g, " ")
-    ).join(" › ");
+    return path
+      .split("/")
+      .map((p) => p.charAt(0).toUpperCase() + p.slice(1).replace(/-/g, " "))
+      .join(" › ");
   }
 
   // Handle new search
   function handleSearch(e: Event) {
     e.preventDefault();
     if (searchInput.trim().length >= 2) {
-      goto(`/learn/search?q=${encodeURIComponent(searchInput.trim())}&from=${encodeURIComponent(data.from)}`);
+      goto(
+        `/learn/search?q=${encodeURIComponent(searchInput.trim())}&from=${encodeURIComponent(data.from)}`
+      );
     }
   }
 
@@ -106,7 +110,7 @@
   <!-- Search Header -->
   <section class="search-header">
     <h1>🔍 Search Results</h1>
-    
+
     <!-- Search Form -->
     <form class="search-form" onsubmit={handleSearch}>
       <div class="search-input-wrapper">
@@ -138,7 +142,10 @@
 
     {#if data.query}
       <p class="results-summary">
-        Found <strong>{data.totalResults}</strong> result{data.totalResults === 1 ? '' : 's'} for "<strong>{data.query}</strong>"
+        Found <strong>{data.totalResults}</strong> result{data.totalResults ===
+        1
+          ? ""
+          : "s"} for "<strong>{data.query}</strong>"
       </p>
     {/if}
   </section>
@@ -151,7 +158,10 @@
     <div class="no-results">
       <h2>No results found</h2>
       <p>No matches for "<strong>{data.query}</strong>"</p>
-      <p class="hint">Try different keywords or browse the <a href="/learn">Learning Center</a></p>
+      <p class="hint">
+        Try different keywords or browse the <a href="/learn">Learning Center</a
+        >
+      </p>
     </div>
   {:else}
     <!-- Hazard Guides Section -->
@@ -193,8 +203,12 @@
         <div class="categories-grid">
           {#each topLevelCategories as category}
             <a href="/learn/{category.path}" class="category-card">
-              <div class="category-header bg-gradient-to-br {getCategoryColor(category.path)}">
-                <span class="category-icon">{category.icon || '📁'}</span>
+              <div
+                class="category-header bg-gradient-to-br {getCategoryColor(
+                  category.path
+                )}"
+              >
+                <span class="category-icon">{category.icon || "📁"}</span>
               </div>
               <div class="category-body">
                 <h3>{category.name}</h3>
@@ -218,14 +232,20 @@
         <div class="subcategories-list">
           {#each subcategories as category}
             <a href="/learn/{category.path}" class="subcategory-card">
-              <div class="subcategory-icon-wrapper bg-gradient-to-br {getCategoryColor(category.path)}">
-                <span class="subcategory-icon">{category.icon || '📄'}</span>
+              <div
+                class="subcategory-icon-wrapper bg-gradient-to-br {getCategoryColor(
+                  category.path
+                )}"
+              >
+                <span class="subcategory-icon">{category.icon || "📄"}</span>
               </div>
               <div class="subcategory-info">
                 <h3>{category.name}</h3>
                 <p class="subcategory-path">{formatPath(category.path)}</p>
                 {#if category.short_description}
-                  <p class="subcategory-description">{category.short_description}</p>
+                  <p class="subcategory-description">
+                    {category.short_description}
+                  </p>
                 {/if}
               </div>
               <span class="subcategory-arrow">→</span>
@@ -238,8 +258,8 @@
 
   <!-- Back Link -->
   <div class="back-section">
-    <a href={data.from || '/learn'} class="back-link">
-      ← Back to {data.from === '/learn' ? 'Learning Center' : 'previous page'}
+    <a href={data.from || "/learn"} class="back-link">
+      ← Back to {data.from === "/learn" ? "Learning Center" : "previous page"}
     </a>
   </div>
 </div>

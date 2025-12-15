@@ -37,7 +37,9 @@
   function handleSearch(e: Event) {
     e.preventDefault();
     if (searchQuery.trim().length >= 2) {
-      goto(`/learn/search?q=${encodeURIComponent(searchQuery.trim())}&from=/learn`);
+      goto(
+        `/learn/search?q=${encodeURIComponent(searchQuery.trim())}&from=/learn`
+      );
     }
   }
 </script>
