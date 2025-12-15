@@ -66,7 +66,7 @@
 
 ### 🔄 **IN PROGRESS FEATURES**
 
-#### **Week 8: CMS Integration** (70% Complete) 🔄
+#### **Week 8: CMS Integration** (85% Complete) 🔄
 - ✅ **Educational content types** (database schema)
 - ✅ **Educational linking component** (EducationalLink.svelte)
 - ✅ **Educational links utility** (template_id to storage lookup)
@@ -75,9 +75,11 @@
 - ✅ **Learn page components** (7 components: Breadcrumbs, ContentHeader, NavigationGrid, DangerBadge, ComingSoon, SectionRenderer, SiblingHazards)
 - ✅ **Category section configuration** (section definitions per category type)
 - ✅ **Educational content seeding** (admin API + seed script ready)
-- 🔄 **Actual educational content** (Poison Ivy content ready, needs storage upload)
-- ❌ **Hazard templates & guides** (content seeding pending service role key)
-- ❌ **Regional content management** (pending CMS completion)
+- ✅ **Learning Center search** (dedicated search page with full results)
+- ✅ **Search API** (searches templates, categories, and subcategories)
+- ✅ **Hazard templates published** (Poison Ivy, Yellow Jacket, Loose Rock/Scree)
+- 🔄 **Regional content management** (pending CMS completion)
+- 🔄 **Admin category editing** (section visibility, custom slugs - UI ready)
 
 #### **Week 9: Performance** (60% Complete) 🔄
 - ✅ **Database indexing** (PostGIS spatial indexes)
@@ -267,8 +269,9 @@ The community reporting workflow encompasses the complete lifecycle of hazard ma
 | Hazard Voting | 60% | 100% | +40% ✅ |
 | Community Reporting | 60% | 100% | +40% ✅ |
 | Category Management | 0% | 100% | +100% ✅ |
-| CMS Integration | 10% | 70% | +60% 🔄 |
-| Educational Links | 0% | 80% | +80% 🔄 |
+| CMS Integration | 10% | 85% | +75% 🔄 |
+| Educational Links | 0% | 90% | +90% ✅ |
+| Learning Center | 0% | 95% | +95% ✅ |
 | Performance | 60% | 60% | 0% |
 | Testing | 50% | 50% | 0% |
 | Deployment | 20% | 20% | 0% |
@@ -278,8 +281,8 @@ The community reporting workflow encompasses the complete lifecycle of hazard ma
 ## 🎯 **Current Status Assessment**
 
 **Timeline Position**: Week 14+ of 12 (past original timeline)  
-**Actual Feature Completion**: ~90% of core planned features completed  
-**Timeline Status**: ⚠️ MVP ready, CMS integration in progress  
+**Actual Feature Completion**: ~92% of core planned features completed  
+**Timeline Status**: ⚠️ MVP ready, CMS integration nearly complete  
 **Core Infrastructure**: ✅ Solid - All major features working
 
 ### 🌟 **Major Achievements Since November**
@@ -289,6 +292,8 @@ The community reporting workflow encompasses the complete lifecycle of hazard ma
 4. ✅ **Resolution Workflow** - Submit, confirm, dispute, auto-resolve
 5. ✅ **Category Management** - Suggestions, review, provisional creation
 6. ✅ **Educational Links** - Component and utility for template linking
+7. ✅ **Learning Center Search** - Dedicated search page with categories, subcategories, and hazard guides
+8. ✅ **Database-driven Navigation** - Recursive routing with breadcrumbs for all learn pages
 
 ---
 
@@ -305,7 +310,8 @@ The community reporting workflow encompasses the complete lifecycle of hazard ma
 - 🟢 **Voting System**: Complete with optimistic updates
 - 🟢 **Flagging System**: Complete with trust score integration
 - 🟢 **Resolution Workflow**: Complete lifecycle support
-- 🟡 **CMS Integration**: In progress
+- 🟢 **Learning Center**: Database-driven with search functionality
+- 🟡 **CMS Integration**: 85% complete - content management ready
 - 🔴 **Production Readiness**: Not configured
 
 ### **Database Migrations**:
