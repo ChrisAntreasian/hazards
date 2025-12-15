@@ -66,7 +66,7 @@
   <header>
     <nav class="navbar">
       <div class="nav-brand">
-        <a href="/">🚨 Hazards</a>
+        <a href="/">&#x1F6A8; Hazards</a>
       </div>
       <div class="nav-links">
         {#if $isAuthenticated && !$displayAsLoggedOut}
