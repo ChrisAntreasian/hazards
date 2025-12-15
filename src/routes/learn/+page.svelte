@@ -2,8 +2,12 @@
   import type { PageData } from "./$types";
   import { NavigationGrid, Breadcrumbs } from "$lib/components/learn";
   import type { BreadcrumbItem } from "$lib/utils/learn-navigation";
+  import { goto } from "$app/navigation";
 
   let { data }: { data: PageData } = $props();
+
+  // Search state
+  let searchQuery = $state("");
 
   // Category color mapping for gradients
   const categoryColors: Record<string, string> = {
@@ -28,6 +32,14 @@
       color: categoryColors[cat.path] || "from-blue-500 to-indigo-600",
     }))
   );
+
+  // Handle search submission - redirect to search page
+  function handleSearch(e: Event) {
+    e.preventDefault();
+    if (searchQuery.trim().length >= 2) {
+      goto(`/learn/search?q=${encodeURIComponent(searchQuery.trim())}&from=/learn`);
+    }
+  }
 </script>
 
 <svelte:head>
@@ -48,6 +60,49 @@
       Comprehensive guides to help you identify, prevent, and respond to outdoor
       hazards
     </p>
+
+    <!-- Search Bar -->
+    <form class="search-container" onsubmit={handleSearch}>
+      <div class="search-input-wrapper">
+        <svg
+          class="search-icon"
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="m21 21-4.3-4.3"></path>
+        </svg>
+        <input
+          type="text"
+          bind:value={searchQuery}
+          placeholder="Search hazards, categories, guides..."
+          class="search-input"
+          aria-label="Search learning center"
+        />
+        <button type="submit" class="search-submit" aria-label="Search">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="m9 18 6-6-6-6"></path>
+          </svg>
+        </button>
+      </div>
+    </form>
   </section>
 
   <!-- Category Grid -->
@@ -315,6 +370,66 @@
     opacity: 0.95;
   }
 
+  /* Search Styles */
+  .search-container {
+    margin-top: 2rem;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .search-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 1rem;
+    color: #94a3b8;
+    pointer-events: none;
+  }
+
+  .search-input {
+    flex: 1;
+    padding: 1rem 1rem 1rem 3rem;
+    font-size: 1.125rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    background: white;
+    color: #1e293b;
+    transition: all 0.2s ease;
+  }
+
+  .search-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  }
+
+  .search-input::placeholder {
+    color: #94a3b8;
+  }
+
+  .search-submit {
+    padding: 1rem;
+    background: #2563eb;
+    border: none;
+    border-radius: 12px;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease;
+  }
+
+  .search-submit:hover {
+    background: #1d4ed8;
+  }
+
   /* Responsive Design */
   @media (max-width: 768px) {
     .learn-page {
@@ -327,6 +442,11 @@
 
     .hero-subtitle {
       font-size: 1rem;
+    }
+
+    .search-input {
+      font-size: 1rem;
+      padding: 0.875rem 0.875rem 0.875rem 2.5rem;
     }
 
     .categories-grid {

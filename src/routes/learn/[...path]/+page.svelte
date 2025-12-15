@@ -178,8 +178,8 @@
       {#if data.template.image_url}
         <aside class="template-sidebar">
           <div class="hazard-image-card">
-            <img 
-              src={data.template.image_url} 
+            <img
+              src={data.template.image_url}
               alt={data.template.image_alt || `${data.template.name} hazard`}
               class="hazard-image"
             />

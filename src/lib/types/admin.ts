@@ -5,22 +5,41 @@ import type { User } from '@supabase/supabase-js';
 export interface AdminCategoryData {
   id?: string;
   name: string;
+  slug?: string;
   parent_id?: string;
   level?: number;
   path?: string;
   icon?: string;
+  description?: string;
+  short_description?: string;
+  status?: 'active' | 'pending' | 'archived';
   created_at?: string;
 }
 
 export interface CategoryTreeNode {
   id: string;
   name: string;
+  slug?: string;
   parent_id?: string;
   level: number;
-  path: string[];
+  path: string[] | string;
   icon?: string;
+  description?: string;
+  short_description?: string;
+  status?: string;
   created_at?: string;
   children: CategoryTreeNode[];
+}
+
+export interface CategorySectionConfig {
+  id: string;
+  category_id: string | null;
+  section_id: string;
+  section_title: string;
+  is_universal: boolean;
+  is_required: boolean;
+  display_order: number;
+  prompt_hint?: string;
 }
 
 export interface CategoryManagementState {
@@ -137,8 +156,11 @@ export interface PaginatedResponse<T> extends AdminApiResponse<T[]> {
 // Form validation types
 export interface CategoryFormData {
   name: string;
+  slug: string;
   parent_id: string;
   icon: string;
+  description: string;
+  short_description: string;
 }
 
 export interface UserFormData {

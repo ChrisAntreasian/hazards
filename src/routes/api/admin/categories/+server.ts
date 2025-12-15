@@ -35,10 +35,14 @@ export const GET: RequestHandler = async (event) => {
       .select(`
         id,
         name,
+        slug,
         parent_id,
         level,
         path,
         icon,
+        description,
+        short_description,
+        status,
         created_at
       `)
       .order('level', { ascending: true });
@@ -56,10 +60,14 @@ export const GET: RequestHandler = async (event) => {
       const node: CategoryTreeNode = {
         id: cat.id,
         name: cat.name,
+        slug: cat.slug,
         parent_id: cat.parent_id,
         level: cat.level || 0,
-        path: cat.path ? cat.path.split('/') : [],
+        path: cat.path || '',
         icon: cat.icon,
+        description: cat.description,
+        short_description: cat.short_description,
+        status: cat.status,
         created_at: cat.created_at,
         children: []
       };
@@ -140,7 +148,8 @@ export const POST: RequestHandler = async (event) => {
 
     // Calculate level and path
     let level = 0;
-    let pathString = categoryData.name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    let slug = categoryData.slug?.trim() || categoryData.name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    let pathString = slug;
     
     if (categoryData.parent_id) {
       const { data: parentCategory } = await supabase
@@ -151,7 +160,7 @@ export const POST: RequestHandler = async (event) => {
       
       if (parentCategory) {
         level = parentCategory.level + 1;
-        pathString = `${parentCategory.path}/${pathString}`;
+        pathString = `${parentCategory.path}/${slug}`;
       }
     }
 
@@ -160,10 +169,14 @@ export const POST: RequestHandler = async (event) => {
       .from('hazard_categories')
       .insert({
         name: categoryData.name.trim(),
+        slug: slug,
         parent_id: categoryData.parent_id || null,
         level: level,
         path: pathString,
-        icon: categoryData.icon || null
+        icon: categoryData.icon || null,
+        description: categoryData.description || null,
+        short_description: categoryData.short_description || null,
+        status: 'active'
       })
       .select()
       .single();
@@ -283,23 +296,34 @@ export const PUT: RequestHandler = async (event) => {
     if (updateData.name !== undefined) {
       filteredUpdateData.name = updateData.name;
     }
+    if (updateData.slug !== undefined) {
+      filteredUpdateData.slug = updateData.slug;
+    }
     if (updateData.parent_id !== undefined) {
       filteredUpdateData.parent_id = updateData.parent_id;
     }
     if (updateData.icon !== undefined) {
       filteredUpdateData.icon = updateData.icon;
     }
+    if (updateData.description !== undefined) {
+      filteredUpdateData.description = updateData.description;
+    }
+    if (updateData.short_description !== undefined) {
+      filteredUpdateData.short_description = updateData.short_description;
+    }
 
-    // Recalculate level and path if parent_id is being updated
-    if (filteredUpdateData.parent_id !== undefined) {
+    // Recalculate level and path if parent_id or slug is being updated
+    if (filteredUpdateData.parent_id !== undefined || filteredUpdateData.slug !== undefined) {
       let level = 0;
       let pathString = '';
       
-      if (filteredUpdateData.parent_id) {
+      const parentId = filteredUpdateData.parent_id ?? (await supabase.from('hazard_categories').select('parent_id').eq('id', id).single()).data?.parent_id;
+      
+      if (parentId) {
         const { data: parentCategory } = await supabase
           .from('hazard_categories')
           .select('level, path, name')
-          .eq('id', filteredUpdateData.parent_id)
+          .eq('id', parentId)
           .single();
         
         if (parentCategory) {
@@ -307,15 +331,14 @@ export const PUT: RequestHandler = async (event) => {
         }
       }
 
-      // Get current category name for path (use new name if being updated)
-      const categoryName = filteredUpdateData.name || 
-        (await supabase.from('hazard_categories').select('name').eq('id', id).single()).data?.name;
+      // Get the slug to use for path (use new slug if being updated, otherwise existing)
+      const slugToUse = filteredUpdateData.slug || 
+        (await supabase.from('hazard_categories').select('slug').eq('id', id).single()).data?.slug;
       
-      if (categoryName) {
-        const slugName = categoryName.toLowerCase().replace(/[^a-z0-9]/g, '_');
-        pathString = filteredUpdateData.parent_id 
-          ? `${(await supabase.from('hazard_categories').select('path').eq('id', filteredUpdateData.parent_id).single()).data?.path}/${slugName}`
-          : slugName;
+      if (slugToUse) {
+        pathString = parentId 
+          ? `${(await supabase.from('hazard_categories').select('path').eq('id', parentId).single()).data?.path}/${slugToUse}`
+          : slugToUse;
       }
 
       filteredUpdateData.level = level;
