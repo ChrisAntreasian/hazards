@@ -78,8 +78,22 @@
 - ✅ **Learning Center search** (dedicated search page with full results)
 - ✅ **Search API** (searches templates, categories, and subcategories)
 - ✅ **Hazard templates published** (Poison Ivy, Yellow Jacket, Loose Rock/Scree)
-- 🔄 **Regional content management** (pending CMS completion)
-- 🔄 **Admin category editing** (section visibility, custom slugs - UI ready)
+- 🔄 **Regional content management** (~30% complete)
+  - ✅ Database: `regions` table exists (Boston area seeded), `regional_variations` JSONB column on hazards
+  - ✅ Types: `USRegion` type, `REGIONS` mapping, `RegionalContent` interface complete
+  - ✅ Service: `parseRegionalContent()` parses markdown by region headers
+  - ❌ Missing: Admin UI to edit regional notes per hazard
+  - ❌ Missing: Region selection UI for users to personalize content
+  - ❌ Missing: Additional regions beyond Boston (need seeding)
+  - **To complete**: Build admin regional content editor, add region selector to user settings, seed additional regions
+- 🔄 **Admin category editing** (~70% complete)
+  - ✅ UI: Full CategoryManagement.svelte (1188 lines) with tree view, icon picker, CRUD operations
+  - ✅ API: Category CRUD at `/api/admin/categories`, sections API at `/api/admin/categories/sections`
+  - ✅ Custom slugs: Form field and API support exist, auto-generates if blank
+  - ⚠️ Section visibility: Toggle exists in UI, but `category_section_config` table may need migration verification
+  - ❌ Missing: Cannot create new section types from UI (only toggle existing)
+  - ❌ Missing: Section display order editing, prompt hint editing
+  - **To complete**: Verify `category_section_config` migration exists, add section creation UI if needed
 
 #### **Week 9: Performance** (100% Complete) ✅
 - ✅ **Database indexing** (PostGIS spatial indexes)

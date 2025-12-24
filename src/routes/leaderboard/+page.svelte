@@ -15,7 +15,7 @@
       : data.leaderboard
   );
 
-  function changeTimeframe(timeframe: 'all_time' | 'month' | 'week') {
+  function changeTimeframe(timeframe: "all_time" | "month" | "week") {
     goto(`?timeframe=${timeframe}`);
   }
 </script>
