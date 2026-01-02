@@ -5,7 +5,15 @@ import { defineConfig, devices } from '@playwright/test';
  * See https://playwright.dev/docs/test-configuration.
  */
 export default defineConfig({
-  testDir: './e2e',
+  testDir: './src/test',
+  
+  /* Maximum time one test can run for */
+  timeout: 30 * 1000,
+  
+  /* Timeout for each assertion */
+  expect: {
+    timeout: 5000,
+  },
   
   /* Run tests in files in parallel */
   fullyParallel: true,
@@ -21,38 +29,67 @@ export default defineConfig({
   
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
-    ['html'],
-    ['list']
+    ['html', { outputFolder: 'playwright-report' }],
+    ['list'],
+    ['json', { outputFile: 'playwright-report/results.json' }]
   ],
 
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'http://localhost:5173',
+    baseURL: process.env.BASE_URL || 'http://localhost:5173',
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: 'on-first-retry',
+    trace: 'retain-on-failure',
 
     /* Screenshot on failure */
     screenshot: 'only-on-failure',
+    
+    /* Video on failure */
+    video: 'retain-on-failure',
+    
+    /* Maximum time for navigation */
+    navigationTimeout: 15000,
+    
+    /* Action timeout */
+    actionTimeout: 10000,
   },
 
   /* Configure projects for major browsers */
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { 
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1920, height: 1080 },
+      },
     },
 
-    // Uncomment to test on more browsers
-    // {
-    //   name: 'firefox',
-    //   use: { ...devices['Desktop Firefox'] },
-    // },
-    // {
-    //   name: 'webkit',
-    //   use: { ...devices['Desktop Safari'] },
-    // },
+    {
+      name: 'firefox',
+      use: { 
+        ...devices['Desktop Firefox'],
+        viewport: { width: 1920, height: 1080 },
+      },
+    },
+
+    {
+      name: 'webkit',
+      use: { 
+        ...devices['Desktop Safari'],
+        viewport: { width: 1920, height: 1080 },
+      },
+    },
+    
+    /* Test against mobile viewports. */
+    {
+      name: 'Mobile Chrome',
+      use: { ...devices['Pixel 5'] },
+    },
+    {
+      name: 'Mobile Safari',
+      use: { ...devices['iPhone 12'] },
+    },
   ],
 
   /* Run your local dev server before starting the tests */
@@ -62,5 +99,7 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     stdout: 'ignore',
     stderr: 'pipe',
+    timeout: 120 * 1000,
   },
 });
+
