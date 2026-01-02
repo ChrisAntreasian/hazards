@@ -123,7 +123,13 @@ describe('GET /api/admin/categories', () => {
 
     const event = createMockEvent();
     
-    await expect(GET(event)).rejects.toThrow();
+    try {
+      await GET(event);
+      expect.fail('Should have thrown error');
+    } catch (err: any) {
+      // SvelteKit error() creates an HttpError with body.status
+      expect(err.body?.status || err.status).toBe(401);
+    }
   });
 
   it('should return 403 if user is not admin/moderator', async () => {
@@ -145,7 +151,12 @@ describe('GET /api/admin/categories', () => {
 
     const event = createMockEvent();
     
-    await expect(GET(event)).rejects.toThrow();
+    try {
+      await GET(event);
+      expect.fail('Should have thrown error');
+    } catch (err: any) {
+      expect(err.body?.status || err.status).toBe(403);
+    }
   });
 });
 
@@ -315,7 +326,12 @@ describe('POST /api/admin/categories', () => {
       })
     });
 
-    await expect(POST(event)).rejects.toThrow();
+    try {
+      await POST(event);
+      expect.fail('Should have thrown error');
+    } catch (err: any) {
+      expect(err.body?.status || err.status).toBe(400);
+    }
   });
 });
 
@@ -412,7 +428,12 @@ describe('DELETE /api/admin/categories', () => {
       url: new URL('http://localhost/api/admin/categories?id=cat-1')
     });
 
-    await expect(DELETE(event)).rejects.toThrow();
+    try {
+      await DELETE(event);
+      expect.fail('Should have thrown error');
+    } catch (err: any) {
+      expect(err.status || err.body?.status).toBe(400);
+    }
   });
 
   it('should return 400 if category ID is missing', async () => {
@@ -434,6 +455,11 @@ describe('DELETE /api/admin/categories', () => {
 
     const event = createMockEvent();
 
-    await expect(DELETE(event)).rejects.toThrow();
+    try {
+      await DELETE(event);
+      expect.fail('Should have thrown error');
+    } catch (err: any) {
+      expect(err.body?.status || err.status).toBe(400);
+    }
   });
 });

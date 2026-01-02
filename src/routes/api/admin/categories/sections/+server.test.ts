@@ -83,12 +83,21 @@ describe('GET /api/admin/categories/sections', () => {
 
     const mockSectionsQuery = {
       select: vi.fn().mockReturnThis(),
-      order: vi.fn().mockReturnThis(),
-      or: vi.fn().mockResolvedValue({
+      order: vi.fn().mockResolvedValue({
+        data: mockSections,
+        error: null
+      }),
+      or: vi.fn().mockReturnThis()
+    };
+    
+    // Make order return data after or is called too
+    mockSectionsQuery.or = vi.fn().mockReturnValue({
+      ...mockSectionsQuery,
+      order: vi.fn().mockResolvedValue({
         data: mockSections,
         error: null
       })
-    };
+    });
 
     mockSupabase.from.mockImplementation((table: string) => {
       if (table === 'users') return mockUserQuery;
@@ -166,7 +175,12 @@ describe('GET /api/admin/categories/sections', () => {
 
     const event = createMockEvent();
     
-    await expect(GET(event)).rejects.toThrow();
+    try {
+      await GET(event);
+      expect.fail('Should have thrown error');
+    } catch (err: any) {
+      expect(err.body?.status || err.status).toBe(403);
+    }
   });
 });
 
@@ -258,7 +272,12 @@ describe('POST /api/admin/categories/sections', () => {
       })
     });
 
-    await expect(POST(event)).rejects.toThrow();
+    try {
+      await POST(event);
+      expect.fail('Should have thrown error');
+    } catch (err: any) {
+      expect(err.body?.status || err.status).toBe(400);
+    }
   });
 
   it('should normalize section_id to lowercase with underscores', async () => {
@@ -349,16 +368,26 @@ describe('DELETE /api/admin/categories/sections', () => {
       })
     };
 
-    const mockDeleteQuery = {
-      delete: vi.fn().mockReturnThis(),
+    const mockSectionQuery = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue({
+        data: { is_universal: false },
+        error: null
+      }),
+      delete: vi.fn().mockReturnThis()
+    };
+    
+    // Setup delete chain
+    mockSectionQuery.delete = vi.fn().mockReturnValue({
       eq: vi.fn().mockResolvedValue({
         error: null
       })
-    };
+    });
 
     mockSupabase.from.mockImplementation((table: string) => {
       if (table === 'users') return mockUserQuery;
-      if (table === 'category_section_config') return mockDeleteQuery;
+      if (table === 'category_section_config') return mockSectionQuery;
       return mockUserQuery;
     });
 
@@ -393,6 +422,10 @@ describe('DELETE /api/admin/categories/sections', () => {
 
     const event = createMockEvent();
 
-    await expect(DELETE(event)).rejects.toThrow();
+    try {
+      await DELETE(event);
+      expect.fail('Should have thrown error');
+    } catch (err: any) {\n      expect(err.body?.status || err.status).toBe(400);
+    }
   });
 });
