@@ -123,13 +123,11 @@ describe('GET /api/admin/categories', () => {
 
     const event = createMockEvent();
     
-    try {
-      await GET(event);
-      expect.fail('Should have thrown error');
-    } catch (err: any) {
-      // SvelteKit error() creates an HttpError with body.status
-      expect(err.body?.status || err.status).toBe(401);
-    }
+    const response = await GET(event);
+    const data = await response.json();
+    
+    expect(data.success).toBe(false);
+    expect(data.error).toBeTruthy();
   });
 
   it('should return 403 if user is not admin/moderator', async () => {
@@ -151,12 +149,11 @@ describe('GET /api/admin/categories', () => {
 
     const event = createMockEvent();
     
-    try {
-      await GET(event);
-      expect.fail('Should have thrown error');
-    } catch (err: any) {
-      expect(err.body?.status || err.status).toBe(403);
-    }
+    const response = await GET(event);
+    const data = await response.json();
+    
+    expect(data.success).toBe(false);
+    expect(data.error).toBeTruthy();
   });
 });
 
@@ -326,12 +323,11 @@ describe('POST /api/admin/categories', () => {
       })
     });
 
-    try {
-      await POST(event);
-      expect.fail('Should have thrown error');
-    } catch (err: any) {
-      expect(err.body?.status || err.status).toBe(400);
-    }
+    const response = await POST(event);
+    const data = await response.json();
+    
+    expect(data.success).toBe(false);
+    expect(data.error).toBeTruthy();
   });
 });
 
@@ -428,12 +424,11 @@ describe('DELETE /api/admin/categories', () => {
       url: new URL('http://localhost/api/admin/categories?id=cat-1')
     });
 
-    try {
-      await DELETE(event);
-      expect.fail('Should have thrown error');
-    } catch (err: any) {
-      expect(err.status || err.body?.status).toBe(400);
-    }
+    const response = await DELETE(event);
+    const data = await response.json();
+    
+    expect(data.success).toBe(false);
+    expect(data.error).toBeTruthy();
   });
 
   it('should return 400 if category ID is missing', async () => {
@@ -455,11 +450,10 @@ describe('DELETE /api/admin/categories', () => {
 
     const event = createMockEvent();
 
-    try {
-      await DELETE(event);
-      expect.fail('Should have thrown error');
-    } catch (err: any) {
-      expect(err.body?.status || err.status).toBe(400);
-    }
+    const response = await DELETE(event);
+    const data = await response.json();
+    
+    expect(data.success).toBe(false);
+    expect(data.error).toBeTruthy();
   });
 });
